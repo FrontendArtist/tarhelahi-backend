@@ -1,0 +1,68 @@
+{
+  "kind": "collectionType",
+  "collectionName": "orders",
+  "info": {
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "Order "
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "fullName": {
+      "type": "string",
+      "required": true
+    },
+    "address": {
+      "type": "text",
+      "required": true
+    },
+    "postalCode": {
+      "type": "string",
+      "required": true
+    },
+    "phone": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "email",
+      "required": true
+    },
+    "notes": {
+      "type": "text"
+    },
+    "totalPrice": {
+      "type": "decimal"
+    },
+    "paymentMethod": {
+      "type": "string"
+    },
+    "orderStatus": {
+      "type": "enumeration",
+      "default": "pending",
+      "enum": [
+        "shipped ",
+        "paid ",
+        "pending",
+        "canceled ",
+        "delivered "
+      ]
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "orders"
+    },
+    "items": {
+      "type": "dynamiczone",
+      "components": [
+        "order.product-order-item",
+        "order.course-order-item"
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "messages",
+  "info": {
+    "singularName": "message",
+    "pluralName": "messages",
+    "displayName": "Message "
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "subject": {
+      "type": "string",
+      "required": true
+    },
+    "body": {
+      "type": "blocks",
+      "required": true
+    },
+    "messsageStatus": {
+      "type": "enumeration",
+      "enum": [
+        "closed ",
+        "open "
+      ]
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "messages"
+    },
+    "parent": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::message.message",
+      "mappedBy": "replies"
+    },
+    "replies": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::message.message",
+      "inversedBy": "parent"
+    }
+  }
+}

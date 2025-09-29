@@ -1,0 +1,10 @@
+{
+  "collectionName": "components_order_course_order_items",
+  "info": {
+    "displayName": "CourseOrderItem",
+    "icon": "stack"
+  },
+  "options": {},
+  "attributes": {},
+  "config": {}
+}

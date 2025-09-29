@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_order_product_order_items",
+  "info": {
+    "displayName": "ProductOrderItem",
+    "icon": "shoppingCart"
+  },
+  "options": {},
+  "attributes": {
+    "product": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::product.product"
+    },
+    "quantity": {
+      "type": "integer"
+    }
+  },
+  "config": {}
+}
