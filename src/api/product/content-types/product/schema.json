@@ -24,12 +24,12 @@
       "type": "blocks"
     },
     "price": {
-      "type": "decimal",
-      "required": true
+      "type": "decimal"
     },
     "images": {
       "type": "media",
       "multiple": true,
+      "required": true,
       "allowedTypes": [
         "images",
         "files",

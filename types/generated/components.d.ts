@@ -16,7 +16,6 @@ export interface OrderProductOrderItem extends Struct.ComponentSchema {
     icon: 'shoppingCart';
   };
   attributes: {
-    product: Schema.Attribute.Relation<'oneToOne', 'api::product.product'>;
     quantity: Schema.Attribute.Integer;
   };
 }

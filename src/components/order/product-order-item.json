@@ -6,11 +6,6 @@
   },
   "options": {},
   "attributes": {
-    "product": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::product.product"
-    },
     "quantity": {
       "type": "integer"
     }
