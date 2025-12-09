@@ -11,23 +11,39 @@
   },
   "pluginOptions": {},
   "attributes": {
-    "text": {
+    "name": {
       "type": "string",
       "required": true
     },
     "slug": {
       "type": "uid",
-      "targetField": "text",
       "required": true
-    },
-    "description": {
-      "type": "text"
     },
     "products": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::product.product",
       "inversedBy": "categories"
+    },
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "parent": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category",
+      "inversedBy": "subCategories"
+    },
+    "subCategories": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::category.category",
+      "mappedBy": "parent"
     }
   }
 }

@@ -1,0 +1,38 @@
+{
+  "kind": "collectionType",
+  "collectionName": "contact_messages",
+  "info": {
+    "singularName": "contact-message",
+    "pluralName": "contact-messages",
+    "displayName": "ContactMessage"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "contactInfo": {
+      "type": "string",
+      "required": true,
+      "unique": false,
+      "regex": "^(09\\d{9}|[^\\s@]+@[^\\s@]+\\.[^\\s@]+)$"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "text",
+      "minLength": 20,
+      "maxLength": 2000,
+      "required": true
+    },
+    "isRead": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

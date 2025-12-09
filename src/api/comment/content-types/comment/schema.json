@@ -6,6 +6,7 @@
     "pluralName": "comments",
     "displayName": "Comment "
   },
+  "displayField": "content",
   "options": {
     "draftAndPublish": true
   },
@@ -33,23 +34,33 @@
       "target": "api::course.course",
       "inversedBy": "comments"
     },
-    "replies": {
+    "comment_replies": {
       "type": "relation",
       "relation": "oneToMany",
       "target": "api::comment.comment",
-      "mappedBy": "parent"
+      "mappedBy": "comment_parent"
     },
-    "parent": {
+    "comment_parent": {
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::comment.comment",
-      "inversedBy": "replies"
+      "inversedBy": "comment_replies"
     },
-    "product": {
+    "product": {  
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::product.product",
       "inversedBy": "comments"
+    },
+    "rating": {
+      "type": "integer",
+      "min": 0,
+      "max": 5
+    },
+    "isApproved": {
+      "type": "boolean",
+      "required": true,
+      "default": false
     }
   }
 }
