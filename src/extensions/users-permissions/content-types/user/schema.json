@@ -108,6 +108,37 @@
       "relation": "oneToMany",
       "target": "api::message.message",
       "mappedBy": "user"
+    },
+    "address": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::address.address",
+      "inversedBy": "user"
+    },
+    "phoneNumber": {
+      "type": "string",
+      "unique": true
+    },
+    "otpCode": {
+      "type": "string",
+      "private": true
+    },
+    "otpExpiresAt": {
+      "type": "datetime",
+      "private": true
+    },
+    "firstName": {
+      "type": "string"
+    },
+    "lastName": {
+      "type": "string"
+    },
+    "isMobileVerified": {
+      "type": "boolean",
+      "default": false
+    },
+    "cartData": {
+      "type": "json"
     }
   }
 }

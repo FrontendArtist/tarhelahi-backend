@@ -6,7 +6,6 @@
     "pluralName": "comments",
     "displayName": "Comment "
   },
-  "displayField": "content",
   "options": {
     "draftAndPublish": true
   },
@@ -46,7 +45,7 @@
       "target": "api::comment.comment",
       "inversedBy": "comment_replies"
     },
-    "product": {  
+    "product": {
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::product.product",
