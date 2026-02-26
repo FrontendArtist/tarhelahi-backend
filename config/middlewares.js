@@ -1,26 +1,23 @@
 // path: ./config/middlewares.js
-module.exports = [
+module.exports = ({ env }) => [
   'strapi::logger',
   'strapi::errors',
-  {
-    name: 'strapi::security',
-    config: {
-      contentSecurityPolicy: {
-        useDefaults: true,
-        directives: {
-          'connect-src': ["'self'", 'https:'],
-          'img-src': ["'self'", 'data:', 'blob:', 'https://tarhelahi-nodejs.liara.run'],
-          'media-src': ["'self'", 'data:', 'blob:', 'https://tarhelahi-nodejs.liara.run'],
-          upgradeInsecureRequests: null, // این خط را اضافه کن
-        },
-      },
-    },
-  },
+  'strapi::security',
   'strapi::cors',
   'strapi::poweredBy',
   'strapi::query',
   'strapi::body',
-  'strapi::session',
+  // بخش سشن را به این صورت اصلاح کن:
+  {
+    name: 'strapi::session',
+    config: {
+      cookie: {
+        secure: env('NODE_ENV') === 'production', // در پروداکشن حتما true باشد
+        sameSite: 'lax',
+        httpOnly: true,
+      },
+    },
+  },
   'strapi::favicon',
   'strapi::public',
 ];
