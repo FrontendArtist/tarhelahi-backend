@@ -1,0 +1,10 @@
+{
+    "platform": "node",
+    "port": 1337,
+    "disks": [
+        {
+            "name": "tarhelahi-disk",
+            "mountTo": "public/uploads"
+        }
+    ]
+}

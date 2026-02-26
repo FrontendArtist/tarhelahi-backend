@@ -4,12 +4,9 @@ module.exports = ({ env }) => ({
   connection: {
     client: 'postgres',
     connection: {
-      host: '127.0.0.1',
-      port: 5432,
-      database: 'tarhelahi_db',
-      user: 'postgres',
-      password: '2131380', // <-- مطمئن شوید این رمز عبور صحیح است
-      ssl: false,
+      // Strapi v5 با استفاده از connectionString مستقیم به URI وصل می‌شود
+      connectionString: env('DATABASE_URL'),
+      ssl: false, // چون شبکه عمومی لیارا فعلاً بدون گواهی مستقیم است
     },
     debug: false,
   },

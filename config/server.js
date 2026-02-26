@@ -3,13 +3,24 @@
 module.exports = ({ env }) => ({
   host: env('HOST', '0.0.0.0'),
   port: env.int('PORT', 1337),
-  // highlight-start
-  url: env('PUBLIC_URL', 'https://tarhelahi.vercel.app'), // ⚠️ این خط مهم است
-  // highlight-end
+  url: env('STRAPI_ADMIN_BACKEND_URL', 'https://tarhelahi-nodejs.liara.run'),
+  // این خط حیاتی است: به استراپی می‌گوید که پشت پروکسی لیارا است
+  proxy: env.bool('IS_PROXIED', true), 
   app: {
     keys: env.array('APP_KEYS'),
   },
-  webhooks: {
-    populateRelations: env.bool('WEBHOOKS_POPULATE_RELATIONS', false),
+  admin: {
+    auth: {
+      events: {
+        onConnectionError(e) {
+          console.error(e);
+        },
+      },
+    },
+    // تنظیمات کوکی برای محیط پروداکشن
+    forgotPassword: {
+      from: 'no-reply@tarhelahi.ir',
+      replyTo: 'support@tarhelahi.ir',
+    },
   },
 });

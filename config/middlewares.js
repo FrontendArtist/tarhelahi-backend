@@ -9,12 +9,12 @@ module.exports = [
     config: {
       enabled: true,
       headers: '*',
-      // IMPORTANT: Add your Vercel frontend URL here
       origin: [
-        'http://localhost:3000', // Your local frontend
-        'http://localhost:1337', // Your local Strapi
-        'https://tarhelahi.vercel.app', // <-- ⚠️ **اینجا را با آدرس Vercel خود جایگزین کن**
-          'https://www.tarhelahi.vercel.app' // <-- ⚠️ اگر دامنه شخصی داری، اینجا اضافه کن
+        'http://localhost:3000', 
+        'http://localhost:1337',
+        // آدرس‌های جدید لیارا (فرانت و بک)
+        'https://tarhelahi-nodejs.liara.run', 
+        'https://tarhelahi.liara.run' // <-- این احتمالا آدرس فرانت‌اِند آینده توست
       ],
     },
   },
