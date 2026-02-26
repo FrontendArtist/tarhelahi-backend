@@ -6,10 +6,7 @@ module.exports = ({ env }) => {
     'strapi::logger',
     'strapi::errors',
 
-    // ─── Security / CSP ────────────────────────────────────────────────────
-    // contentSecurityPolicy is configured to allow the Admin UI assets and
-    // connections. Without relaxing connect-src and frame-ancestors the
-    // browser can block the Admin login XHR even though the server responds.
+    // Security / CSP — relaxed connect-src so Admin login XHR isn't blocked
     {
       name: 'strapi::security',
       config: {
@@ -33,22 +30,18 @@ module.exports = ({ env }) => {
     'strapi::favicon',
     'strapi::public',
 
-    // ─── Session ───────────────────────────────────────────────────────────
-    // proxy: true  → the session middleware will read X-Forwarded-Proto to
-    //                determine whether the connection is secure.
-    // secure cookie → only sent over HTTPS, but because proxy: true is set
-    //                 above, Koa correctly resolves ctx.secure = true when
-    //                 X-Forwarded-Proto: https is present.
+    // Session — Koa-level app.proxy is set via src/index.js register(),
+    // so ctx.secure resolves correctly from X-Forwarded-Proto: https.
+    // proxy: true here is belt-and-suspenders for the session middleware itself.
     {
       name: 'strapi::session',
       config: {
         proxy: true,
         rolling: false,
         cookie: {
-          secure: isProduction, // true in production, false in local dev
+          secure: isProduction,
           httpOnly: true,
           sameSite: 'lax',
-          // maxAge: 86400000, // 1 day in ms (optional)
         },
       },
     },
