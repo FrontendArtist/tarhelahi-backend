@@ -7,17 +7,19 @@ module.exports = ({ env }) => [
   'strapi::poweredBy',
   'strapi::query',
   'strapi::body',
-  // بخش سشن را به این صورت اصلاح کن:
+  // --- اصلاح بخش سشن ---
   {
     name: 'strapi::session',
     config: {
+      proxy: true, // این خط کلید حل معما در Strapi 5 است!
       cookie: {
-        secure: env('NODE_ENV') === 'production', // در پروداکشن حتما true باشد
+        secure: true, // چون لیارا HTTPS است
         sameSite: 'lax',
         httpOnly: true,
       },
     },
   },
+  // ----------------------
   'strapi::favicon',
   'strapi::public',
 ];
