@@ -1,3 +1,4 @@
+// path: ./config/server.js
 
 module.exports = ({ env }) => ({
   host: env('HOST', '0.0.0.0'),
@@ -7,17 +8,14 @@ module.exports = ({ env }) => ({
   app: {
     keys: env.array('APP_KEYS'),
   },
+
   admin: {
     auth: {
-      events: {
-        onConnectionError(e) {
-          console.error(e);
-        },
-      },
+      secret: env('ADMIN_JWT_SECRET'),
     },
-    forgotPassword: {
-      from: 'no-reply@tarhelahi.ir',
-      replyTo: 'support@tarhelahi.ir',
+
+    options: {
+      isSSO: false,
     },
   },
 });

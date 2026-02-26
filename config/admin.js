@@ -10,11 +10,13 @@ module.exports = ({ env }) => ({
       salt: env('TRANSFER_TOKEN_SALT'),
     },
   },
-  secrets: {
-    encryptionKey: env('ENCRYPTION_KEY'),
+  // اضافه کردن این بخش برای حل مشکل Session در لیارا
+  forgotPassword: {
+    from: 'no-reply@tarhelahi.ir',
+    replyTo: 'support@tarhelahi.ir',
   },
-  flags: {
-    nps: env.bool('FLAG_NPS', true),
-    promoteEE: env.bool('FLAG_PROMOTE_EE', true),
+  options: {
+    // اطمینان از اینکه استراپی کوکی‌ها را در حالت امن مدیریت می‌کند
+    isSSO: false,
   },
 });
