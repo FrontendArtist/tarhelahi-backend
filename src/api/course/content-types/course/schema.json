@@ -51,6 +51,11 @@
       "relation": "oneToMany",
       "target": "api::comment.comment",
       "mappedBy": "course"
+    },
+    "curriculum": {
+      "type": "component",
+      "component": "course-parts.lesson",
+      "repeatable": true
     }
   }
 }
