@@ -6,8 +6,23 @@
   },
   "options": {},
   "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "price": {
+      "type": "decimal"
+    },
     "quantity": {
       "type": "integer"
+    },
+    "productId": {
+      "type": "integer"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "itemUrl": {
+      "type": "string"
     }
   },
   "config": {}

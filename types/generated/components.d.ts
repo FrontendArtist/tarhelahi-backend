@@ -22,7 +22,13 @@ export interface OrderCourseOrderItem extends Struct.ComponentSchema {
     displayName: 'CourseOrderItem';
     icon: 'stack';
   };
-  attributes: {};
+  attributes: {
+    courseId: Schema.Attribute.Integer;
+    itemUrl: Schema.Attribute.String;
+    price: Schema.Attribute.Decimal;
+    slug: Schema.Attribute.String;
+    title: Schema.Attribute.String;
+  };
 }
 
 export interface OrderProductOrderItem extends Struct.ComponentSchema {
@@ -32,7 +38,12 @@ export interface OrderProductOrderItem extends Struct.ComponentSchema {
     icon: 'shoppingCart';
   };
   attributes: {
+    itemUrl: Schema.Attribute.String;
+    price: Schema.Attribute.Decimal;
+    productId: Schema.Attribute.Integer;
     quantity: Schema.Attribute.Integer;
+    slug: Schema.Attribute.String;
+    title: Schema.Attribute.String;
   };
 }
 

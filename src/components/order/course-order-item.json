@@ -5,6 +5,22 @@
     "icon": "stack"
   },
   "options": {},
-  "attributes": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "price": {
+      "type": "decimal"
+    },
+    "courseId": {
+      "type": "integer"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "itemUrl": {
+      "type": "string"
+    }
+  },
   "config": {}
 }
