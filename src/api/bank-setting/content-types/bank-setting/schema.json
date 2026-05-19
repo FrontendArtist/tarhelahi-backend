@@ -1,0 +1,28 @@
+{
+    "kind": "singleType",
+    "collectionName": "bank_settings",
+    "info": {
+        "singularName": "bank-setting",
+        "pluralName": "bank-settings",
+        "displayName": "Bank Setting",
+        "description": "اطلاعات کارت بانکی فروشگاه برای پرداخت کارت‌به‌کارت"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "bankName": {
+            "type": "string",
+            "required": true
+        },
+        "cardNumber": {
+            "type": "string",
+            "required": true
+        },
+        "accountHolder": {
+            "type": "string",
+            "required": true
+        }
+    }
+}

@@ -544,6 +544,37 @@ export interface ApiArticlesCategoryArticlesCategory
   };
 }
 
+export interface ApiBankSettingBankSetting extends Struct.SingleTypeSchema {
+  collectionName: 'bank_settings';
+  info: {
+    description: '\u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC \u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u0628\u0631\u0627\u06CC \u067E\u0631\u062F\u0627\u062E\u062A \u06A9\u0627\u0631\u062A\u200C\u0628\u0647\u200C\u06A9\u0627\u0631\u062A';
+    displayName: 'Bank Setting';
+    pluralName: 'bank-settings';
+    singularName: 'bank-setting';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    accountHolder: Schema.Attribute.String & Schema.Attribute.Required;
+    bankName: Schema.Attribute.String & Schema.Attribute.Required;
+    cardNumber: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::bank-setting.bank-setting'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   collectionName: 'categories';
   info: {
@@ -826,6 +857,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   };
   attributes: {
     address: Schema.Attribute.Text & Schema.Attribute.Required;
+    cardHolderName: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -842,11 +874,18 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       ['shipped ', 'paid ', 'pending', 'canceled ', 'delivered ']
     > &
       Schema.Attribute.DefaultTo<'pending'>;
-    paymentMethod: Schema.Attribute.String;
+    paymentMethod: Schema.Attribute.Enumeration<['online', 'card_to_card']> &
+      Schema.Attribute.DefaultTo<'online'>;
+    paymentStatus: Schema.Attribute.Enumeration<
+      ['pending_payment', 'pending_verification', 'paid', 'failed']
+    > &
+      Schema.Attribute.DefaultTo<'pending_payment'>;
     phone: Schema.Attribute.String & Schema.Attribute.Required;
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    receiptImage: Schema.Attribute.Media<'images'>;
     totalPrice: Schema.Attribute.Decimal;
+    trackingNumber: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1566,6 +1605,7 @@ declare module '@strapi/strapi' {
       'api::address.address': ApiAddressAddress;
       'api::article.article': ApiArticleArticle;
       'api::articles-category.articles-category': ApiArticlesCategoryArticlesCategory;
+      'api::bank-setting.bank-setting': ApiBankSettingBankSetting;
       'api::category.category': ApiCategoryCategory;
       'api::comment.comment': ApiCommentComment;
       'api::contact-message.contact-message': ApiContactMessageContactMessage;

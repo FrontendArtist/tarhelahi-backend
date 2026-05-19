@@ -37,9 +37,6 @@
     "totalPrice": {
       "type": "decimal"
     },
-    "paymentMethod": {
-      "type": "string"
-    },
     "orderStatus": {
       "type": "enumeration",
       "default": "pending",
@@ -50,6 +47,38 @@
         "canceled ",
         "delivered "
       ]
+    },
+    "paymentMethod": {
+      "type": "enumeration",
+      "enum": [
+        "online",
+        "card_to_card"
+      ],
+      "default": "online"
+    },
+    "paymentStatus": {
+      "type": "enumeration",
+      "enum": [
+        "pending_payment",
+        "pending_verification",
+        "paid",
+        "failed"
+      ],
+      "default": "pending_payment"
+    },
+    "receiptImage": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "trackingNumber": {
+      "type": "string"
+    },
+    "cardHolderName": {
+      "type": "string"
     },
     "user": {
       "type": "relation",
