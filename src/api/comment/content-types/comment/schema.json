@@ -11,6 +11,11 @@
   },
   "pluginOptions": {},
   "attributes": {
+    "name": {
+      "type": "string",
+      "default": "سالک",
+      "required": false
+    },
     "content": {
       "type": "text",
       "required": true
