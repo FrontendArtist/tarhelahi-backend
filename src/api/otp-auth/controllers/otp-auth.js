@@ -53,50 +53,55 @@ module.exports = {
     },
 
     // 2. منطق تایید کد یکبار مصرف (OTP)
-    async verify(ctx) {
-        const { phoneNumber, otpCode } = ctx.request.body;
+// 2. منطق تایید کد یکبار مصرف (OTP)
+async verify(ctx) {
+    const { phoneNumber, otpCode } = ctx.request.body;
 
-        if (!phoneNumber || !otpCode) {
-            throw new ApplicationError('شماره موبایل و کد تایید الزامی است.');
-        }
+    if (!phoneNumber || !otpCode) {
+        throw new ApplicationError('شماره موبایل و کد تایید الزامی است.');
+    }
 
-        const user = await strapi.db.query('plugin::users-permissions.user').findOne({
-            where: { phoneNumber },
-        });
+    // تغییر اصلی: اضافه کردن populate برای فیلد role
+    const user = await strapi.db.query('plugin::users-permissions.user').findOne({
+        where: { phoneNumber },
+        populate: ['role'], 
+    });
 
-        if (!user) {
-            throw new NotFoundError('کاربری با این شماره موبایل یافت نشد.');
-        }
+    if (!user) {
+        throw new NotFoundError('کاربری با این شماره موبایل یافت نشد.');
+    }
 
-        // چک کردن کد (حالا هر دو 6 رقمی هستند)
-        if (user.otpCode !== otpCode) {
-            throw new ApplicationError('کد تایید اشتباه است.');
-        }
-        
-        if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-            throw new ApplicationError('کد تایید منقضی شده است. لطفا دوباره درخواست دهید.');
-        }
-        
-        // پاک کردن کد پس از تایید موفق
-        await strapi.db.query('plugin::users-permissions.user').update({
-            where: { id: user.id },
-            data: { 
-                otpCode: null, 
-                otpExpiresAt: null,
-                isMobileVerified: true,
-            },
-        });
-        
-        // صدور JWT
-        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: user.id });
-// فقط فیلدهای امن را برگردان
-const sanitizedUser = {
-    id: user.id,
-    username: user.username,
-    phoneNumber: user.phoneNumber,
-    email: user.email,
-};
-return ctx.send({ jwt, user: sanitizedUser });
+    // چک کردن کد 
+    if (user.otpCode !== otpCode) {
+        throw new ApplicationError('کد تایید اشتباه است.');
+    }
+    
+    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+        throw new ApplicationError('کد تایید منقضی شده است. لطفا دوباره درخواست دهید.');
+    }
+    
+    // پاک کردن کد پس از تایید موفق
+    await strapi.db.query('plugin::users-permissions.user').update({
+        where: { id: user.id },
+        data: { 
+            otpCode: null, 
+            otpExpiresAt: null,
+            isMobileVerified: true,
+        },
+    });
+    
+    // صدور JWT
+    const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: user.id });
 
-    },
+    // بازگرداندن فیلدها شامل role
+    const sanitizedUser = {
+        id: user.id,
+        username: user.username,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        role: user.role, // اکنون نقش کاربر در پاسخ وجود دارد
+    };
+    
+    return ctx.send({ jwt, user: sanitizedUser });
+},
 };
