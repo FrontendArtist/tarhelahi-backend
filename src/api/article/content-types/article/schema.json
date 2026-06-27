@@ -24,7 +24,7 @@
       "type": "text"
     },
     "content": {
-      "type": "blocks"
+      "type": "richtext"
     },
     "cover": {
       "type": "media",
