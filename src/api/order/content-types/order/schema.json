@@ -41,11 +41,11 @@
       "type": "enumeration",
       "default": "pending",
       "enum": [
-        "shipped ",
-        "paid ",
+        "shipped",
+        "paid",
         "pending",
-        "canceled ",
-        "delivered "
+        "canceled",
+        "delivered"
       ]
     },
     "paymentMethod": {

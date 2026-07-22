@@ -1,0 +1,180 @@
+'use strict';
+
+/**
+ * Order Lifecycle Hooks for Strapi v5
+ * Automatically connects courses & enrolledChapters to the User when order status becomes paid.
+ * Updates relations from the Course (Owner) side to ensure they display in the Strapi Admin UI.
+ */
+
+async function syncUserPurchases(orderIdentifier) {
+  try {
+    if (!orderIdentifier) return;
+
+    let order = null;
+    const isNumeric =
+      typeof orderIdentifier === 'number' ||
+      (typeof orderIdentifier === 'string' && /^\d+$/.test(orderIdentifier));
+
+    // 1. Load order (try numeric id first, then documentId string)
+    if (isNumeric) {
+      order = await strapi.db.query('api::order.order').findOne({
+        where: { id: Number(orderIdentifier) },
+        populate: ['user', 'items'],
+      });
+    }
+
+    if (!order) {
+      const orders = await strapi.db.query('api::order.order').findMany({
+        where: { document_id: String(orderIdentifier) },
+        populate: ['user', 'items'],
+        orderBy: { id: 'asc' },
+      });
+      order = orders?.[0] || null;
+    }
+
+    if (!order || !order.user) return;
+
+    // 2. Check if paid
+    const orderStatusPaid =
+      typeof order.orderStatus === 'string' && order.orderStatus.trim() === 'paid';
+    const paymentStatusPaid =
+      typeof order.paymentStatus === 'string' && order.paymentStatus.trim() === 'paid';
+
+    if (!orderStatusPaid && !paymentStatusPaid) return;
+
+    const userId = order.user.id;
+    const items = order.items || [];
+
+    const courseIdsToConnect = new Set();
+    const chapterIdsToConnect = new Set();
+
+    for (const item of items) {
+      // Chapter purchase
+      if (item.chapterId) {
+        chapterIdsToConnect.add(Number(item.chapterId));
+      } else if (item.courseId || item.slug) {
+        // Full course purchase
+        let targetCourse = null;
+
+        if (item.courseId && (typeof item.courseId === 'number' || /^\d+$/.test(String(item.courseId)))) {
+          const courses = await strapi.db.query('api::course.course').findMany({
+            where: {
+              $or: [
+                { id: Number(item.courseId) },
+              ],
+              published_at: { $notNull: true },
+            },
+          });
+          targetCourse = courses?.[0] || null;
+
+          if (!targetCourse) {
+            targetCourse = await strapi.db.query('api::course.course').findOne({
+              where: { id: Number(item.courseId) },
+            });
+          }
+        }
+
+        if (!targetCourse && item.slug) {
+          const cleanSlug = item.slug.includes('-chapter-')
+            ? item.slug.split('-chapter-')[0]
+            : item.slug;
+          const courses = await strapi.db.query('api::course.course').findMany({
+            where: {
+              slug: cleanSlug,
+              published_at: { $notNull: true },
+            },
+          });
+          targetCourse = courses?.[0] || null;
+
+          if (!targetCourse) {
+            targetCourse = await strapi.db.query('api::course.course').findOne({
+              where: { slug: cleanSlug },
+            });
+          }
+        }
+
+        if (targetCourse && targetCourse.id) {
+          courseIdsToConnect.add(targetCourse.id);
+        }
+      }
+    }
+
+    // 3. Fetch user
+    const user = await strapi.db.query('plugin::users-permissions.user').findOne({
+      where: { id: userId },
+    });
+
+    if (!user) return;
+
+    // 4. Sync courses relation (Update from Course side to ensure Admin UI registers the join)
+    if (courseIdsToConnect.size > 0) {
+      for (const courseId of courseIdsToConnect) {
+        const course = await strapi.db.query('api::course.course').findOne({
+          where: { id: courseId },
+          populate: ['users_permissions_users'],
+        });
+
+        if (course) {
+          const existingUserIds = (course.users_permissions_users || []).map((u) => u.id).filter(Boolean);
+          const mergedUserIds = [...new Set([...existingUserIds, userId])];
+
+          await strapi.db.query('api::course.course').update({
+            where: { id: courseId },
+            data: {
+              users_permissions_users: mergedUserIds,
+            },
+          });
+        }
+      }
+      console.log(`[Order Lifecycle] ✅ Connected courses [${Array.from(courseIdsToConnect)}] to user ${userId} from Course (Owner) side`);
+    }
+
+    // 5. Sync enrolledChapters JSON field
+    if (chapterIdsToConnect.size > 0) {
+      const existingChapters = Array.isArray(user.enrolledChapters)
+        ? user.enrolledChapters.map(Number)
+        : [];
+      const newChapterIds = Array.from(chapterIdsToConnect);
+      const mergedChapters = [...new Set([...existingChapters, ...newChapterIds])];
+
+      await strapi.db.query('plugin::users-permissions.user').update({
+        where: { id: userId },
+        data: {
+          enrolledChapters: mergedChapters,
+        },
+      });
+
+      console.log(`[Order Lifecycle] ✅ Connected chapters [${mergedChapters}] to user ${userId}`);
+    }
+
+    console.log(`[Order Lifecycle] ✅ Synced user ${userId} purchases successfully`);
+  } catch (error) {
+    console.error('[Order Lifecycle Error]:', error.message || error);
+  }
+}
+
+module.exports = {
+  async afterCreate(event) {
+    try {
+      const { result } = event;
+      const targetId = result?.id || result?.documentId;
+      if (targetId) {
+        await syncUserPurchases(targetId);
+      }
+    } catch (err) {
+      console.error('[afterCreate Error]:', err.message || err);
+    }
+  },
+
+  async afterUpdate(event) {
+    try {
+      const { result } = event;
+      const targetId = result?.id || result?.documentId;
+      if (targetId) {
+        await syncUserPurchases(targetId);
+      }
+    } catch (err) {
+      console.error('[afterUpdate Error]:', err.message || err);
+    }
+  },
+};

@@ -1,0 +1,29 @@
+{
+  "collectionName": "components_course_parts_chapters",
+  "info": {
+    "displayName": "chapter",
+    "description": "فصل‌های دوره آموزشی به همراه قیمت و دروس داخلی",
+    "icon": "bulletList"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "price": {
+      "type": "decimal",
+      "default": 0
+    },
+    "duration": {
+      "type": "string",
+      "default": "00:00"
+    },
+    "lessons": {
+      "type": "component",
+      "component": "course-parts.lesson",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

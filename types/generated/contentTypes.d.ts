@@ -505,10 +505,6 @@ export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    users: Schema.Attribute.Relation<
-      'manyToMany',
-      'plugin::users-permissions.user'
-    >;
   };
 }
 
@@ -698,10 +694,17 @@ export interface ApiContactMessageContactMessage
       Schema.Attribute.Private;
     name: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    replies: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<[]>;
+    status: Schema.Attribute.Enumeration<['open', 'closed', 'pending']> &
+      Schema.Attribute.DefaultTo<'open'>;
     subject: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
   };
 }
 
@@ -716,12 +719,14 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    chapters: Schema.Attribute.Component<'course-parts.chapter', true>;
     comments: Schema.Attribute.Relation<'oneToMany', 'api::comment.comment'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     curriculum: Schema.Attribute.Component<'course-parts.lesson', true>;
     description: Schema.Attribute.Blocks;
+    isChaptered: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isFree: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -873,7 +878,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     notes: Schema.Attribute.Text;
     orderStatus: Schema.Attribute.Enumeration<
-      ['shipped ', 'paid ', 'pending', 'canceled ', 'delivered ']
+      ['shipped', 'paid', 'pending', 'canceled', 'delivered']
     > &
       Schema.Attribute.DefaultTo<'pending'>;
     paymentMethod: Schema.Attribute.Enumeration<['online', 'card_to_card']> &
@@ -1543,10 +1548,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
-    enrolled_courses: Schema.Attribute.Relation<
-      'manyToMany',
-      'api::article.article'
-    >;
+    enrolledChapters: Schema.Attribute.JSON;
     firstName: Schema.Attribute.String;
     isMobileVerified: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;

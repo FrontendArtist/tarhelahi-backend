@@ -15,6 +15,9 @@
     "courseId": {
       "type": "integer"
     },
+    "chapterId": {
+      "type": "integer"
+    },
     "slug": {
       "type": "string"
     },

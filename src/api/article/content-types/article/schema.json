@@ -45,12 +45,7 @@
     "publishedat": {
       "type": "datetime"
     },
-    "users": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "plugin::users-permissions.user",
-      "mappedBy": "enrolled_courses"
-    },
+
     "comments": {
       "type": "relation",
       "relation": "oneToMany",

@@ -33,6 +33,24 @@
     "isRead": {
       "type": "boolean",
       "default": false
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "open",
+        "closed",
+        "pending"
+      ],
+      "default": "open"
+    },
+    "replies": {
+      "type": "json",
+      "default": []
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
     }
   }
 }

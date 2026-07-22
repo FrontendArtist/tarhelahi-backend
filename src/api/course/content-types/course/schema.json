@@ -40,6 +40,15 @@
       "type": "boolean",
       "default": false
     },
+    "isChaptered": {
+      "type": "boolean",
+      "default": false
+    },
+    "chapters": {
+      "type": "component",
+      "component": "course-parts.chapter",
+      "repeatable": true
+    },
     "users_permissions_users": {
       "type": "relation",
       "relation": "manyToMany",

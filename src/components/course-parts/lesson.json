@@ -12,7 +12,7 @@
     "isFree": {
       "type": "boolean",
       "required": true,
-      "default": true
+      "default": false
     },
     "videoUrl": {
       "type": "string",
