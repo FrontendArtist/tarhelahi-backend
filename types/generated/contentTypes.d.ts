@@ -782,7 +782,7 @@ export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
 export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
   collectionName: 'messages';
   info: {
-    displayName: 'Message ';
+    displayName: 'Message';
     pluralName: 'messages';
     singularName: 'message';
   };
@@ -790,7 +790,7 @@ export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
-    body: Schema.Attribute.Blocks & Schema.Attribute.Required;
+    body: Schema.Attribute.Text & Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -800,11 +800,16 @@ export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
       'api::message.message'
     > &
       Schema.Attribute.Private;
-    messsageStatus: Schema.Attribute.Enumeration<['closed ', 'open ']>;
-    parent: Schema.Attribute.Relation<'oneToMany', 'api::message.message'>;
+    messageType: Schema.Attribute.Enumeration<
+      ['instructor', 'contact', 'support']
+    > &
+      Schema.Attribute.DefaultTo<'instructor'>;
+    metaData: Schema.Attribute.JSON;
     publishedAt: Schema.Attribute.DateTime;
-    replies: Schema.Attribute.Relation<'manyToOne', 'api::message.message'>;
-    subject: Schema.Attribute.String & Schema.Attribute.Required;
+    replies: Schema.Attribute.JSON & Schema.Attribute.DefaultTo<[]>;
+    status: Schema.Attribute.Enumeration<['open', 'answered', 'closed']> &
+      Schema.Attribute.DefaultTo<'open'>;
+    subject: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

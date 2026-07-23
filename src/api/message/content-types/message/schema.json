@@ -4,7 +4,7 @@
   "info": {
     "singularName": "message",
     "pluralName": "messages",
-    "displayName": "Message "
+    "displayName": "Message"
   },
   "options": {
     "draftAndPublish": true
@@ -12,37 +12,42 @@
   "pluginOptions": {},
   "attributes": {
     "subject": {
-      "type": "string",
-      "required": true
+      "type": "string"
     },
     "body": {
-      "type": "blocks",
+      "type": "text",
       "required": true
     },
-    "messsageStatus": {
+    "messageType": {
       "type": "enumeration",
       "enum": [
-        "closed ",
-        "open "
-      ]
+        "instructor",
+        "contact",
+        "support"
+      ],
+      "default": "instructor"
+    },
+    "metaData": {
+      "type": "json"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "open",
+        "answered",
+        "closed"
+      ],
+      "default": "open"
+    },
+    "replies": {
+      "type": "json",
+      "default": []
     },
     "user": {
       "type": "relation",
       "relation": "manyToOne",
       "target": "plugin::users-permissions.user",
       "inversedBy": "messages"
-    },
-    "parent": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::message.message",
-      "mappedBy": "replies"
-    },
-    "replies": {
-      "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::message.message",
-      "inversedBy": "parent"
     }
   }
 }
