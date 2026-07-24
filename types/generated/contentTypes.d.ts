@@ -779,6 +779,38 @@ export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiMentorFormSettingMentorFormSetting
+  extends Struct.SingleTypeSchema {
+  collectionName: 'mentor_form_settings';
+  info: {
+    description: '\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0641\u0631\u0645 \u067E\u06CC\u0634\u200C\u0646\u06CC\u0627\u0632 \u0627\u0631\u062A\u0628\u0627\u0637 \u0628\u0627 \u0627\u0633\u062A\u0627\u062F';
+    displayName: 'Mentor Form Setting';
+    pluralName: 'mentor-form-settings';
+    singularName: 'mentor-form-setting';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::mentor-form-setting.mentor-form-setting'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    questions: Schema.Attribute.Component<'form.question', true>;
+    title: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
   collectionName: 'messages';
   info: {
@@ -1620,6 +1652,7 @@ declare module '@strapi/strapi' {
       'api::contact-message.contact-message': ApiContactMessageContactMessage;
       'api::course.course': ApiCourseCourse;
       'api::faq.faq': ApiFaqFaq;
+      'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;
       'api::order.order': ApiOrderOrder;

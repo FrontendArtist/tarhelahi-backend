@@ -1,0 +1,40 @@
+{
+  "collectionName": "components_form_questions",
+  "info": {
+    "displayName": "Question",
+    "icon": "question-circle",
+    "description": "سوالات فرم پیش‌نیاز"
+  },
+  "options": {},
+  "attributes": {
+    "key": {
+      "type": "string",
+      "required": true
+    },
+    "label": {
+      "type": "string",
+      "required": true
+    },
+    "fieldType": {
+      "type": "enumeration",
+      "enum": [
+        "text",
+        "number",
+        "textarea",
+        "select"
+      ],
+      "default": "text",
+      "required": true
+    },
+    "isRequired": {
+      "type": "boolean",
+      "default": false
+    },
+    "options": {
+      "type": "json"
+    },
+    "placeholder": {
+      "type": "string"
+    }
+  }
+}

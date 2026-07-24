@@ -1,0 +1,27 @@
+{
+  "kind": "singleType",
+  "collectionName": "mentor_form_settings",
+  "info": {
+    "singularName": "mentor-form-setting",
+    "pluralName": "mentor-form-settings",
+    "displayName": "Mentor Form Setting",
+    "description": "تنظیمات فرم پیش‌نیاز ارتباط با استاد"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "text"
+    },
+    "questions": {
+      "type": "component",
+      "repeatable": true,
+      "component": "form.question"
+    }
+  }
+}

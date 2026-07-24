@@ -31,6 +31,27 @@ export interface CoursePartsLesson extends Struct.ComponentSchema {
   };
 }
 
+export interface FormQuestion extends Struct.ComponentSchema {
+  collectionName: 'components_form_questions';
+  info: {
+    description: '\u0633\u0648\u0627\u0644\u0627\u062A \u0641\u0631\u0645 \u067E\u06CC\u0634\u200C\u0646\u06CC\u0627\u0632';
+    displayName: 'Question';
+    icon: 'question-circle';
+  };
+  attributes: {
+    fieldType: Schema.Attribute.Enumeration<
+      ['text', 'number', 'textarea', 'select']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'text'>;
+    isRequired: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    key: Schema.Attribute.String & Schema.Attribute.Required;
+    label: Schema.Attribute.String & Schema.Attribute.Required;
+    options: Schema.Attribute.JSON;
+    placeholder: Schema.Attribute.String;
+  };
+}
+
 export interface OrderCourseOrderItem extends Struct.ComponentSchema {
   collectionName: 'components_order_course_order_items';
   info: {
@@ -68,6 +89,7 @@ declare module '@strapi/strapi' {
     export interface ComponentSchemas {
       'course-parts.chapter': CoursePartsChapter;
       'course-parts.lesson': CoursePartsLesson;
+      'form.question': FormQuestion;
       'order.course-order-item': OrderCourseOrderItem;
       'order.product-order-item': OrderProductOrderItem;
     }
