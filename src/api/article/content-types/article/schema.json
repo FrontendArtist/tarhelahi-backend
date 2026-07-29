@@ -57,6 +57,20 @@
       "relation": "manyToMany",
       "target": "api::articles-category.articles-category",
       "mappedBy": "articles"
+    },
+    "featured_course": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::course.course"
+    },
+    "featured_product": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::product.product"
+    },
+    "enable_cta": {
+      "type": "boolean",
+      "default": true
     }
   }
 }

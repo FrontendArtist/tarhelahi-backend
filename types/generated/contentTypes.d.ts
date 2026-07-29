@@ -490,7 +490,16 @@ export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    enable_cta: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     excerpt: Schema.Attribute.Text;
+    featured_course: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::course.course'
+    >;
+    featured_product: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::product.product'
+    >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
