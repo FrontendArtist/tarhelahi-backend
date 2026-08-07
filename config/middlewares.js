@@ -11,6 +11,8 @@ module.exports = [
       origin: [
         'http://localhost:3000',
         'http://localhost:1337',
+        'http://192.168.1.101:3000',
+        'http://192.168.1.101:1337',
         'https://tarhelahi.vercel.app',
         'https://www.tarhelahi.vercel.app'
       ],

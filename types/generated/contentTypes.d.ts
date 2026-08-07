@@ -730,6 +730,7 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
   attributes: {
     chapters: Schema.Attribute.Component<'course-parts.chapter', true>;
     comments: Schema.Attribute.Relation<'oneToMany', 'api::comment.comment'>;
+    content: Schema.Attribute.RichText;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -750,6 +751,7 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
     price: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.UID & Schema.Attribute.Required;
+    teaserUrl: Schema.Attribute.String;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -937,6 +939,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     receiptImage: Schema.Attribute.Media<'images'>;
+    stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
     trackingNumber: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
@@ -965,6 +968,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       'api::category.category'
     >;
     comments: Schema.Attribute.Relation<'oneToMany', 'api::comment.comment'>;
+    content: Schema.Attribute.Text;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -983,7 +987,9 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     price: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
+    shortDescription: Schema.Attribute.Text;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    specifications: Schema.Attribute.JSON;
     stock: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     tags: Schema.Attribute.Relation<'manyToMany', 'api::tag.tag'>;
     title: Schema.Attribute.String & Schema.Attribute.Required;

@@ -20,8 +20,20 @@
       "targetField": "title",
       "required": true
     },
+    "shortDescription": {
+      "type": "text",
+      "required": false
+    },
     "description": {
       "type": "blocks"
+    },
+    "content": {
+      "type": "text",
+      "required": false
+    },
+    "specifications": {
+      "type": "json",
+      "required": false
     },
     "price": {
       "type": "decimal"

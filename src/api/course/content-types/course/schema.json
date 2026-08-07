@@ -65,6 +65,12 @@
       "type": "component",
       "component": "course-parts.lesson",
       "repeatable": true
+    },
+    "teaserUrl": {
+      "type": "string"
+    },
+    "content": {
+      "type": "richtext"
     }
   }
 }
