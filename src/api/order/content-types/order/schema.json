@@ -92,6 +92,10 @@
         "order.product-order-item",
         "order.course-order-item"
       ]
+    },
+    "stockDeducted": {
+      "type": "boolean",
+      "default": false
     }
   }
 }
