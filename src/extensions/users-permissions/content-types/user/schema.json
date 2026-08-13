@@ -136,6 +136,10 @@
     },
     "enrolledChapters": {
       "type": "json"
+    },
+    "light": {
+      "type": "decimal",
+      "default": 0
     }
   }
 }
