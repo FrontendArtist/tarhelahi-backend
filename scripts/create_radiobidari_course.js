@@ -3,7 +3,7 @@ const fs = require('fs');
 const STRAPI_URL = process.env.STRAPI_URL || 'http://127.0.0.1:1337';
 const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN || '556908b5b31d277f72f8673f99a8ba91c850b70503df4b184910dcaeb4cea77398fb3c1de847cb1369e1c76b836331e1c11ef5c95c3311d8aa30380e60fd08bce4c7a2cf11ab76c1325ba530d381235b0b1265f08de545a863fc5ca842d03627628dd1ac77dfe01dd54c34088905e43477596358994a19929e892b8fc1be377a';
 
-const BASE_AUDIO_URL = 'https://tarhelahi.ir/Radiobidari';
+const BASE_AUDIO_URL = 'https://dl.tarhelahi.ir/Radiobidari';
 
 const rawAudioFiles = [
   "Ep1.mp3",
