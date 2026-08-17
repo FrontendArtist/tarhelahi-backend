@@ -1,16 +1,14 @@
-// path: backend/config/database.js
-
 module.exports = ({ env }) => ({
   connection: {
-    client: 'postgres',
+    client: env('DATABASE_CLIENT', 'postgres'),
     connection: {
-      host: '127.0.0.1',
-      port: 5432,
-      database: 'tarhelahi_db',
-      user: 'postgres',
-      password: '2131380', // <-- مطمئن شوید این رمز عبور صحیح است
-      ssl: false,
+      host: env('DATABASE_HOST', '127.0.0.1'),
+      port: env.int('DATABASE_PORT', 5432),
+      database: env('DATABASE_NAME', 'postgres'),
+      user: env('DATABASE_USERNAME', 'postgres'),
+      password: env('DATABASE_PASSWORD', ''),
+      ssl: env.bool('DATABASE_SSL', false),
     },
-    debug: false,
+    useNullAsDefault: true,
   },
 });

@@ -1,0 +1,20 @@
+{
+  "app": "tarhelahi-strapi",
+  "platform": "node",
+  "port": 1337,
+  "build": {
+    "location": "iran"
+  },
+  "node": {
+    "version": "20"
+  },
+  "scripts": {
+    "start": "strapi start"
+  },
+  "disks": [
+    {
+      "name": "uploads",
+      "mountTo": "/app/public/uploads"
+    }
+  ]
+}
