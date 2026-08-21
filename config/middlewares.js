@@ -2,6 +2,7 @@
 
 module.exports = ({ env }) => {
   const isProduction = env('NODE_ENV') === 'production';
+  const bucketName = env('LIARA_BUCKET', 'tarhelahicloud');
 
   return [
     'strapi::logger',
@@ -19,9 +20,11 @@ module.exports = ({ env }) => {
               'blob:',
               'https:',
               'dl.tarhelahi.ir',
+              'api.tarhelahi.ir',
+              'tarhelahi.ir',
               '*.tarhelahi.ir',
               'storage.c2.liara.site',
-              `${env('LIARA_BUCKET')}.storage.c2.liara.site`,
+              `${bucketName}.storage.c2.liara.site`,
             ],
             'media-src': [
               "'self'",
@@ -29,9 +32,11 @@ module.exports = ({ env }) => {
               'blob:',
               'https:',
               'dl.tarhelahi.ir',
+              'api.tarhelahi.ir',
+              'tarhelahi.ir',
               '*.tarhelahi.ir',
               'storage.c2.liara.site',
-              `${env('LIARA_BUCKET')}.storage.c2.liara.site`,
+              `${bucketName}.storage.c2.liara.site`,
             ],
             'frame-ancestors': ["'self'"],
             upgradeInsecureRequests: null,
