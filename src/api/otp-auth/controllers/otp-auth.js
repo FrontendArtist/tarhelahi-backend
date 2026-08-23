@@ -4,6 +4,7 @@
 
 const utils = require('@strapi/utils');
 const { ApplicationError, NotFoundError } = utils.errors;
+const smsService = require('../../../services/smsService');
 
 module.exports = {
     
@@ -46,8 +47,12 @@ module.exports = {
             });
         }
         
-        // TODO: اتصال به سرویس پیامکی (مثلا کاوه‌نگار)
-        console.log(`[OTP Sent]: ${otpCode} to ${phoneNumber}`);
+        // ارسال کد OTP از طریق SMS.ir (Verify)
+        try {
+            await smsService.sendOtp(phoneNumber, otpCode);
+        } catch (smsError) {
+            strapi.log.error(`[SMS Service] Failed to send OTP to ${phoneNumber}: ${smsError.message}`);
+        }
 
         return ctx.send({ message: 'کد تایید با موفقیت ارسال شد.' });
     },
