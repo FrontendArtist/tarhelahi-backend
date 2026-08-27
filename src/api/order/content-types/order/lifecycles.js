@@ -15,8 +15,15 @@ async function syncUserPurchases(orderIdentifier) {
       typeof orderIdentifier === 'number' ||
       (typeof orderIdentifier === 'string' && /^\d+$/.test(orderIdentifier));
 
-    // 1. Load order (try numeric id first, then documentId string)
-    if (isNumeric) {
+    // 1. Load order (try strapi.documents first if string documentId, then numeric id, then db.query)
+    if (typeof strapi.documents === 'function' && typeof orderIdentifier === 'string' && !/^\d+$/.test(orderIdentifier)) {
+      order = await strapi.documents('api::order.order').findOne({
+        documentId: orderIdentifier,
+        populate: ['user', 'items'],
+      });
+    }
+
+    if (!order && isNumeric) {
       order = await strapi.db.query('api::order.order').findOne({
         where: { id: Number(orderIdentifier) },
         populate: ['user', 'items'],
@@ -34,11 +41,12 @@ async function syncUserPurchases(orderIdentifier) {
 
     if (!order || !order.user) return;
 
-    // 2. Check if paid
+    // 2. Check if paid or confirmed
+    const confirmedStatuses = ['paid', 'confirmed', 'processing', 'shipped', 'delivered'];
     const orderStatusPaid =
-      typeof order.orderStatus === 'string' && order.orderStatus.trim() === 'paid';
+      typeof order.orderStatus === 'string' && confirmedStatuses.includes(order.orderStatus.trim().toLowerCase());
     const paymentStatusPaid =
-      typeof order.paymentStatus === 'string' && order.paymentStatus.trim() === 'paid';
+      typeof order.paymentStatus === 'string' && order.paymentStatus.trim().toLowerCase() === 'paid';
 
     if (!orderStatusPaid && !paymentStatusPaid) return;
 
@@ -163,7 +171,14 @@ async function processProductStock(orderIdentifier) {
       typeof orderIdentifier === 'number' ||
       (typeof orderIdentifier === 'string' && /^\d+$/.test(orderIdentifier));
 
-    if (isNumeric) {
+    if (typeof strapi.documents === 'function' && typeof orderIdentifier === 'string' && !/^\d+$/.test(orderIdentifier)) {
+      order = await strapi.documents('api::order.order').findOne({
+        documentId: orderIdentifier,
+        populate: ['items'],
+      });
+    }
+
+    if (!order && isNumeric) {
       order = await strapi.db.query('api::order.order').findOne({
         where: { id: Number(orderIdentifier) },
         populate: ['items'],

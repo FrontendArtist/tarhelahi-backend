@@ -28,6 +28,11 @@ module.exports = {
 
         // 2. اگر کاربر وجود نداشت، یک کاربر جدید ثبت‌نام کن (Lazy Registration)
         if (!user) {
+            // یافتن نقش پیش‌فرض Authenticated
+            const defaultRole = await strapi.db.query('plugin::users-permissions.role').findOne({
+                where: { type: 'authenticated' },
+            });
+
             user = await strapi.db.query('plugin::users-permissions.user').create({
                 data: {
                     phoneNumber,
@@ -37,6 +42,7 @@ module.exports = {
                     otpCode,
                     otpExpiresAt,
                     provider: 'otp',
+                    role: defaultRole ? defaultRole.id : undefined,
                 },
             });
         } else {
@@ -58,55 +64,68 @@ module.exports = {
     },
 
     // 2. منطق تایید کد یکبار مصرف (OTP)
-// 2. منطق تایید کد یکبار مصرف (OTP)
-async verify(ctx) {
-    const { phoneNumber, otpCode } = ctx.request.body;
+    async verify(ctx) {
+        const { phoneNumber, otpCode } = ctx.request.body;
 
-    if (!phoneNumber || !otpCode) {
-        throw new ApplicationError('شماره موبایل و کد تایید الزامی است.');
-    }
+        if (!phoneNumber || !otpCode) {
+            throw new ApplicationError('شماره موبایل و کد تایید الزامی است.');
+        }
 
-    // تغییر اصلی: اضافه کردن populate برای فیلد role
-    const user = await strapi.db.query('plugin::users-permissions.user').findOne({
-        where: { phoneNumber },
-        populate: ['role'], 
-    });
+        // واکشی کاربر همراه با نقش
+        let user = await strapi.db.query('plugin::users-permissions.user').findOne({
+            where: { phoneNumber },
+            populate: ['role'], 
+        });
 
-    if (!user) {
-        throw new NotFoundError('کاربری با این شماره موبایل یافت نشد.');
-    }
+        if (!user) {
+            throw new NotFoundError('کاربری با این شماره موبایل یافت نشد.');
+        }
 
-    // چک کردن کد 
-    if (user.otpCode !== otpCode) {
-        throw new ApplicationError('کد تایید اشتباه است.');
-    }
-    
-    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-        throw new ApplicationError('کد تایید منقضی شده است. لطفا دوباره درخواست دهید.');
-    }
-    
-    // پاک کردن کد پس از تایید موفق
-    await strapi.db.query('plugin::users-permissions.user').update({
-        where: { id: user.id },
-        data: { 
-            otpCode: null, 
-            otpExpiresAt: null,
-            isMobileVerified: true,
-        },
-    });
-    
-    // صدور JWT
-    const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: user.id });
+        // چک کردن کد 
+        if (user.otpCode !== otpCode) {
+            throw new ApplicationError('کد تایید اشتباه است.');
+        }
+        
+        if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+            throw new ApplicationError('کد تایید منقضی شده است. لطفا دوباره درخواست دهید.');
+        }
+        
+        // اگر کاربر نقش نداشت، نقش Authenticated را به او تخصیص بده
+        if (!user.role) {
+            const defaultRole = await strapi.db.query('plugin::users-permissions.role').findOne({
+                where: { type: 'authenticated' },
+            });
+            if (defaultRole) {
+                await strapi.db.query('plugin::users-permissions.user').update({
+                    where: { id: user.id },
+                    data: { role: defaultRole.id },
+                });
+                user.role = defaultRole;
+            }
+        }
 
-    // بازگرداندن فیلدها شامل role
-    const sanitizedUser = {
-        id: user.id,
-        username: user.username,
-        phoneNumber: user.phoneNumber,
-        email: user.email,
-        role: user.role, // اکنون نقش کاربر در پاسخ وجود دارد
-    };
-    
-    return ctx.send({ jwt, user: sanitizedUser });
-},
+        // پاک کردن کد پس از تایید موفق
+        await strapi.db.query('plugin::users-permissions.user').update({
+            where: { id: user.id },
+            data: { 
+                otpCode: null, 
+                otpExpiresAt: null,
+                isMobileVerified: true,
+            },
+        });
+        
+        // صدور JWT
+        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: user.id });
+
+        // بازگرداندن فیلدها شامل role
+        const sanitizedUser = {
+            id: user.id,
+            username: user.username,
+            phoneNumber: user.phoneNumber,
+            email: user.email,
+            role: user.role, // اکنون نقش کاربر در پاسخ وجود دارد
+        };
+        
+        return ctx.send({ jwt, user: sanitizedUser });
+    },
 };

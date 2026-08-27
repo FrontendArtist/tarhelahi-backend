@@ -1,0 +1,78 @@
+{
+  "kind": "collectionType",
+  "collectionName": "coupons",
+  "info": {
+    "singularName": "coupon",
+    "pluralName": "coupons",
+    "displayName": "کدهای تخفیف (Coupons)",
+    "description": "مدیریت کدهای تخفیف دوره‌ها و محصولات"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "code": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "title": {
+      "type": "string"
+    },
+    "discountType": {
+      "type": "enumeration",
+      "enum": [
+        "percentage",
+        "fixed"
+      ],
+      "default": "percentage",
+      "required": true
+    },
+    "discountValue": {
+      "type": "decimal",
+      "required": true
+    },
+    "maxDiscountAmount": {
+      "type": "decimal"
+    },
+    "minOrderAmount": {
+      "type": "decimal"
+    },
+    "appliesToAllProducts": {
+      "type": "boolean",
+      "default": false
+    },
+    "appliesToAllCourses": {
+      "type": "boolean",
+      "default": false
+    },
+    "products": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::product.product"
+    },
+    "courses": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::course.course"
+    },
+    "startDate": {
+      "type": "datetime"
+    },
+    "expiresAt": {
+      "type": "datetime"
+    },
+    "maxUsage": {
+      "type": "integer"
+    },
+    "usedCount": {
+      "type": "integer",
+      "default": 0
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

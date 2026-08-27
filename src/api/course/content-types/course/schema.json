@@ -26,6 +26,15 @@
       "type": "decimal",
       "required": true
     },
+    "discountPercent": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 0
+    },
+    "discountUntil": {
+      "type": "datetime"
+    },
     "media": {
       "type": "media",
       "multiple": true,

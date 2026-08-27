@@ -159,6 +159,8 @@ function getPaymentMethodLabel(method) {
       return 'درگاه پرداخت آنلاین';
     case 'card_to_card':
       return 'کارت به کارت';
+    case 'free':
+      return 'رایگان';
     default:
       return method || 'نامشخص';
   }

@@ -52,7 +52,8 @@
       "type": "enumeration",
       "enum": [
         "online",
-        "card_to_card"
+        "card_to_card",
+        "free"
       ],
       "default": "online"
     },
@@ -96,6 +97,15 @@
     "stockDeducted": {
       "type": "boolean",
       "default": false
+    },
+    "couponCode": {
+      "type": "string"
+    },
+    "discountAmount": {
+      "type": "decimal"
+    },
+    "originalTotalPrice": {
+      "type": "decimal"
     }
   }
 }

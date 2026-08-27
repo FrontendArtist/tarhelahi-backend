@@ -717,6 +717,55 @@ export interface ApiContactMessageContactMessage
   };
 }
 
+export interface ApiCouponCoupon extends Struct.CollectionTypeSchema {
+  collectionName: 'coupons';
+  info: {
+    description: '\u0645\u062F\u06CC\u0631\u06CC\u062A \u06A9\u062F\u0647\u0627\u06CC \u062A\u062E\u0641\u06CC\u0641 \u062F\u0648\u0631\u0647\u200C\u0647\u0627 \u0648 \u0645\u062D\u0635\u0648\u0644\u0627\u062A';
+    displayName: '\u06A9\u062F\u0647\u0627\u06CC \u062A\u062E\u0641\u06CC\u0641 (Coupons)';
+    pluralName: 'coupons';
+    singularName: 'coupon';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    appliesToAllCourses: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
+    appliesToAllProducts: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
+    code: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    courses: Schema.Attribute.Relation<'manyToMany', 'api::course.course'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    discountType: Schema.Attribute.Enumeration<['percentage', 'fixed']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'percentage'>;
+    discountValue: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    expiresAt: Schema.Attribute.DateTime;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::coupon.coupon'
+    > &
+      Schema.Attribute.Private;
+    maxDiscountAmount: Schema.Attribute.Decimal;
+    maxUsage: Schema.Attribute.Integer;
+    minOrderAmount: Schema.Attribute.Decimal;
+    products: Schema.Attribute.Relation<'manyToMany', 'api::product.product'>;
+    publishedAt: Schema.Attribute.DateTime;
+    startDate: Schema.Attribute.DateTime;
+    title: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    usedCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+  };
+}
+
 export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
   collectionName: 'courses';
   info: {
@@ -736,6 +785,16 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     curriculum: Schema.Attribute.Component<'course-parts.lesson', true>;
     description: Schema.Attribute.Blocks;
+    discountPercent: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    discountUntil: Schema.Attribute.DateTime;
     isChaptered: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isFree: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -913,9 +972,11 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   attributes: {
     address: Schema.Attribute.Text & Schema.Attribute.Required;
     cardHolderName: Schema.Attribute.String;
+    couponCode: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    discountAmount: Schema.Attribute.Decimal;
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
     items: Schema.Attribute.DynamicZone<
@@ -929,7 +990,10 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       ['shipped', 'paid', 'pending', 'canceled', 'delivered']
     > &
       Schema.Attribute.DefaultTo<'pending'>;
-    paymentMethod: Schema.Attribute.Enumeration<['online', 'card_to_card']> &
+    originalTotalPrice: Schema.Attribute.Decimal;
+    paymentMethod: Schema.Attribute.Enumeration<
+      ['online', 'card_to_card', 'free']
+    > &
       Schema.Attribute.DefaultTo<'online'>;
     paymentStatus: Schema.Attribute.Enumeration<
       ['pending_payment', 'pending_verification', 'paid', 'failed']
@@ -949,6 +1013,43 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       'manyToOne',
       'plugin::users-permissions.user'
     >;
+  };
+}
+
+export interface ApiPopupMessagePopupMessage
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'popup_messages';
+  info: {
+    displayName: 'PopupMessage';
+    pluralName: 'popup-messages';
+    singularName: 'popup-message';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    buttonText: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    image: Schema.Attribute.Media<'files' | 'images'>;
+    isShow: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<false>;
+    link: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::popup-message.popup-message'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    slug: Schema.Attribute.String & Schema.Attribute.Required;
+    text: Schema.Attribute.Text;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
   };
 }
 
@@ -973,6 +1074,16 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Blocks;
+    discountPercent: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    discountUntil: Schema.Attribute.DateTime;
     images: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios',
       true
@@ -1698,12 +1809,14 @@ declare module '@strapi/strapi' {
       'api::category.category': ApiCategoryCategory;
       'api::comment.comment': ApiCommentComment;
       'api::contact-message.contact-message': ApiContactMessageContactMessage;
+      'api::coupon.coupon': ApiCouponCoupon;
       'api::course.course': ApiCourseCourse;
       'api::faq.faq': ApiFaqFaq;
       'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;
       'api::order.order': ApiOrderOrder;
+      'api::popup-message.popup-message': ApiPopupMessagePopupMessage;
       'api::product.product': ApiProductProduct;
       'api::service.service': ApiServiceService;
       'api::social.social': ApiSocialSocial;

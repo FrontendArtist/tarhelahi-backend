@@ -38,6 +38,15 @@
     "price": {
       "type": "decimal"
     },
+    "discountPercent": {
+      "type": "integer",
+      "min": 0,
+      "max": 100,
+      "default": 0
+    },
+    "discountUntil": {
+      "type": "datetime"
+    },
     "images": {
       "type": "media",
       "multiple": true,
