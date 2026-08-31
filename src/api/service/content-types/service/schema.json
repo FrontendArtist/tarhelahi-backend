@@ -35,6 +35,9 @@
     },
     "link": {
       "type": "string"
+    },
+    "content": {
+      "type": "richtext"
     }
   }
 }

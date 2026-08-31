@@ -28,9 +28,9 @@
     },
     "discountPercent": {
       "type": "integer",
+      "default": 0,
       "min": 0,
-      "max": 100,
-      "default": 0
+      "max": 100
     },
     "discountUntil": {
       "type": "datetime"
@@ -80,6 +80,9 @@
     },
     "content": {
       "type": "richtext"
+    },
+    "telegramLink": {
+      "type": "string"
     }
   }
 }
