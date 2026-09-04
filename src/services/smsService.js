@@ -50,6 +50,16 @@ function mockFallback(label, receptor, extra = {}) {
  * @returns {Promise<{success: boolean, mocked?: boolean, result?: any}>}
  */
 async function sendOtp(receptor, token, paramName = 'CODE') {
+  // حالت تست و دیباگ: اگر شماره با T شروع شود، پیامک ارسال نمی‌شود
+  if (typeof receptor === 'string' && /^[Tt]/.test(receptor.trim())) {
+    const realReceptor = receptor.trim().replace(/^[Tt]0?/, '0');
+    const logFn = (typeof strapi !== 'undefined' && strapi.log)
+      ? strapi.log.warn.bind(strapi.log)
+      : console.warn;
+    logFn(`[SMS Service - TEST BYPASS] No SMS sent for test number: ${receptor} (Target: ${realReceptor}) | OTP: ${token}`);
+    return { success: true, mocked: true, testMode: true };
+  }
+
   // حالت Mock
   if (!smsirClient) {
     return mockFallback('sendOtp', receptor, { token, templateId, paramName });
