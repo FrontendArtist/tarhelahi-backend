@@ -16,5 +16,15 @@ module.exports = {
         middlewares: [],
       },
     },
+    {
+      method: 'POST',
+      path: '/coupons/consume',
+      handler: 'coupon.consume',
+      config: {
+        auth: false, // احراز هویت سیستمی با توکن استراپی
+        policies: [],
+        middlewares: [],
+      },
+    },
   ],
 };
