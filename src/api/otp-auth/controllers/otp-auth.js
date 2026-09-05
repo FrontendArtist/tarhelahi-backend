@@ -42,6 +42,7 @@ module.exports = {
             formattedPhone: targetPhoneNumber,
             userExists: !!user,
             hasPassword: !!(user && user.password),
+            is_foreigner: user ? Boolean(user.is_foreigner) : !isIranian,
         });
     },
 
@@ -94,6 +95,7 @@ module.exports = {
                     username: targetPhoneNumber,
                     password: null,
                     confirmed: true,
+                    is_foreigner: false,
                     otpCode,
                     otpExpiresAt,
                     provider: 'otp',
@@ -193,6 +195,7 @@ module.exports = {
                 otpCode: null, 
                 otpExpiresAt: null,
                 isMobileVerified: true,
+                is_foreigner: false,
             },
         });
         
@@ -205,6 +208,7 @@ module.exports = {
             phoneNumber: user.phoneNumber,
             email: user.email,
             role: user.role,
+            is_foreigner: false,
         };
         
         return ctx.send({ jwt, user: sanitizedUser });
@@ -251,6 +255,18 @@ module.exports = {
             throw new ApplicationError('حساب کاربری شما مسدود شده است.');
         }
 
+        const isForeigner = user.is_foreigner !== undefined && user.is_foreigner !== null
+            ? Boolean(user.is_foreigner)
+            : !validation.isIranian;
+
+        // اگر فیلد is_foreigner تنظیم نشده بود، مقداردهی کن
+        if (user.is_foreigner !== isForeigner) {
+            await strapi.db.query('plugin::users-permissions.user').update({
+                where: { id: user.id },
+                data: { is_foreigner: isForeigner },
+            });
+        }
+
         // اگر کاربر نقش نداشت، نقش پیش‌فرض را بده
         if (!user.role) {
             const defaultRole = await strapi.db.query('plugin::users-permissions.role').findOne({
@@ -275,6 +291,7 @@ module.exports = {
             role: user.role,
             firstName: user.firstName,
             lastName: user.lastName,
+            is_foreigner: isForeigner,
         };
 
         return ctx.send({ jwt, user: sanitizedUser });
@@ -319,6 +336,8 @@ module.exports = {
 
         const userService = strapi.plugin('users-permissions').service('user');
 
+        const isForeigner = !validation.isIranian;
+
         const newUser = await userService.add({
             phoneNumber: targetPhoneNumber,
             username: targetPhoneNumber,
@@ -328,6 +347,7 @@ module.exports = {
             lastName: lastName || '',
             confirmed: true,
             isMobileVerified: true,
+            is_foreigner: isForeigner,
             provider: 'local',
             role: defaultRole ? defaultRole.id : undefined,
         });
@@ -342,6 +362,7 @@ module.exports = {
             role: newUser.role || defaultRole,
             firstName: newUser.firstName,
             lastName: newUser.lastName,
+            is_foreigner: isForeigner,
         };
 
         return ctx.send({ jwt, user: sanitizedUser });
