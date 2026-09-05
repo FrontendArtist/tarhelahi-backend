@@ -795,6 +795,7 @@ export interface ApiCourseCourse extends Struct.CollectionTypeSchema {
       > &
       Schema.Attribute.DefaultTo<0>;
     discountUntil: Schema.Attribute.DateTime;
+    internationalPrice: Schema.Attribute.Integer;
     isChaptered: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isFree: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -1748,6 +1749,7 @@ export interface PluginUsersPermissionsUser
       }>;
     enrolledChapters: Schema.Attribute.JSON;
     firstName: Schema.Attribute.String;
+    is_foreigner: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     isMobileVerified: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
     items: Schema.Attribute.DynamicZone<

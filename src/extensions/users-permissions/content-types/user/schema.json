@@ -66,6 +66,20 @@
       "inversedBy": "users",
       "configurable": false
     },
+    "phoneNumber": {
+      "type": "string",
+      "unique": true
+    },
+    "firstName": {
+      "type": "string"
+    },
+    "lastName": {
+      "type": "string"
+    },
+    "is_foreigner": {
+      "type": "boolean",
+      "default": false
+    },
     "courses": {
       "type": "relation",
       "relation": "manyToMany",
@@ -77,6 +91,10 @@
       "relation": "oneToMany",
       "target": "api::order.order",
       "mappedBy": "user"
+    },
+    "light": {
+      "type": "decimal",
+      "default": 0
     },
     "items": {
       "type": "dynamiczone",
@@ -109,10 +127,6 @@
       "target": "api::address.address",
       "inversedBy": "user"
     },
-    "phoneNumber": {
-      "type": "string",
-      "unique": true
-    },
     "otpCode": {
       "type": "string",
       "private": true
@@ -120,12 +134,6 @@
     "otpExpiresAt": {
       "type": "datetime",
       "private": true
-    },
-    "firstName": {
-      "type": "string"
-    },
-    "lastName": {
-      "type": "string"
     },
     "isMobileVerified": {
       "type": "boolean",
@@ -136,10 +144,6 @@
     },
     "enrolledChapters": {
       "type": "json"
-    },
-    "light": {
-      "type": "decimal",
-      "default": 0
     }
   }
 }
