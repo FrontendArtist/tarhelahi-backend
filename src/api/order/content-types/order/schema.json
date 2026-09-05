@@ -106,6 +106,9 @@
     },
     "originalTotalPrice": {
       "type": "decimal"
+    },
+    "rejectionReason": {
+      "type": "text"
     }
   }
 }

@@ -1004,6 +1004,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     receiptImage: Schema.Attribute.Media<'images'>;
+    rejectionReason: Schema.Attribute.Text;
     stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
     trackingNumber: Schema.Attribute.String;
