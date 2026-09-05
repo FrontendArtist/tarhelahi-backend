@@ -16,24 +16,30 @@ module.exports = createCoreController('api::message.message', ({ strapi }) => ({
     async find(ctx) {
         const user = ctx.state.user;
 
-        if (user) {
-            const userWithRole = await strapi.entityService.findOne('plugin::users-permissions.user', user.id, {
-                populate: ['role'],
-            });
+        // If no user is authenticated, do not return private messages
+        if (!user) {
+            return { data: [], meta: { pagination: { page: 1, pageSize: 25, pageCount: 0, total: 0 } } };
+        }
 
-            const roleType = userWithRole?.role?.type;
-            const isAdmin = roleType === 'admin' || roleType === 'administrator';
+        const userWithRole = await strapi.entityService.findOne('plugin::users-permissions.user', user.id, {
+            populate: ['role'],
+        });
 
-            if (!isAdmin) {
-                // If not admin, restrict to messages associated with this user
-                ctx.query = {
-                    ...ctx.query,
-                    filters: {
-                        ...ctx.query?.filters,
-                        user: { id: user.id },
-                    },
-                };
-            }
+        const roleType = userWithRole?.role?.type;
+        const isAdmin = roleType === 'admin' || roleType === 'administrator';
+
+        // Check if explicitly requesting personal messages (scope=my) or if normal user
+        const isMyScope = ctx.query?.scope === 'my' || !isAdmin;
+
+        if (isMyScope) {
+            // Restrict to messages associated with this user
+            ctx.query = {
+                ...ctx.query,
+                filters: {
+                    ...ctx.query?.filters,
+                    user: { id: { $eq: user.id } },
+                },
+            };
         }
 
         const { data, meta } = await super.find(ctx);
