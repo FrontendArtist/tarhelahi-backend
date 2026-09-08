@@ -42,6 +42,10 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       delete ctx.query.pagination;
       delete ctx.query.statusPriority;
 
+      // در Strapi 5 نباید همزمان از limit (آفست) و pageSize (صفحه‌ای) استفاده شود.
+      // بنابراین فقط از یک نوع (سقف limit: 1000) برای واکشی کل سفارش‌ها استفاده می‌کنیم:
+      ctx.query.pagination = { limit: 1000 };
+
       const response = await super.find(ctx);
       let allItems = response?.data || [];
 
