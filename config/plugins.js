@@ -8,7 +8,13 @@ module.exports = ({ env }) => {
 
   if (uploadProvider !== 'aws-s3' || !hasLiaraCredentials) {
     // حالت لوکال: ذخیره عکس‌ها در پوشه public/uploads دیسک محلی
-    return {};
+    return {
+      'users-permissions': {
+        config: {
+          jwtSecret: env('JWT_SECRET'),
+        },
+      },
+    };
   }
 
   // حالت پروداکشن / لیارا: آپلود مستقیم روی باکت آبجکت استوریج لیارا
@@ -37,6 +43,11 @@ module.exports = ({ env }) => {
           uploadStream: {},
           delete: {},
         },
+      },
+    },
+    'users-permissions': {
+      config: {
+        jwtSecret: env('JWT_SECRET'),
       },
     },
   };
