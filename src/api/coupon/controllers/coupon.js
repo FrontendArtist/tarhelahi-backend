@@ -34,4 +34,27 @@ module.exports = createCoreController('api::coupon.coupon', ({ strapi }) => ({
       ctx.throw(500, `خطا در بررسی کد تخفیف: ${err.message}`);
     }
   },
+
+  /**
+   * مصرف اتومیک کد تخفیف پس از ثبت سفارش
+   * POST /api/coupons/consume
+   */
+  async consume(ctx) {
+    try {
+      const { code } = ctx.request.body || {};
+      if (!code) {
+        return ctx.badRequest('کد تخفیف ارسال نشده است.');
+      }
+      const result = await strapi
+        .service('api::coupon.coupon')
+        .consumeCoupon(code);
+
+      if (!result.success) {
+        return ctx.send(result, 400);
+      }
+      return ctx.send(result);
+    } catch (err) {
+      ctx.throw(500, `خطا در ثبت استفاده از کد تخفیف: ${err.message}`);
+    }
+  },
 }));

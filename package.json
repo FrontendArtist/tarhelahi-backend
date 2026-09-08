@@ -24,6 +24,7 @@
     "exceljs": "^4.4.0",
     "export-import-kkm": "^1.1.1",
     "kavenegar": "^1.1.4",
+    "libphonenumber-js": "^1.13.12",
     "pg": "8.8.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

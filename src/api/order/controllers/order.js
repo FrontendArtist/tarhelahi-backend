@@ -7,7 +7,79 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 const excelService = require('../services/excel-export');
 
+function getStatusRank(order) {
+  const attrs = order?.attributes || order || {};
+  const orderStatus = (attrs.orderStatus || '').trim().toLowerCase();
+  const paymentStatus = (attrs.paymentStatus || '').trim().toLowerCase();
+  const paymentMethod = (attrs.paymentMethod || '').trim().toLowerCase();
+  const hasReceipt = Boolean(attrs.receiptImage || attrs.receiptImageUrl);
+
+  const isWaitingReceipt =
+    (paymentMethod === 'card_to_card' && paymentStatus === 'pending_verification') ||
+    (hasReceipt && orderStatus === 'pending');
+
+  if (isWaitingReceipt) return 1;
+  if (orderStatus === 'pending') return 2;
+  if (['paid', 'shipped', 'delivered'].includes(orderStatus) || paymentStatus === 'paid') return 3;
+  if (orderStatus === 'canceled') return 4;
+  return 5;
+}
+
 module.exports = createCoreController('api::order.order', ({ strapi }) => ({
+  /**
+   * Find orders with optional multi-tier statusPriority sorting across entire database
+   * GET /api/orders
+   */
+  async find(ctx) {
+    const isPrioritySort = ctx.query.statusPriority === 'true' || ctx.query.statusPriority === true;
+
+    if (!isPrioritySort) {
+      return super.find(ctx);
+    }
+
+    try {
+      const originalQuery = { ...ctx.query };
+      delete ctx.query.pagination;
+      delete ctx.query.statusPriority;
+
+      const response = await super.find(ctx);
+      let allItems = response?.data || [];
+
+      allItems.sort((a, b) => {
+        const rankA = getStatusRank(a);
+        const rankB = getStatusRank(b);
+        if (rankA !== rankB) {
+          return rankA - rankB;
+        }
+        const dateA = new Date(a.createdAt || a.attributes?.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || b.attributes?.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      const start = parseInt(originalQuery.pagination?.start ?? originalQuery.start ?? '0', 10) || 0;
+      const limit = parseInt(originalQuery.pagination?.limit ?? originalQuery.limit ?? '20', 10) || 20;
+
+      const paginatedData = allItems.slice(start, start + limit);
+
+      return {
+        data: paginatedData,
+        meta: {
+          pagination: {
+            start,
+            limit,
+            total: allItems.length,
+            page: Math.floor(start / limit) + 1,
+            pageSize: limit,
+            pageCount: Math.ceil(allItems.length / limit) || 1,
+          },
+        },
+      };
+    } catch (err) {
+      console.error('[OrderController find Error]:', err);
+      return super.find(ctx);
+    }
+  },
+
   /**
    * Export all orders and revenue report as a downloadable Excel file (.xlsx)
    * GET /api/orders/export-excel

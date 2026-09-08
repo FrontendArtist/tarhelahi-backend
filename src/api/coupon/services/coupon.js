@@ -252,25 +252,72 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
   },
 
   /**
-   * افزایش شمارنده تعداد دفعات استفاده پس از ثبت موفق سفارش
+   * بررسی و مصرف اتومیک کد تخفیف جهت جلوگیری از Race Condition و دابل-اسپند
+   * @param {string} code - کد تخفیف
    */
-  async incrementUsedCount(code) {
-    if (!code) return;
+  async consumeCoupon(code) {
+    if (!code || typeof code !== 'string') {
+      return { success: false, message: 'کد تخفیف ارسال نشده است.' };
+    }
+    const cleanCode = code.trim();
+
     try {
-      const coupons = await strapi.documents('api::coupon.coupon').findMany({
-        filters: { code: { $eqi: code.trim() } },
-      });
-      const coupon = coupons?.[0];
-      if (coupon) {
-        await strapi.documents('api::coupon.coupon').update({
-          documentId: coupon.documentId,
+      return await strapi.db.transaction(async () => {
+        const coupons = await strapi.db.query('api::coupon.coupon').findMany({
+          where: { code: { $eqi: cleanCode } },
+        });
+        const coupon = coupons?.[0];
+
+        if (!coupon) {
+          return { success: false, message: 'کد تخفیف یافت نشد.' };
+        }
+
+        if (coupon.isActive === false) {
+          return { success: false, message: 'این کد تخفیف غیرفعال می‌باشد.' };
+        }
+
+        const now = new Date();
+        if (coupon.startDate && new Date(coupon.startDate) > now) {
+          return { success: false, message: 'مهلت استفاده از این کد تخفیف هنوز شروع نشده است.' };
+        }
+
+        if (coupon.expiresAt && new Date(coupon.expiresAt) < now) {
+          return { success: false, message: 'مهلت استفاده از این کد تخفیف به پایان رسیده است.' };
+        }
+
+        const currentUsed = Number(coupon.usedCount) || 0;
+        if (
+          typeof coupon.maxUsage === 'number' &&
+          coupon.maxUsage > 0 &&
+          currentUsed >= coupon.maxUsage
+        ) {
+          return { success: false, message: 'ظرفیت استفاده از این کد تخفیف به پایان رسیده است.' };
+        }
+
+        await strapi.db.query('api::coupon.coupon').update({
+          where: { id: coupon.id },
           data: {
-            usedCount: (Number(coupon.usedCount) || 0) + 1,
+            usedCount: currentUsed + 1,
           },
         });
-      }
+
+        return {
+          success: true,
+          code: coupon.code,
+          usedCount: currentUsed + 1,
+          message: 'کد تخفیف با موفقیت مصرف گردید.',
+        };
+      });
     } catch (err) {
-      console.error('Error incrementing coupon usedCount:', err);
+      console.error('[consumeCoupon Error]:', err);
+      return { success: false, message: `خطا در پردازش کد تخفیف: ${err.message}` };
     }
+  },
+
+  /**
+   * افزایش شمارنده تعداد دفعات استفاده پس از ثبت موفق سفارش (همگام با متد اتومیک)
+   */
+  async incrementUsedCount(code) {
+    return this.consumeCoupon(code);
   },
 }));

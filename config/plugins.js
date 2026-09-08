@@ -17,7 +17,13 @@ module.exports = ({ env }) => {
       config: {
         provider: 'aws-s3',
         providerOptions: {
-          baseUrl: env('LIARA_BASE_URL', 'https://dl.tarhelahi.ir/media'),
+          // baseUrl: پایه URL که Strapi برای ساخت آدرس فایل استفاده می‌کند.
+          // بدون rootPath، S3 provider از file.path مستقیماً استفاده می‌کند.
+          // URL نهایی = baseUrl + '/' + file.path + '/' + hash + ext
+          // مثال: https://api.tarhelahi.ir/media/products/hash.jpg
+          // مثال: https://api.tarhelahi.ir/receipts/order-abc/hash.jpg
+          baseUrl: env('LIARA_BASE_URL', 'https://dl.tarhelahi.ir'),
+          // rootPath حذف شد - مسیرها از طریق file.path در bootstrap middleware تنظیم می‌شوند
           s3Options: {
             credentials: {
               accessKeyId: env('LIARA_ACCESS_KEY_ID'),
@@ -25,7 +31,6 @@ module.exports = ({ env }) => {
             },
             region: env('LIARA_REGION', 'default'),
             endpoint: env('LIARA_ENDPOINT', 'https://storage.c2.liara.site'),
-            rootPath: 'media',
             params: {
               Bucket: env('LIARA_BUCKET', 'tarhelahicloud'),
               ACL: env('AWS_ACL', 'public-read'),
