@@ -19,22 +19,6 @@
       "type": "uid",
       "required": true
     },
-    "description": {
-      "type": "blocks"
-    },
-    "price": {
-      "type": "decimal",
-      "required": true
-    },
-    "discountPercent": {
-      "type": "integer",
-      "default": 0,
-      "min": 0,
-      "max": 100
-    },
-    "discountUntil": {
-      "type": "datetime"
-    },
     "media": {
       "type": "media",
       "multiple": true,
@@ -45,9 +29,34 @@
         "audios"
       ]
     },
+    "teaserUrl": {
+      "type": "string"
+    },
+    "price": {
+      "type": "decimal",
+      "required": true
+    },
+    "internationalPrice": {
+      "type": "integer"
+    },
     "isFree": {
       "type": "boolean",
       "default": false
+    },
+    "discountPercent": {
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 100
+    },
+    "discountUntil": {
+      "type": "datetime"
+    },
+    "telegramLink": {
+      "type": "string"
+    },
+    "description": {
+      "type": "blocks"
     },
     "isChaptered": {
       "type": "boolean",
@@ -75,14 +84,8 @@
       "component": "course-parts.lesson",
       "repeatable": true
     },
-    "teaserUrl": {
-      "type": "string"
-    },
     "content": {
       "type": "richtext"
-    },
-    "telegramLink": {
-      "type": "string"
     }
   }
 }
