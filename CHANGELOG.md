@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [2026-09-08]
+
+- ایجاد Content-Type جدید `settlement` (تسویه حساب مالی) در استراپی شامل فیلدهای عنوان (`title`)، تاریخ تسویه (`settlementDate`)، درآمد کل (`totalRevenue`)، تعداد سفارشات (`ordersCount`)، توضیحات (`notes`)، وضعیت (`status`) و رابطه یک‌به‌چند با سفارشات (`orders`).
+- به‌روزرسانی اسکیمای `order` و افزودن رابطه `settlement` (چند به یک) به Content-Type سفارش برای اتصال به دوره‌های مالی بدون ایجاد اثر جانبی (Side-effect) بر دسترسی کاربران به دوره‌ها.
+- به‌روزرسانی تایپ‌های تولیدشده در `types/generated/contentTypes.d.ts`.
+
 ## [2026-09-05]
 
 - اصلاح کامپوننت `VideoJSPlayer.jsx` برای حذف استفاده از `MediaWatermark` و پاکسازی کدهای تکراری.

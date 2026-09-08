@@ -1,0 +1,44 @@
+{
+  "kind": "collectionType",
+  "collectionName": "settlements",
+  "info": {
+    "singularName": "settlement",
+    "pluralName": "settlements",
+    "displayName": "دوره‌های تسویه (Settlements)",
+    "description": "ثبت و آرشیو دوره‌های تسویه مالی و خریدهای فروشندگان"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "periodNumber": {
+      "type": "integer"
+    },
+    "settledAt": {
+      "type": "datetime",
+      "required": true
+    },
+    "ordersCount": {
+      "type": "integer",
+      "default": 0
+    },
+    "totalAmount": {
+      "type": "decimal",
+      "default": 0
+    },
+    "notes": {
+      "type": "text"
+    },
+    "orders": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::order.order",
+      "mappedBy": "settlement"
+    }
+  }
+}
