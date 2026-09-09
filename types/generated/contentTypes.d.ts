@@ -1179,7 +1179,7 @@ export interface ApiSettlementSettlement extends Struct.CollectionTypeSchema {
     publishedAt: Schema.Attribute.DateTime;
     settledAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
-    totalAmount: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
+    totalAmount: Schema.Attribute.BigInteger & Schema.Attribute.DefaultTo<'0'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

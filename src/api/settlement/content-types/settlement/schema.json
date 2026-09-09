@@ -28,8 +28,8 @@
       "default": 0
     },
     "totalAmount": {
-      "type": "decimal",
-      "default": 0
+      "type": "biginteger",
+      "default": "0"
     },
     "notes": {
       "type": "text"

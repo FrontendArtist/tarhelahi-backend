@@ -5,6 +5,7 @@
 - اصلاح متد `find` در کنترلر سفارشات (`src/api/order/controllers/order.js`) برای رفع خطای PaginationError در Strapi 5 هنگام مرتب‌سازی بر اساس اولویت وضعیت (`statusPriority=true`).
 - جلوگیری از تداخل انواع صفحه‌بندی (آفست و صفحه‌ای) و اعمال سقف مناسب جهت مرتب‌سازی صحیح تمام سفارش‌های مطابق با جستجو و فیلترها.
 - فعال‌سازی دسترسی کامل توکن API سیستم برای Content-Type جدید `settlement` در دیتابیس جهت جلوگیری از خطای ۴۰۳ و اعتبارسنجی روابط در کوئری‌ها.
+- رفع خطای ۵۰۰ (numeric field overflow) در جدول `settlements` دیتابیس PostgreSQL با تغییر نوع فیلد `totalAmount` از `decimal` به `biginteger` و افزودن مایگریشن خودکار (`database/migrations/2026.09.09T00.00.00.settlements-total-amount.js`) برای پشتیبانی از ارقام مالی بالای ۱۰۰ میلیون تومان/ریال.
 
 ## [2026-09-08]
 
