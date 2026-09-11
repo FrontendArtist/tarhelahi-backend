@@ -1277,6 +1277,46 @@ export interface ApiTestimontialTestimontial
   };
 }
 
+export interface ApiTopBannerTopBanner extends Struct.SingleTypeSchema {
+  collectionName: 'top_banners';
+  info: {
+    description: '\u0646\u0648\u0627\u0631 \u0627\u0639\u0644\u0627\u0646 \u0648 \u062A\u062E\u0641\u06CC\u0641 \u0628\u0627\u0644\u0627\u06CC \u0647\u062F\u0631 \u0633\u0627\u06CC\u062A \u0628\u0627 \u0642\u0627\u0628\u0644\u06CC\u062A \u0627\u0633\u062A\u0627\u06CC\u0644\u200C\u062F\u0647\u06CC \u0645\u062A\u0646 \u0648 \u062F\u06A9\u0645\u0647 \u0644\u06CC\u0646\u06A9';
+    displayName: '\u0646\u0648\u0627\u0631 \u0627\u0639\u0644\u0627\u0646 \u0628\u0627\u0644\u0627\u06CC \u0633\u0627\u06CC\u062A (Top Banner)';
+    pluralName: 'top-banners';
+    singularName: 'top-banner';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    badgeText: Schema.Attribute.String;
+    buttonLink: Schema.Attribute.String;
+    buttonText: Schema.Attribute.String;
+    canDismiss: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isActive: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::top-banner.top-banner'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    text: Schema.Attribute.Text & Schema.Attribute.Required;
+    theme: Schema.Attribute.Enumeration<
+      ['gold', 'emerald', 'sunset', 'purple', 'dark']
+    > &
+      Schema.Attribute.DefaultTo<'gold'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -1868,6 +1908,7 @@ declare module '@strapi/strapi' {
       'api::social.social': ApiSocialSocial;
       'api::tag.tag': ApiTagTag;
       'api::testimontial.testimontial': ApiTestimontialTestimontial;
+      'api::top-banner.top-banner': ApiTopBannerTopBanner;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::export-import-kkm.export-import-config': PluginExportImportKkmExportImportConfig;

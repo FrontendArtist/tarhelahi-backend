@@ -169,7 +169,7 @@ module.exports = {
   /**
    * Bootstrap: آماده‌سازی upload provider و اعمال مسیر اختصاصی
    */
-  bootstrap({ strapi }) {
+  async bootstrap({ strapi }) {
     const uploadPlugin = strapi.plugin('upload');
     if (!uploadPlugin) return;
 
