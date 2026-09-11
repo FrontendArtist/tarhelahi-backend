@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "visitor_stats",
+  "info": {
+    "singularName": "visitor-stat",
+    "pluralName": "visitor-stats",
+    "displayName": "VisitorStat",
+    "description": "Log records for website visitor traffic and analytics"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "visitorId": {
+      "type": "string",
+      "required": true
+    },
+    "path": {
+      "type": "string"
+    },
+    "device": {
+      "type": "string",
+      "default": "desktop"
+    },
+    "ip": {
+      "type": "string"
+    },
+    "userAgent": {
+      "type": "text"
+    }
+  }
+}

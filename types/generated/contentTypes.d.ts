@@ -1317,6 +1317,39 @@ export interface ApiTopBannerTopBanner extends Struct.SingleTypeSchema {
   };
 }
 
+export interface ApiVisitorStatVisitorStat extends Struct.CollectionTypeSchema {
+  collectionName: 'visitor_stats';
+  info: {
+    description: 'Log records for website visitor traffic and analytics';
+    displayName: 'VisitorStat';
+    pluralName: 'visitor-stats';
+    singularName: 'visitor-stat';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    device: Schema.Attribute.String & Schema.Attribute.DefaultTo<'desktop'>;
+    ip: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::visitor-stat.visitor-stat'
+    > &
+      Schema.Attribute.Private;
+    path: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    userAgent: Schema.Attribute.Text;
+    visitorId: Schema.Attribute.String & Schema.Attribute.Required;
+  };
+}
+
 export interface PluginContentReleasesRelease
   extends Struct.CollectionTypeSchema {
   collectionName: 'strapi_releases';
@@ -1909,6 +1942,7 @@ declare module '@strapi/strapi' {
       'api::tag.tag': ApiTagTag;
       'api::testimontial.testimontial': ApiTestimontialTestimontial;
       'api::top-banner.top-banner': ApiTopBannerTopBanner;
+      'api::visitor-stat.visitor-stat': ApiVisitorStatVisitorStat;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::export-import-kkm.export-import-config': PluginExportImportKkmExportImportConfig;
