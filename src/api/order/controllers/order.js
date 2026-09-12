@@ -42,6 +42,10 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       delete ctx.query.pagination;
       delete ctx.query.statusPriority;
 
+      // در Strapi 5 نباید همزمان از limit (آفست) و pageSize (صفحه‌ای) استفاده شود.
+      // بنابراین فقط از یک نوع (سقف limit: 1000) برای واکشی کل سفارش‌ها استفاده می‌کنیم:
+      ctx.query.pagination = { limit: 1000 };
+
       const response = await super.find(ctx);
       let allItems = response?.data || [];
 
@@ -131,4 +135,82 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       ctx.throw(500, `خطا در ذخیره فایل اکسل: ${err.message}`);
     }
   },
+
+  /**
+   * Bulk settle orders in a single DB transaction — avoids N individual PUT requests
+   * POST /api/orders/bulk-settle
+   *
+   * Body: { orderDocumentIds: string[], settlementDocumentId: string, settledAt: string }
+   *
+   * Returns: { settled: number } — count of rows actually updated
+   */
+  async bulkSettle(ctx) {
+    try {
+      const { orderDocumentIds, settlementDocumentId, settledAt } = ctx.request.body;
+
+      // ── اعتبارسنجی ورودی ────────────────────────────────────────────────────
+      if (!Array.isArray(orderDocumentIds) || orderDocumentIds.length === 0) {
+        return ctx.badRequest('orderDocumentIds آرایه‌ای خالی یا نامعتبر است');
+      }
+      if (!settlementDocumentId) {
+        return ctx.badRequest('settlementDocumentId اجباری است');
+      }
+
+      const settledAtDate = settledAt ? new Date(settledAt) : new Date();
+
+      // ── یافتن رکورد settlement از طریق documentId ──────────────────────────
+      const settlementRecord = await strapi.db.query('api::settlement.settlement').findOne({
+        where: { documentId: settlementDocumentId },
+        select: ['id', 'documentId'],
+      });
+
+      if (!settlementRecord) {
+        return ctx.notFound(`تسویه با documentId="${settlementDocumentId}" یافت نشد`);
+      }
+
+      const settlementNumericId = settlementRecord.id;
+      const knex = strapi.db.connection;
+
+      // ── یافتن شناسه عددی سفارش‌های واجد شرایط (تسویه‌نشده) ─────────────────
+      const targetOrders = await knex('orders')
+        .whereIn('document_id', orderDocumentIds)
+        .whereNull('settled_at')
+        .select('id');
+
+      if (targetOrders.length === 0) {
+        return ctx.send({ settled: 0 });
+      }
+
+      const targetOrderIds = targetOrders.map((o) => o.id);
+
+      // ── ۱. به‌روزرسانی تاریخ تسویه در جدول orders ─────────────────────────
+      const updatedCount = await knex('orders')
+        .whereIn('id', targetOrderIds)
+        .update({
+          settled_at: settledAtDate,
+          updated_at: settledAtDate,
+        });
+
+      // ── ۲. ثبت رابطه در جدول پیوند orders_settlement_lnk ──────────────────
+      await knex('orders_settlement_lnk')
+        .whereIn('order_id', targetOrderIds)
+        .delete();
+
+      const lnkRows = targetOrderIds.map((orderId, idx) => ({
+        order_id: orderId,
+        settlement_id: settlementNumericId,
+        order_ord: idx + 1,
+      }));
+
+      await knex.batchInsert('orders_settlement_lnk', lnkRows, 500);
+
+      strapi.log.info(`[bulkSettle] Successfully settled ${updatedCount} orders → settlement #${settlementNumericId}`);
+
+      return ctx.send({ settled: updatedCount });
+    } catch (err) {
+      strapi.log.error('[bulkSettle] Error:', err);
+      ctx.throw(500, `خطا در تسویه دسته‌ای: ${err.message}`);
+    }
+  },
 }));
+

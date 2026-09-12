@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Custom routes for Order API (Excel Export & Revenue Analytics)
+ * Custom routes for Order API (Excel Export, Revenue Analytics & Bulk Settlement)
  */
 
 module.exports = {
@@ -11,7 +11,7 @@ module.exports = {
       path: '/orders/export-excel',
       handler: 'order.exportExcel',
       config: {
-        auth: false, // Set to true or customize permissions as needed
+        auth: false,
         policies: [],
         middlewares: [],
       },
@@ -30,6 +30,16 @@ module.exports = {
       method: 'POST',
       path: '/orders/sync-excel',
       handler: 'order.syncExcel',
+      config: {
+        auth: false,
+        policies: [],
+        middlewares: [],
+      },
+    },
+    {
+      method: 'POST',
+      path: '/orders/bulk-settle',
+      handler: 'order.bulkSettle',
       config: {
         auth: false,
         policies: [],

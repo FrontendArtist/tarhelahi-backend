@@ -1006,6 +1006,11 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     publishedAt: Schema.Attribute.DateTime;
     receiptImage: Schema.Attribute.Media<'images'>;
     rejectionReason: Schema.Attribute.Text;
+    settledAt: Schema.Attribute.DateTime;
+    settlement: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::settlement.settlement'
+    >;
     stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
     trackingNumber: Schema.Attribute.String;
@@ -1146,6 +1151,41 @@ export interface ApiServiceService extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiSettlementSettlement extends Struct.CollectionTypeSchema {
+  collectionName: 'settlements';
+  info: {
+    description: '\u062B\u0628\u062A \u0648 \u0622\u0631\u0634\u06CC\u0648 \u062F\u0648\u0631\u0647\u200C\u0647\u0627\u06CC \u062A\u0633\u0648\u06CC\u0647 \u0645\u0627\u0644\u06CC \u0648 \u062E\u0631\u06CC\u062F\u0647\u0627\u06CC \u0641\u0631\u0648\u0634\u0646\u062F\u06AF\u0627\u0646';
+    displayName: '\u062F\u0648\u0631\u0647\u200C\u0647\u0627\u06CC \u062A\u0633\u0648\u06CC\u0647 (Settlements)';
+    pluralName: 'settlements';
+    singularName: 'settlement';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::settlement.settlement'
+    > &
+      Schema.Attribute.Private;
+    notes: Schema.Attribute.Text;
+    orders: Schema.Attribute.Relation<'oneToMany', 'api::order.order'>;
+    ordersCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    periodNumber: Schema.Attribute.Integer;
+    publishedAt: Schema.Attribute.DateTime;
+    settledAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    totalAmount: Schema.Attribute.BigInteger & Schema.Attribute.DefaultTo<'0'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiSocialSocial extends Struct.CollectionTypeSchema {
   collectionName: 'socials';
   info: {
@@ -1234,6 +1274,79 @@ export interface ApiTestimontialTestimontial
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiTopBannerTopBanner extends Struct.SingleTypeSchema {
+  collectionName: 'top_banners';
+  info: {
+    description: '\u0646\u0648\u0627\u0631 \u0627\u0639\u0644\u0627\u0646 \u0648 \u062A\u062E\u0641\u06CC\u0641 \u0628\u0627\u0644\u0627\u06CC \u0647\u062F\u0631 \u0633\u0627\u06CC\u062A \u0628\u0627 \u0642\u0627\u0628\u0644\u06CC\u062A \u0627\u0633\u062A\u0627\u06CC\u0644\u200C\u062F\u0647\u06CC \u0645\u062A\u0646 \u0648 \u062F\u06A9\u0645\u0647 \u0644\u06CC\u0646\u06A9';
+    displayName: '\u0646\u0648\u0627\u0631 \u0627\u0639\u0644\u0627\u0646 \u0628\u0627\u0644\u0627\u06CC \u0633\u0627\u06CC\u062A (Top Banner)';
+    pluralName: 'top-banners';
+    singularName: 'top-banner';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    badgeText: Schema.Attribute.String;
+    buttonLink: Schema.Attribute.String;
+    buttonText: Schema.Attribute.String;
+    canDismiss: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isActive: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::top-banner.top-banner'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    text: Schema.Attribute.Text & Schema.Attribute.Required;
+    theme: Schema.Attribute.Enumeration<
+      ['gold', 'emerald', 'sunset', 'purple', 'dark']
+    > &
+      Schema.Attribute.DefaultTo<'gold'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiVisitorStatVisitorStat extends Struct.CollectionTypeSchema {
+  collectionName: 'visitor_stats';
+  info: {
+    description: 'Log records for website visitor traffic and analytics';
+    displayName: 'VisitorStat';
+    pluralName: 'visitor-stats';
+    singularName: 'visitor-stat';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    device: Schema.Attribute.String & Schema.Attribute.DefaultTo<'desktop'>;
+    ip: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::visitor-stat.visitor-stat'
+    > &
+      Schema.Attribute.Private;
+    path: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    userAgent: Schema.Attribute.Text;
+    visitorId: Schema.Attribute.String & Schema.Attribute.Required;
   };
 }
 
@@ -1824,9 +1937,12 @@ declare module '@strapi/strapi' {
       'api::popup-message.popup-message': ApiPopupMessagePopupMessage;
       'api::product.product': ApiProductProduct;
       'api::service.service': ApiServiceService;
+      'api::settlement.settlement': ApiSettlementSettlement;
       'api::social.social': ApiSocialSocial;
       'api::tag.tag': ApiTagTag;
       'api::testimontial.testimontial': ApiTestimontialTestimontial;
+      'api::top-banner.top-banner': ApiTopBannerTopBanner;
+      'api::visitor-stat.visitor-stat': ApiVisitorStatVisitorStat;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::export-import-kkm.export-import-config': PluginExportImportKkmExportImportConfig;

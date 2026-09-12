@@ -109,6 +109,15 @@
     },
     "rejectionReason": {
       "type": "text"
+    },
+    "settlement": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::settlement.settlement",
+      "inversedBy": "orders"
+    },
+    "settledAt": {
+      "type": "datetime"
     }
   }
 }
