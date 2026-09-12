@@ -200,14 +200,20 @@ module.exports = {
         });
         
         // صدور JWT
-        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: user.id });
+        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+            id: user.id,
+            documentId: user.documentId,
+        });
 
         const sanitizedUser = {
             id: user.id,
+            documentId: user.documentId,
             username: user.username,
             phoneNumber: user.phoneNumber,
             email: user.email,
             role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
             is_foreigner: false,
         };
         
@@ -281,10 +287,14 @@ module.exports = {
             }
         }
 
-        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: user.id });
+        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+            id: user.id,
+            documentId: user.documentId,
+        });
 
         const sanitizedUser = {
             id: user.id,
+            documentId: user.documentId,
             username: user.username,
             phoneNumber: user.phoneNumber,
             email: user.email,
@@ -352,10 +362,14 @@ module.exports = {
             role: defaultRole ? defaultRole.id : undefined,
         });
 
-        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({ id: newUser.id });
+        const jwt = strapi.plugins['users-permissions'].services.jwt.issue({
+            id: newUser.id,
+            documentId: newUser.documentId,
+        });
 
         const sanitizedUser = {
             id: newUser.id,
+            documentId: newUser.documentId,
             username: newUser.username,
             phoneNumber: newUser.phoneNumber,
             email: newUser.email,
