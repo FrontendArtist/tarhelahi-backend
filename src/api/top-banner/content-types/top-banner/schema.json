@@ -1,0 +1,49 @@
+{
+  "kind": "singleType",
+  "collectionName": "top_banners",
+  "info": {
+    "singularName": "top-banner",
+    "pluralName": "top-banners",
+    "displayName": "نوار اعلان بالای سایت (Top Banner)",
+    "description": "نوار اعلان و تخفیف بالای هدر سایت با قابلیت استایل‌دهی متن و دکمه لینک"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "isActive": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "text": {
+      "type": "text",
+      "required": true
+    },
+    "buttonText": {
+      "type": "string"
+    },
+    "buttonLink": {
+      "type": "string"
+    },
+    "badgeText": {
+      "type": "string"
+    },
+    "theme": {
+      "type": "enumeration",
+      "enum": [
+        "gold",
+        "emerald",
+        "sunset",
+        "purple",
+        "dark"
+      ],
+      "default": "gold"
+    },
+    "canDismiss": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}
