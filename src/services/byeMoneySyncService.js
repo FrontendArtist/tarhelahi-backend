@@ -109,7 +109,7 @@ async function syncUser(user, options = {}) {
     ).replace(/\/+$/, '');
     const url = `${baseUrl}/api/auth/sync`;
 
-    const timeoutMs = Number(options.timeoutMs || process.env.BYEMONEY_SYNC_TIMEOUT_MS) || 5000;
+    const timeoutMs = Number(options.timeoutMs || process.env.BYEMONEY_SYNC_TIMEOUT_MS) || 30000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
