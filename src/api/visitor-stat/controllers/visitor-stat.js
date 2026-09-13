@@ -2,25 +2,51 @@
 
 /**
  * visitor-stat controller
- * مدیریت ثبت و گزارش‌گیری ترافیک بازدیدکنندگان و شمارش آنلاین در استراپی ۵
+ * سیستم فوق‌سبک و بهینه برای شمارش کاربران آنلاین و ورودی‌های یکتای روزانه سایت
+ * بدون ذخیره رکوردهای تکراری در دیتابیس (فقط ۱ سطر برای هر روز)
  */
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
-// نگه‌داری نشست‌های فعال در حافظه جهت پاسخ‌دهی O(1) فوق‌العاده سریع به ضربان قلب
+// ۱. مدیریت افراد آنلاین در رم (بدون هیچ‌گونه ذخیره در دیتابیس)
 const activeSessions = new Map();
 const ONLINE_THRESHOLD_MS = 3 * 60 * 1000; // ۳ دقیقه
 const CLEANUP_THRESHOLD_MS = 10 * 60 * 1000; // ۱۰ دقیقه
 
+// ۲. جلوگیری از شمارش مجدد یک فرد در طول همان روز در حافظه رم
+let currentActiveDay = '';
+const todayVisitorsSet = new Set();
+
 /**
- * پاکسازی نشست‌های منقضی‌شده و بازگرداندن تعداد افراد آنلاین
+ * محاسبه تاریخ امروز به وقت تهران (YYYY-MM-DD)
+ */
+function getTehranDateString(d = new Date()) {
+  const tehranOffsetMs = 3.5 * 60 * 60 * 1000;
+  const tehranDate = new Date(d.getTime() + tehranOffsetMs);
+  return tehranDate.toISOString().split('T')[0];
+}
+
+/**
+ * بازنشانی لیست کاربران امروز در صورت تغییر روز
+ */
+function checkAndResetDailySet() {
+  const today = getTehranDateString();
+  if (currentActiveDay !== today) {
+    currentActiveDay = today;
+    todayVisitorsSet.clear();
+  }
+  return today;
+}
+
+/**
+ * شمارش آنلاین‌ها و پاکسازی نشست‌های قدیمی از رم
  */
 function getOnlineUsersCount() {
   const now = Date.now();
   let onlineCount = 0;
 
-  for (const [id, session] of activeSessions.entries()) {
-    const diff = now - session.lastSeen;
+  for (const [id, lastSeen] of activeSessions.entries()) {
+    const diff = now - lastSeen;
     if (diff <= ONLINE_THRESHOLD_MS) {
       onlineCount++;
     } else if (diff > CLEANUP_THRESHOLD_MS) {
@@ -28,59 +54,58 @@ function getOnlineUsersCount() {
     }
   }
 
-  return Math.max(1, onlineCount); // حداقل ۱ کاربر (همین بازدید جاری/ادمین)
+  return Math.max(1, onlineCount);
 }
 
 module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strapi }) => ({
 
   /**
    * POST /api/visitor-stat/track
-   * ثبت ضربان قلب کلاینت و در صورت تغییر صفحه، ثبت رکورد بازدید
+   * ثبت ورود کاربر جدید در روز یا دریافت ضربان قلب آنلاین
    */
   async track(ctx) {
     try {
       const body = ctx.request.body || {};
       const visitorId = (body.visitorId || '').trim();
-      const path = (body.path || '').trim();
-      const device = (body.device || 'desktop').toLowerCase();
-      const type = body.type || 'pageview'; // 'pageview' یا 'heartbeat'
+      const type = body.type || 'heartbeat'; // 'enter' یا 'heartbeat'
 
       if (!visitorId) {
         return ctx.badRequest('visitorId is required');
       }
 
-      // استخراج IP کلاینت از هدرهای پراکسی
-      const clientIp =
-        ctx.request.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-        ctx.request.ip ||
-        '';
+      // همیشه زمان آخرین فعالیت در رم به‌روزرسانی می‌شود (برای آنلاین‌ها)
+      activeSessions.set(visitorId, Date.now());
 
-      const userAgent = (ctx.request.headers['user-agent'] || '').slice(0, 500);
+      const todayDate = checkAndResetDailySet();
 
-      // ۱. به‌روزرسانی نشست فعال در حافظه
-      activeSessions.set(visitorId, {
-        lastSeen: Date.now(),
-        path: path || '/',
-        device,
-        ip: clientIp,
-      });
+      // اگر رویداد ورود به سایت است (اولین بار در روز)
+      if (type === 'enter') {
+        // اگر این کاربر امروز قبلاً در سرور شمرده شده، هیچ کاری نکن! (صفر عملیات دیتابیس)
+        if (todayVisitorsSet.has(visitorId)) {
+          return ctx.send({ success: true, onlineCount: getOnlineUsersCount(), alreadyCounted: true });
+        }
 
-      // ۲. در صورتی که ضربان قلب محض نباشد و صفحه مربوط به ادمین نباشد، لاگ بازدید را ثبت کن
-      if (type !== 'heartbeat' && path && !path.startsWith('/admin')) {
-        try {
-          if (strapi.documents) {
-            await strapi.documents('api::visitor-stat.visitor-stat').create({
-              data: {
-                visitorId,
-                path: path.slice(0, 255),
-                device,
-                ip: clientIp,
-                userAgent,
-              },
+        // علامت‌گذاری در حافظه رم سرور
+        todayVisitorsSet.add(visitorId);
+
+        // افزایش شمارنده در دیتابیس (فقط ۱ سطر برای هر روز)
+        const knex = strapi.db.connection;
+        const hasTable = await knex.schema.hasTable('daily_visitor_stats');
+        
+        if (hasTable) {
+          const row = await knex('daily_visitor_stats').where({ date: todayDate }).first();
+          if (row) {
+            await knex('daily_visitor_stats').where({ id: row.id }).increment('count', 1);
+          } else {
+            // ایجاد سطر برای روز جدید
+            await knex('daily_visitor_stats').insert({
+              date: todayDate,
+              count: 1,
+              created_at: new Date(),
+              updated_at: new Date(),
+              document_id: 'dvs_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
             });
           }
-        } catch (dbErr) {
-          strapi.log.warn('[visitor-stat] DB log create error: ' + dbErr.message);
         }
       }
 
@@ -89,109 +114,71 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
         onlineCount: getOnlineUsersCount(),
       });
     } catch (err) {
-      strapi.log.error('[visitor-stat] track handler error: ' + err.message);
+      strapi.log.error('[visitor-stat track error]: ' + err.message);
       return ctx.send({ success: false, error: err.message }, 500);
     }
   },
 
   /**
    * GET /api/visitor-stat/stats
-   * دریافت آمارهای روزانه، هفتگی، ماهانه، سالانه و نمودار برای داشبورد پنل ادمین
+   * دریافت آمارهای روزانه، هفتگی، ماهانه، سالانه و نمودار برای داشبورد ادمین
    */
   async stats(ctx) {
     try {
       const knex = strapi.db.connection;
       const onlineUsers = getOnlineUsersCount();
+      const todayDate = checkAndResetDailySet();
 
-      const now = new Date();
-
-      // ابتدای روز جاری به وقت تهران (+03:30)
-      const tehranOffsetMs = 3.5 * 60 * 60 * 1000;
-      const tehranNow = new Date(now.getTime() + tehranOffsetMs);
-      const startOfDayTehran = new Date(
-        Date.UTC(
-          tehranNow.getUTCFullYear(),
-          tehranNow.getUTCMonth(),
-          tehranNow.getUTCDate()
-        ) - tehranOffsetMs
-      );
-
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-
-      // بررسی وجود جدول visitor_stats
-      const hasTable = await knex.schema.hasTable('visitor_stats');
+      const hasTable = await knex.schema.hasTable('daily_visitor_stats');
       if (!hasTable) {
         return ctx.send({
           onlineUsers,
-          daily: { pageViews: 0, uniqueVisitors: 0 },
-          weekly: { pageViews: 0, uniqueVisitors: 0 },
-          monthly: { pageViews: 0, uniqueVisitors: 0 },
-          yearly: { pageViews: 0, uniqueVisitors: 0 },
-          total: { pageViews: 0, uniqueVisitors: 0 },
+          daily: 0,
+          weekly: 0,
+          monthly: 0,
+          yearly: 0,
+          total: 0,
           chartData: [],
-          deviceStats: { mobile: 0, desktop: 0, tablet: 0 },
-          topPages: [],
         });
       }
 
-      // تابع کمکی برای دریافت تعداد کل و بازدیدکنندگان یکتا در یک بازه زمانی
-      async function getMetrics(sinceDate) {
-        let query = knex('visitor_stats');
-        if (sinceDate) {
-          query = query.where('created_at', '>=', sinceDate);
-        }
+      const now = new Date();
+      const getPastDateStr = (daysAgo) => {
+        const d = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+        return getTehranDateString(d);
+      };
 
-        const res = await query
-          .select(
-            knex.raw('COUNT(*) as total_views'),
-            knex.raw('COUNT(DISTINCT visitor_id) as unique_visitors')
-          )
-          .first();
+      const date7DaysAgo = getPastDateStr(7);
+      const date30DaysAgo = getPastDateStr(30);
+      const date365DaysAgo = getPastDateStr(365);
 
-        return {
-          pageViews: parseInt(res?.total_views || 0, 10),
-          uniqueVisitors: parseInt(res?.unique_visitors || 0, 10),
-        };
-      }
-
-      // اجرای موازی کوئری‌ها
-      const [daily, weekly, monthly, yearly, total] = await Promise.all([
-        getMetrics(startOfDayTehran),
-        getMetrics(sevenDaysAgo),
-        getMetrics(thirtyDaysAgo),
-        getMetrics(oneYearAgo),
-        getMetrics(null),
+      // اجرای بهینه کوئری‌ها بر روی جدول تک‌سطری روزانه
+      const [todayRow, weeklySum, monthlySum, yearlySum, totalSum, recentDays] = await Promise.all([
+        knex('daily_visitor_stats').where({ date: todayDate }).first(),
+        knex('daily_visitor_stats').where('date', '>=', date7DaysAgo).sum('count as total').first(),
+        knex('daily_visitor_stats').where('date', '>=', date30DaysAgo).sum('count as total').first(),
+        knex('daily_visitor_stats').where('date', '>=', date365DaysAgo).sum('count as total').first(),
+        knex('daily_visitor_stats').sum('count as total').first(),
+        knex('daily_visitor_stats').where('date', '>=', date7DaysAgo).select('date', 'count').orderBy('date', 'asc'),
       ]);
 
-      // دریافت داده‌های روند ۷ روز اخیر برای نمودار تعاملی
-      const rawChartRows = await knex('visitor_stats')
-        .where('created_at', '>=', sevenDaysAgo)
-        .select(
-          knex.raw('DATE(created_at) as visit_date'),
-          knex.raw('COUNT(*) as views'),
-          knex.raw('COUNT(DISTINCT visitor_id) as uniques')
-        )
-        .groupBy(knex.raw('DATE(created_at)'))
-        .orderBy('visit_date', 'asc');
+      const daily = parseInt(todayRow?.count || 0, 10);
+      const weekly = parseInt(weeklySum?.total || 0, 10);
+      const monthly = parseInt(monthlySum?.total || 0, 10);
+      const yearly = parseInt(yearlySum?.total || 0, 10);
+      const total = parseInt(totalSum?.total || 0, 10);
 
+      // ساخت نقشه داده‌های ۷ روز اخیر برای نمودار
       const chartMap = new Map();
-      (rawChartRows || []).forEach((r) => {
-        const dStr = new Date(r.visit_date).toISOString().split('T')[0];
-        chartMap.set(dStr, {
-          pageViews: parseInt(r.views || 0, 10),
-          uniqueVisitors: parseInt(r.uniques || 0, 10),
-        });
+      (recentDays || []).forEach((r) => {
+        chartMap.set(r.date, parseInt(r.count || 0, 10));
       });
 
-      // ساخت ۷ روز پشت سر هم تا هیچ روزی خالی نباشد
       const chartData = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const isoDate = d.toISOString().split('T')[0];
+        const isoDate = getTehranDateString(d);
 
-        // فرمت شمسی کوتاه
         const shamsiLabel = new Intl.DateTimeFormat('fa-IR', {
           month: 'numeric',
           day: 'numeric',
@@ -201,46 +188,13 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
           weekday: 'short',
         }).format(d);
 
-        const entry = chartMap.get(isoDate) || { pageViews: 0, uniqueVisitors: 0 };
-
         chartData.push({
           date: isoDate,
           label: shamsiLabel,
           weekday: weekdayLabel,
-          pageViews: entry.pageViews,
-          uniqueVisitors: entry.uniqueVisitors,
+          count: chartMap.get(isoDate) || 0,
         });
       }
-
-      // سهم نوع دستگاه‌ها
-      const deviceRows = await knex('visitor_stats')
-        .where('created_at', '>=', thirtyDaysAgo)
-        .select('device', knex.raw('COUNT(*) as count'))
-        .groupBy('device');
-
-      const deviceStats = { mobile: 0, desktop: 0, tablet: 0 };
-      (deviceRows || []).forEach((row) => {
-        const dev = (row.device || '').toLowerCase();
-        const cnt = parseInt(row.count || 0, 10);
-        if (dev.includes('mobile')) deviceStats.mobile += cnt;
-        else if (dev.includes('tablet')) deviceStats.tablet += cnt;
-        else deviceStats.desktop += cnt;
-      });
-
-      // صفحات پربازدید ۳۰ روز اخیر
-      const topPagesRows = await knex('visitor_stats')
-        .where('created_at', '>=', thirtyDaysAgo)
-        .whereNotNull('path')
-        .whereNot('path', '')
-        .select('path', knex.raw('COUNT(*) as count'))
-        .groupBy('path')
-        .orderBy('count', 'desc')
-        .limit(6);
-
-      const topPages = (topPagesRows || []).map((row) => ({
-        path: row.path,
-        count: parseInt(row.count || 0, 10),
-      }));
 
       return ctx.send({
         onlineUsers,
@@ -250,11 +204,9 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
         yearly,
         total,
         chartData,
-        deviceStats,
-        topPages,
       });
     } catch (err) {
-      strapi.log.error('[visitor-stat] stats handler error: ' + err.message);
+      strapi.log.error('[visitor-stat stats error]: ' + err.message);
       return ctx.send({ error: err.message }, 500);
     }
   },

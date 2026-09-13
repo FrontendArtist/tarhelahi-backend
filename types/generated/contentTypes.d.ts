@@ -1318,10 +1318,10 @@ export interface ApiTopBannerTopBanner extends Struct.SingleTypeSchema {
 }
 
 export interface ApiVisitorStatVisitorStat extends Struct.CollectionTypeSchema {
-  collectionName: 'visitor_stats';
+  collectionName: 'daily_visitor_stats';
   info: {
-    description: 'Log records for website visitor traffic and analytics';
-    displayName: 'VisitorStat';
+    description: 'Daily aggregated count of unique visitors entering the website';
+    displayName: 'DailyVisitorStat';
     pluralName: 'visitor-stats';
     singularName: 'visitor-stat';
   };
@@ -1329,24 +1329,23 @@ export interface ApiVisitorStatVisitorStat extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    count: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    device: Schema.Attribute.String & Schema.Attribute.DefaultTo<'desktop'>;
-    ip: Schema.Attribute.String;
+    date: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::visitor-stat.visitor-stat'
     > &
       Schema.Attribute.Private;
-    path: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    userAgent: Schema.Attribute.Text;
-    visitorId: Schema.Attribute.String & Schema.Attribute.Required;
   };
 }
 

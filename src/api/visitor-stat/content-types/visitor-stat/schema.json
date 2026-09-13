@@ -1,33 +1,25 @@
 {
   "kind": "collectionType",
-  "collectionName": "visitor_stats",
+  "collectionName": "daily_visitor_stats",
   "info": {
     "singularName": "visitor-stat",
     "pluralName": "visitor-stats",
-    "displayName": "VisitorStat",
-    "description": "Log records for website visitor traffic and analytics"
+    "displayName": "DailyVisitorStat",
+    "description": "Daily aggregated count of unique visitors entering the website"
   },
   "options": {
     "draftAndPublish": false
   },
   "pluginOptions": {},
   "attributes": {
-    "visitorId": {
+    "date": {
       "type": "string",
-      "required": true
+      "required": true,
+      "unique": true
     },
-    "path": {
-      "type": "string"
-    },
-    "device": {
-      "type": "string",
-      "default": "desktop"
-    },
-    "ip": {
-      "type": "string"
-    },
-    "userAgent": {
-      "type": "text"
+    "count": {
+      "type": "integer",
+      "default": 0
     }
   }
 }
