@@ -1,0 +1,37 @@
+{
+  "kind": "collectionType",
+  "collectionName": "byemoney_purchase_logs",
+  "info": {
+    "singularName": "byemoney-purchase-log",
+    "pluralName": "byemoney-purchase-logs",
+    "displayName": "ByeMoney Purchase Log",
+    "description": "Idempotency and audit log for ByeMoney purchase confirmations"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "purchaseId": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "strapiUserId": {
+      "type": "string",
+      "required": true
+    },
+    "courseId": {
+      "type": "string",
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "processed"
+      ],
+      "default": "processed",
+      "required": true
+    }
+  }
+}

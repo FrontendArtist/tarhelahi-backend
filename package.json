@@ -12,6 +12,7 @@
     "start": "strapi start",
     "strapi": "strapi",
     "export:excel": "node scripts/export_orders_excel.js",
+    "test": "jest",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
   },
@@ -44,6 +45,7 @@
     "installId": "024532a4be5e4cd722972caa28a5a2ea274467db7016a80744efb62de43ced2e"
   },
   "devDependencies": {
-    "baseline-browser-mapping": "^2.10.38"
+    "baseline-browser-mapping": "^2.10.38",
+    "jest": "^30.5.1"
   }
 }

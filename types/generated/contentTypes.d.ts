@@ -580,6 +580,43 @@ export interface ApiBankSettingBankSetting extends Struct.SingleTypeSchema {
   };
 }
 
+export interface ApiByemoneyPurchaseLogByemoneyPurchaseLog
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'byemoney_purchase_logs';
+  info: {
+    description: 'Idempotency and audit log for ByeMoney purchase confirmations';
+    displayName: 'ByeMoney Purchase Log';
+    pluralName: 'byemoney-purchase-logs';
+    singularName: 'byemoney-purchase-log';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    courseId: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::byemoney-purchase-log.byemoney-purchase-log'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    purchaseId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    status: Schema.Attribute.Enumeration<['processed']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'processed'>;
+    strapiUserId: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   collectionName: 'categories';
   info: {
@@ -1924,6 +1961,7 @@ declare module '@strapi/strapi' {
       'api::article.article': ApiArticleArticle;
       'api::articles-category.articles-category': ApiArticlesCategoryArticlesCategory;
       'api::bank-setting.bank-setting': ApiBankSettingBankSetting;
+      'api::byemoney-purchase-log.byemoney-purchase-log': ApiByemoneyPurchaseLogByemoneyPurchaseLog;
       'api::category.category': ApiCategoryCategory;
       'api::comment.comment': ApiCommentComment;
       'api::contact-message.contact-message': ApiContactMessageContactMessage;

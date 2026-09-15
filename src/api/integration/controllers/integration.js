@@ -1,8 +1,10 @@
 'use strict';
 
+const byeMoneyPurchaseService = require('../../../services/byeMoneyPurchaseService');
+
 /**
  * ByeMoney <-> TarhElahi Integration Controller (v1)
- * Strict service-to-service read endpoints for ByeMoney.
+ * Strict service-to-service read and webhook endpoints for ByeMoney.
  */
 module.exports = {
   /**
@@ -88,5 +90,31 @@ module.exports = {
       available: isAvailable,
       updatedAt: course.updatedAt,
     });
+  },
+
+  /**
+   * POST /api/integrations/byemoney/v1/purchases/confirm
+   * Receives course purchase confirmation webhook from ByeMoney.
+   * Grants user access to the course idempotently.
+   */
+  async confirmPurchase(ctx) {
+    try {
+      const payload = ctx.request.body;
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload);
+
+      ctx.status = result.httpStatus;
+      ctx.body = result.response;
+      return ctx.body;
+    } catch (error) {
+      strapi.log?.error?.(`[ByeMoney Purchase Webhook] Unexpected error: ${error.message}`);
+      ctx.status = 500;
+      ctx.body = {
+        success: false,
+        purchaseId: typeof ctx.request?.body?.purchaseId === 'string' ? ctx.request.body.purchaseId : '',
+        status: 'error',
+        message: 'Internal server error while processing purchase confirmation',
+      };
+      return ctx.body;
+    }
   },
 };
