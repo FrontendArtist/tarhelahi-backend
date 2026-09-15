@@ -49,6 +49,34 @@ function validatePayload(payload) {
 }
 
 /**
+ * Detects whether an error represents a database unique-constraint or duplicate-entry violation.
+ * Handles Postgres (23505), SQLite (SQLITE_CONSTRAINT), MySQL (ER_DUP_ENTRY / 1062),
+ * Strapi / Objection ValidationError, and duplicate key message patterns.
+ *
+ * @param {any} err - The caught error.
+ * @returns {boolean}
+ */
+function isUniqueConstraintError(err) {
+  if (!err) return false;
+  const code = String(err.code || '');
+  const errno = Number(err.errno);
+  if (code === '23505' || code === 'SQLITE_CONSTRAINT' || code === 'ER_DUP_ENTRY' || errno === 1062) {
+    return true;
+  }
+  const message = String(err.message || '').toLowerCase();
+  const name = String(err.name || '').toLowerCase();
+  return (
+    name.includes('unique') ||
+    (name.includes('validationerror') && message.includes('unique')) ||
+    message.includes('unique constraint') ||
+    message.includes('duplicate key') ||
+    message.includes('duplicate entry') ||
+    message.includes('must be unique') ||
+    message.includes('already exists')
+  );
+}
+
+/**
  * Confirms course purchase webhook idempotently and grants course access.
  *
  * @param {object} payload - Webhook JSON body.
@@ -170,19 +198,39 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
       },
     });
   } catch (err) {
-    // Handle concurrent requests race condition gracefully
+    // Narrow catch: only treat genuine DB unique-constraint violations as race conditions.
+    // Unrelated errors (network drops, DB connection loss, disk errors) propagate as 500.
+    if (!isUniqueConstraintError(err)) {
+      throw err;
+    }
+
+    // Handle concurrent requests race condition: verify what the winning request committed
     const raceCheck = await strapiObj.db.query('api::byemoney-purchase-log.byemoney-purchase-log').findOne({
       where: { purchaseId },
     });
 
-    if (raceCheck && raceCheck.strapiUserId === strapiUserId && raceCheck.courseId === courseId) {
+    if (raceCheck) {
+      // Idempotent race: winning concurrent request had the exact same user and course
+      if (raceCheck.strapiUserId === strapiUserId && raceCheck.courseId === courseId) {
+        return {
+          httpStatus: 200,
+          response: {
+            success: true,
+            purchaseId,
+            status: 'already_granted',
+            message: 'Purchase was already processed and access granted',
+          },
+        };
+      }
+
+      // True conflict: concurrent request with the same purchaseId had a different user or course
       return {
-        httpStatus: 200,
+        httpStatus: 409,
         response: {
-          success: true,
+          success: false,
           purchaseId,
-          status: 'already_granted',
-          message: 'Purchase was already processed and access granted',
+          status: 'conflict',
+          message: 'Conflict: purchaseId already exists with different strapiUserId or courseId',
         },
       };
     }
@@ -204,4 +252,5 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
 module.exports = {
   validatePayload,
   confirmPurchase,
+  isUniqueConstraintError,
 };

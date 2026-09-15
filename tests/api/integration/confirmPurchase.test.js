@@ -408,5 +408,183 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
       expect(() => isServiceAuthenticated(policyCtx)).toThrow('Service key is not configured');
     });
   });
+
+  describe('Race Condition & Narrow Constraint Error Handling', () => {
+    it('should return 200 already_granted on concurrent race when winning record matches exact user/course', async () => {
+      const payload = {
+        purchaseId: 'bm_pur_race_1',
+        strapiUserId: 'usr_doc_10',
+        courseId: 'crs_doc_20',
+      };
+
+      // Initial check returns null (neither request saw it yet)
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne
+        .mockResolvedValueOnce(null) // step 2 initial check
+        .mockResolvedValueOnce({    // step 6 raceCheck after create fails
+          id: 99,
+          purchaseId: 'bm_pur_race_1',
+          strapiUserId: 'usr_doc_10',
+          courseId: 'crs_doc_20',
+          status: 'processed',
+        });
+
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 10,
+        documentId: 'usr_doc_10',
+      });
+
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 20,
+        documentId: 'crs_doc_20',
+        users_permissions_users: [],
+      });
+
+      // DB throws unique constraint error on create
+      const uniqueError = new Error('UNIQUE constraint failed: byemoney_purchase_logs.purchase_id');
+      uniqueError.code = 'SQLITE_CONSTRAINT';
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockRejectedValue(uniqueError);
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(200);
+      expect(result.response).toEqual({
+        success: true,
+        purchaseId: 'bm_pur_race_1',
+        status: 'already_granted',
+        message: 'Purchase was already processed and access granted',
+      });
+    });
+
+    it('should return 409 conflict on concurrent race when winning record has DIFFERENT strapiUserId', async () => {
+      const payload = {
+        purchaseId: 'bm_pur_race_2',
+        strapiUserId: 'usr_doc_A',
+        courseId: 'crs_doc_20',
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne
+        .mockResolvedValueOnce(null) // step 2
+        .mockResolvedValueOnce({    // step 6 raceCheck
+          id: 100,
+          purchaseId: 'bm_pur_race_2',
+          strapiUserId: 'usr_doc_B', // Different user won the race
+          courseId: 'crs_doc_20',
+          status: 'processed',
+        });
+
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 10,
+        documentId: 'usr_doc_A',
+      });
+
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 20,
+        documentId: 'crs_doc_20',
+        users_permissions_users: [],
+      });
+
+      const pgUniqueError = new Error('duplicate key value violates unique constraint "purchase_id_unique"');
+      pgUniqueError.code = '23505';
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockRejectedValue(pgUniqueError);
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(409);
+      expect(result.response).toEqual({
+        success: false,
+        purchaseId: 'bm_pur_race_2',
+        status: 'conflict',
+        message: 'Conflict: purchaseId already exists with different strapiUserId or courseId',
+      });
+    });
+
+    it('should return 409 conflict on concurrent race when winning record has DIFFERENT courseId', async () => {
+      const payload = {
+        purchaseId: 'bm_pur_race_3',
+        strapiUserId: 'usr_doc_10',
+        courseId: 'crs_doc_A',
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 101,
+          purchaseId: 'bm_pur_race_3',
+          strapiUserId: 'usr_doc_10',
+          courseId: 'crs_doc_B', // Different course won the race
+          status: 'processed',
+        });
+
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 10,
+        documentId: 'usr_doc_10',
+      });
+
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 20,
+        documentId: 'crs_doc_A',
+        users_permissions_users: [],
+      });
+
+      const mysqlUniqueError = new Error("Duplicate entry 'bm_pur_race_3' for key 'purchaseId'");
+      mysqlUniqueError.errno = 1062;
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockRejectedValue(mysqlUniqueError);
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(409);
+      expect(result.response.status).toBe('conflict');
+    });
+
+    it('should propagate non-unique database errors (e.g. connection lost) without treating as race condition', async () => {
+      const payload = {
+        purchaseId: 'bm_pur_net_err',
+        strapiUserId: 'usr_doc_10',
+        courseId: 'crs_doc_20',
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne.mockResolvedValueOnce(null);
+
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 10,
+        documentId: 'usr_doc_10',
+      });
+
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 20,
+        documentId: 'crs_doc_20',
+        users_permissions_users: [],
+      });
+
+      const networkError = new Error('Connection terminated unexpectedly');
+      networkError.code = 'ECONNRESET';
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockRejectedValue(networkError);
+
+      await expect(
+        byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi })
+      ).rejects.toThrow('Connection terminated unexpectedly');
+
+      // Ensure findOne was NOT called a second time because non-unique error threw immediately
+      expect(mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('should accurately detect various unique constraint error signatures', () => {
+      const { isUniqueConstraintError } = byeMoneyPurchaseService;
+
+      expect(isUniqueConstraintError({ code: '23505' })).toBe(true);
+      expect(isUniqueConstraintError({ code: 'SQLITE_CONSTRAINT' })).toBe(true);
+      expect(isUniqueConstraintError({ code: 'ER_DUP_ENTRY' })).toBe(true);
+      expect(isUniqueConstraintError({ errno: 1062 })).toBe(true);
+      expect(isUniqueConstraintError({ message: 'unique constraint "idx" violated' })).toBe(true);
+      expect(isUniqueConstraintError({ message: 'duplicate key value' })).toBe(true);
+      expect(isUniqueConstraintError({ name: 'ValidationError', message: 'purchaseId must be unique' })).toBe(true);
+
+      // Non-unique errors should return false
+      expect(isUniqueConstraintError(null)).toBe(false);
+      expect(isUniqueConstraintError(new Error('Connection timeout'))).toBe(false);
+      expect(isUniqueConstraintError({ code: 'ECONNREFUSED' })).toBe(false);
+      expect(isUniqueConstraintError({ code: '42P01', message: 'relation does not exist' })).toBe(false);
+    });
+  });
 });
 
