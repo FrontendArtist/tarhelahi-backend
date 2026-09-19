@@ -93,6 +93,115 @@ module.exports = {
   },
 
   /**
+   * GET /api/integrations/byemoney/v1/chapters/:externalId
+   * Read authoritative course chapter catalog DTO for ByeMoney integration.
+   * Resolves by chapter.integrationId (UUID).
+   * Returns type='course_chapter', externalId, and parentExternalId=course.documentId.
+   */
+  async getChapter(ctx) {
+    const { externalId } = ctx.params;
+
+    if (!externalId || !externalId.trim()) {
+      return ctx.badRequest('externalId is required');
+    }
+
+    const trimmedExternalId = externalId.trim();
+
+    // Find course containing the chapter (prefer published version)
+    let course =
+      (await strapi.db.query('api::course.course').findOne({
+        where: {
+          chapters: { integrationId: trimmedExternalId },
+          publishedAt: { $notNull: true },
+        },
+        populate: ['chapters'],
+      })) ||
+      (await strapi.db.query('api::course.course').findOne({
+        where: {
+          chapters: { integrationId: trimmedExternalId },
+        },
+        populate: ['chapters'],
+      }));
+
+    if (!course || !Array.isArray(course.chapters)) {
+      return ctx.notFound('Chapter not found');
+    }
+
+    const chapterIndex = course.chapters.findIndex(
+      (ch) => ch && ch.integrationId === trimmedExternalId
+    );
+
+    if (chapterIndex === -1) {
+      return ctx.notFound('Chapter not found');
+    }
+
+    const chapter = course.chapters[chapterIndex];
+    const isPublished = Boolean(course.publishedAt != null);
+    const isAvailable = Boolean(isPublished && (course.isChaptered ?? true));
+
+    return ctx.send({
+      source: 'tarh_elahi',
+      type: 'course_chapter',
+      externalId: chapter.integrationId,
+      parentExternalId: course.documentId,
+      title: chapter.title,
+      slug: course.slug ? `${course.slug}-chapter-${chapterIndex + 1}` : null,
+      priceRial: Number(chapter.price ?? 0),
+      duration: chapter.duration ?? '00:00',
+      published: isPublished,
+      available: isAvailable,
+      updatedAt: course.updatedAt,
+    });
+  },
+
+  /**
+   * GET /api/integrations/byemoney/v1/products/:externalId
+   * Read authoritative product catalog DTO for ByeMoney integration.
+   * Resolves by product.documentId.
+   */
+  async getProduct(ctx) {
+    const { externalId } = ctx.params;
+
+    if (!externalId || !externalId.trim()) {
+      return ctx.badRequest('externalId is required');
+    }
+
+    const trimmedExternalId = externalId.trim();
+
+    // Strict lookup: resolve ONLY by the canonical external identifier (documentId)
+    const product =
+      (await strapi.db.query('api::product.product').findOne({
+        where: { documentId: trimmedExternalId, publishedAt: { $notNull: true } },
+      })) ||
+      (await strapi.db.query('api::product.product').findOne({
+        where: { documentId: trimmedExternalId },
+      }));
+
+    if (!product) {
+      return ctx.notFound('Product not found');
+    }
+
+    const isPublished = Boolean(product.publishedAt != null);
+    const isAvailable = Boolean(
+      isPublished && (product.isAvailable ?? true) && ((product.stock ?? 1) > 0)
+    );
+
+    return ctx.send({
+      source: 'tarh_elahi',
+      type: 'product',
+      externalId: product.documentId,
+      parentExternalId: null,
+      title: product.title,
+      slug: product.slug,
+      priceRial: Number(product.price ?? 0),
+      stock: Number(product.stock ?? 0),
+      published: isPublished,
+      available: isAvailable,
+      updatedAt: product.updatedAt,
+    });
+  },
+
+  /**
    * POST /api/integrations/byemoney/v1/purchases/confirm
    * Receives course purchase confirmation webhook from ByeMoney.
    * Grants user access to the course idempotently.

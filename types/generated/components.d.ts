@@ -9,6 +9,7 @@ export interface CoursePartsChapter extends Struct.ComponentSchema {
   };
   attributes: {
     duration: Schema.Attribute.String & Schema.Attribute.DefaultTo<'00:00'>;
+    integrationId: Schema.Attribute.String;
     lessons: Schema.Attribute.Component<'course-parts.lesson', true>;
     price: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
     title: Schema.Attribute.String & Schema.Attribute.Required;

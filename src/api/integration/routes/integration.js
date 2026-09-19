@@ -25,6 +25,24 @@ module.exports = {
       },
     },
     {
+      method: 'GET',
+      path: '/integrations/byemoney/v1/chapters/:externalId',
+      handler: 'integration.getChapter',
+      config: {
+        auth: false,
+        policies: ['global::is-service-authenticated'],
+      },
+    },
+    {
+      method: 'GET',
+      path: '/integrations/byemoney/v1/products/:externalId',
+      handler: 'integration.getProduct',
+      config: {
+        auth: false,
+        policies: ['global::is-service-authenticated'],
+      },
+    },
+    {
       method: 'POST',
       path: '/integrations/byemoney/v1/purchases/confirm',
       handler: 'integration.confirmPurchase',

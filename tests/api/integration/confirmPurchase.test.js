@@ -158,6 +158,14 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
         },
       });
 
+      // Verify user update added course 77
+      expect(mockDbQueries['plugin::users-permissions.user'].update).toHaveBeenCalledWith({
+        where: { id: 55 },
+        data: {
+          courses: [77],
+        },
+      });
+
       // Verify log entry was created with processed status
       expect(mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create).toHaveBeenCalledWith({
         data: {
@@ -165,6 +173,122 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
           strapiUserId: 'usr_doc_10',
           courseId: 'crs_doc_20',
           status: 'processed',
+        },
+      });
+    });
+  });
+
+  describe('Many-to-Many Relationship Bidirectional Synchronization', () => {
+    it('should reflect course addition on both Course and User models and merge without duplicates', async () => {
+      const payload = {
+        purchaseId: 'bm_pur_m2m_1',
+        strapiUserId: 'usr_doc_m2m',
+        courseId: 'crs_doc_m2m',
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne.mockResolvedValue(null);
+
+      // User has pre-existing course with ID 99
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 50,
+        documentId: 'usr_doc_m2m',
+        courses: [{ id: 99 }],
+      });
+
+      // Course has pre-existing user with ID 10 and 2 chapters
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 80,
+        documentId: 'crs_doc_m2m',
+        users_permissions_users: [{ id: 10 }],
+        chapters: [{ id: 101, title: 'Chapter 1' }, { id: 102, title: 'Chapter 2' }],
+      });
+
+      mockDbQueries['api::course.course'].update.mockResolvedValue({});
+      mockDbQueries['plugin::users-permissions.user'].update.mockResolvedValue({});
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockResolvedValue({
+        id: 2,
+        purchaseId: 'bm_pur_m2m_1',
+        strapiUserId: 'usr_doc_m2m',
+        courseId: 'crs_doc_m2m',
+        status: 'processed',
+      });
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(200);
+      expect(result.response.status).toBe('granted');
+
+      // 1. Course side: user 50 added to existing user 10
+      expect(mockDbQueries['api::course.course'].update).toHaveBeenCalledWith({
+        where: { id: 80 },
+        data: {
+          users_permissions_users: [10, 50],
+        },
+      });
+
+      // 2. User side: course 80 added to existing course 99, and chapter IDs [101, 102] added to enrolledChapters
+      expect(mockDbQueries['plugin::users-permissions.user'].update).toHaveBeenCalledWith({
+        where: { id: 50 },
+        data: {
+          courses: [99, 80],
+          enrolledChapters: [101, 102],
+        },
+      });
+    });
+
+    it('should support looking up user and course by numeric ID when documentId does not match', async () => {
+      const payload = {
+        purchaseId: 'bm_pur_num_1',
+        strapiUserId: '555',
+        courseId: '888',
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne.mockResolvedValue(null);
+
+      // User lookup by documentId returns null, then numeric lookup succeeds
+      mockDbQueries['plugin::users-permissions.user'].findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 555,
+          documentId: 'doc_u_555',
+          courses: [],
+        });
+
+      // Course lookup by documentId returns null, then numeric lookup succeeds
+      mockDbQueries['api::course.course'].findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 888,
+          documentId: 'doc_c_888',
+          users_permissions_users: [],
+        });
+
+      mockDbQueries['api::course.course'].update.mockResolvedValue({});
+      mockDbQueries['plugin::users-permissions.user'].update.mockResolvedValue({});
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockResolvedValue({
+        id: 3,
+        purchaseId: 'bm_pur_num_1',
+        strapiUserId: '555',
+        courseId: '888',
+        status: 'processed',
+      });
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(200);
+      expect(result.response.status).toBe('granted');
+
+      expect(mockDbQueries['api::course.course'].update).toHaveBeenCalledWith({
+        where: { id: 888 },
+        data: {
+          users_permissions_users: [555],
+        },
+      });
+
+      expect(mockDbQueries['plugin::users-permissions.user'].update).toHaveBeenCalledWith({
+        where: { id: 555 },
+        data: {
+          courses: [888],
         },
       });
     });

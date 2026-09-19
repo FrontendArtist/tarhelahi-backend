@@ -136,10 +136,18 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
     };
   }
 
-  // 3. Look up user (by documentId)
-  const user = await strapiObj.db.query('plugin::users-permissions.user').findOne({
-    where: { documentId: strapiUserId },
-  });
+  // 3. Look up user (by documentId or numeric id)
+  const user =
+    (await strapiObj.db.query('plugin::users-permissions.user').findOne({
+      where: { documentId: strapiUserId },
+      populate: ['courses'],
+    })) ||
+    (/^\d+$/.test(strapiUserId)
+      ? await strapiObj.db.query('plugin::users-permissions.user').findOne({
+          where: { id: Number(strapiUserId) },
+          populate: ['courses'],
+        })
+      : null);
 
   if (!user) {
     return {
@@ -153,16 +161,26 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
     };
   }
 
-  // 4. Look up course (by documentId)
+  // 4. Look up course (by documentId or numeric id)
   const course =
     (await strapiObj.db.query('api::course.course').findOne({
       where: { documentId: courseId, publishedAt: { $notNull: true } },
-      populate: ['users_permissions_users'],
+      populate: ['users_permissions_users', 'chapters'],
     })) ||
     (await strapiObj.db.query('api::course.course').findOne({
       where: { documentId: courseId },
-      populate: ['users_permissions_users'],
-    }));
+      populate: ['users_permissions_users', 'chapters'],
+    })) ||
+    (/^\d+$/.test(courseId)
+      ? (await strapiObj.db.query('api::course.course').findOne({
+          where: { id: Number(courseId), publishedAt: { $notNull: true } },
+          populate: ['users_permissions_users', 'chapters'],
+        })) ||
+        (await strapiObj.db.query('api::course.course').findOne({
+          where: { id: Number(courseId) },
+          populate: ['users_permissions_users', 'chapters'],
+        }))
+      : null);
 
   if (!course) {
     return {
@@ -176,8 +194,11 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
     };
   }
 
-  // 5. Grant access: connect user to course via users_permissions_users
-  const existingUserIds = (course.users_permissions_users || []).map((u) => u.id).filter(Boolean);
+  // 5. Grant access: reflect many-to-many relationship on BOTH sides
+  // 5a. Course side: connect user to course via users_permissions_users
+  const existingUserIds = (course.users_permissions_users || [])
+    .map((u) => (typeof u === 'object' && u !== null ? u.id : u))
+    .filter(Boolean);
   const mergedUserIds = [...new Set([...existingUserIds, user.id])];
 
   await strapiObj.db.query('api::course.course').update({
@@ -185,6 +206,31 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
     data: {
       users_permissions_users: mergedUserIds,
     },
+  });
+
+  // 5b. User side: connect course to user via courses relation (and enrolledChapters if chapters exist)
+  const existingCourseIds = (user.courses || [])
+    .map((c) => (typeof c === 'object' && c !== null ? c.id : c))
+    .filter(Boolean);
+  const mergedCourseIds = [...new Set([...existingCourseIds, course.id])];
+
+  const userUpdateData = {
+    courses: mergedCourseIds,
+  };
+
+  if (Array.isArray(course.chapters) && course.chapters.length > 0) {
+    const existingChapters = Array.isArray(user.enrolledChapters)
+      ? user.enrolledChapters.map(Number).filter(Boolean)
+      : [];
+    const courseChapterIds = course.chapters
+      .map((ch) => (typeof ch === 'object' && ch !== null ? Number(ch.id) : Number(ch)))
+      .filter(Boolean);
+    userUpdateData.enrolledChapters = [...new Set([...existingChapters, ...courseChapterIds])];
+  }
+
+  await strapiObj.db.query('plugin::users-permissions.user').update({
+    where: { id: user.id },
+    data: userUpdateData,
   });
 
   // 6. Record idempotency log entry
