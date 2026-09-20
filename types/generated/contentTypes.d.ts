@@ -981,6 +981,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     discountAmount: Schema.Attribute.Decimal;
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
+    hashedCardNumber: Schema.Attribute.String;
     items: Schema.Attribute.DynamicZone<
       ['order.product-order-item', 'order.course-order-item']
     >;
@@ -993,6 +994,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.DefaultTo<'pending'>;
     originalTotalPrice: Schema.Attribute.Decimal;
+    paymentDate: Schema.Attribute.DateTime;
     paymentMethod: Schema.Attribute.Enumeration<
       ['online', 'card_to_card', 'free']
     > &
@@ -1005,7 +1007,10 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     receiptImage: Schema.Attribute.Media<'images'>;
+    refNum: Schema.Attribute.String;
     rejectionReason: Schema.Attribute.Text;
+    rrn: Schema.Attribute.String;
+    securePan: Schema.Attribute.String;
     settledAt: Schema.Attribute.DateTime;
     settlement: Schema.Attribute.Relation<
       'manyToOne',
@@ -1013,6 +1018,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     >;
     stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
+    traceNo: Schema.Attribute.String;
     trackingNumber: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

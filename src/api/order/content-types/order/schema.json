@@ -118,6 +118,24 @@
     },
     "settledAt": {
       "type": "datetime"
+    },
+    "refNum": {
+      "type": "string"
+    },
+    "traceNo": {
+      "type": "string"
+    },
+    "rrn": {
+      "type": "string"
+    },
+    "securePan": {
+      "type": "string"
+    },
+    "hashedCardNumber": {
+      "type": "string"
+    },
+    "paymentDate": {
+      "type": "datetime"
     }
   }
 }
