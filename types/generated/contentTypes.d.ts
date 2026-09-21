@@ -1018,6 +1018,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     discountAmount: Schema.Attribute.Decimal;
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
+    hashedCardNumber: Schema.Attribute.String;
     items: Schema.Attribute.DynamicZone<
       ['order.product-order-item', 'order.course-order-item']
     >;
@@ -1030,6 +1031,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.DefaultTo<'pending'>;
     originalTotalPrice: Schema.Attribute.Decimal;
+    paymentDate: Schema.Attribute.DateTime;
     paymentMethod: Schema.Attribute.Enumeration<
       ['online', 'card_to_card', 'free']
     > &
@@ -1042,7 +1044,10 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     receiptImage: Schema.Attribute.Media<'images'>;
+    refNum: Schema.Attribute.String;
     rejectionReason: Schema.Attribute.Text;
+    rrn: Schema.Attribute.String;
+    securePan: Schema.Attribute.String;
     settledAt: Schema.Attribute.DateTime;
     settlement: Schema.Attribute.Relation<
       'manyToOne',
@@ -1050,6 +1055,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     >;
     stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
+    traceNo: Schema.Attribute.String;
     trackingNumber: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1355,10 +1361,10 @@ export interface ApiTopBannerTopBanner extends Struct.SingleTypeSchema {
 }
 
 export interface ApiVisitorStatVisitorStat extends Struct.CollectionTypeSchema {
-  collectionName: 'visitor_stats';
+  collectionName: 'daily_visitor_stats';
   info: {
-    description: 'Log records for website visitor traffic and analytics';
-    displayName: 'VisitorStat';
+    description: 'Daily aggregated count of unique visitors entering the website';
+    displayName: 'DailyVisitorStat';
     pluralName: 'visitor-stats';
     singularName: 'visitor-stat';
   };
@@ -1366,24 +1372,23 @@ export interface ApiVisitorStatVisitorStat extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    count: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    device: Schema.Attribute.String & Schema.Attribute.DefaultTo<'desktop'>;
-    ip: Schema.Attribute.String;
+    date: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::visitor-stat.visitor-stat'
     > &
       Schema.Attribute.Private;
-    path: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    userAgent: Schema.Attribute.Text;
-    visitorId: Schema.Attribute.String & Schema.Attribute.Required;
   };
 }
 

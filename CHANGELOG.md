@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [2026-09-16]
+
+- رفع ریکوئست‌های مکرر و بی‌دلیل در صفحه `/profile/purchases` و `/profile/orders`: حذف پارامتر `force=true` از تابع `fetchOrders` در `PurchasesList.jsx` و `OrdersList.jsx` و اصلاح آرایه وابستگی‌های `useEffect` برای جلوگیری از دور زدن گارد کش استور زوستاند.
+- بازطراحی سیستم پولینگ اعلان‌ها در هوک `useOrderNotifications.js` به الگوی **Singleton** در سطح ماژول: جلوگیری از ایجاد چندین تایمر موازی هنگام استفاده همزمان کامپوننت‌های `NotificationBell`، `OrderConfirmedBanner` و `MessagesList` از یک هوک؛ حالا در کل اپلیکیشن فقط یک `setInterval` ۴۵ ثانیه‌ای فعال است.
+- افزودن Throttle ۳۰ ثانیه‌ای برای رویداد `visibilitychange` در هوک اعلان‌ها: جلوگیری از ارسال رگبار ریکوئست هنگام سوئیچ سریع بین تب‌های مرورگر یا باز/بسته کردن DevTools.
+- تبدیل خواندن کل استور Zustand (`useOrdersStore()` / `useUserMessagesStore()`) به سلکتورهای اختصاصی در کامپوننت‌های `CourseCard.jsx`، `AddToCartButton.jsx`، `ProductAddToCart.jsx` و صفحه پیام‌ها: کاهش ری‌رندرهای غیرضروری ناشی از تغییرات state نامرتبط.
+- اصلاح آرایه وابستگی‌های `useEffect` در `CourseTabs.jsx`، `CourseContentManager.jsx` و صفحه `messages/page.jsx` برای حذف توابع استور از deps و جلوگیری از ریکوئست‌های loop-مانند.
+- جلوگیری از واکشی تکراری کلاینت‌سایدِ محصولات در `ProductGrid.jsx` پس از بارگذاری SSR: افزودن guard `isInitialMount` و همگام‌سازی state داخلی با داده‌های سرور از طریق یک `useEffect` جداگانه؛ این مشکل باعث فلیکر اسکلتون در لود اولیه صفحه محصولات می‌شد.
+
 ## [2026-09-10]
 
 - افزودن کنترلر و روت اختصاصی تسویه دسته‌ای (`POST /api/orders/bulk-settle`) جهت تسویه آنی صدها سفارش واجد شرایط با یک تراکنش مستقیم دیتابیس (batchInsert در جدول پیوند `orders_settlement_lnk`) و جلوگیری از تایم‌اوت در پردازش‌های سنگین مالی.
