@@ -84,6 +84,24 @@ export interface OrderProductOrderItem extends Struct.ComponentSchema {
   };
 }
 
+export interface QuranAyahTafsir extends Struct.ComponentSchema {
+  collectionName: 'components_quran_ayah_tafsirs';
+  info: {
+    description: '\u062A\u0641\u0633\u06CC\u0631 \u0627\u062E\u062A\u0635\u0627\u0635\u06CC \u0647\u0631 \u0622\u06CC\u0647';
+    displayName: 'AyeTafsir';
+    icon: 'book';
+  };
+  attributes: {
+    ayeAudio: Schema.Attribute.Media<'audios'>;
+    ayeText: Schema.Attribute.Text;
+    tafsirAudio: Schema.Attribute.Media<'audios' | 'files'>;
+    tafsirText: Schema.Attribute.Text;
+    translationAudio: Schema.Attribute.Media<'audios'>;
+    translationText: Schema.Attribute.Text;
+    verseNumber: Schema.Attribute.Integer & Schema.Attribute.Required;
+  };
+}
+
 declare module '@strapi/strapi' {
   export module Public {
     export interface ComponentSchemas {
@@ -92,6 +110,7 @@ declare module '@strapi/strapi' {
       'form.question': FormQuestion;
       'order.course-order-item': OrderCourseOrderItem;
       'order.product-order-item': OrderProductOrderItem;
+      'quran.ayah-tafsir': QuranAyahTafsir;
     }
   }
 }

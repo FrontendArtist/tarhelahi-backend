@@ -1224,6 +1224,37 @@ export interface ApiSocialSocial extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiSurahSurah extends Struct.CollectionTypeSchema {
+  collectionName: 'surahs';
+  info: {
+    description: '\u0633\u0648\u0631\u0647\u200C\u0647\u0627\u06CC \u0642\u0631\u0622\u0646 \u0628\u0647 \u0647\u0645\u0631\u0627\u0647 \u0622\u06CC\u0627\u062A \u062A\u0641\u0633\u06CC\u0631 \u0648 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0646\u0645\u0627\u06CC\u0634';
+    displayName: 'Surah';
+    pluralName: 'surahs';
+    singularName: 'surah';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    ayeha: Schema.Attribute.Component<'quran.ayah-tafsir', true>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::surah.surah'> &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    showAllVerses: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    surahNumber: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    title: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiTagTag extends Struct.CollectionTypeSchema {
   collectionName: 'tags';
   info: {
@@ -1944,6 +1975,7 @@ declare module '@strapi/strapi' {
       'api::service.service': ApiServiceService;
       'api::settlement.settlement': ApiSettlementSettlement;
       'api::social.social': ApiSocialSocial;
+      'api::surah.surah': ApiSurahSurah;
       'api::tag.tag': ApiTagTag;
       'api::testimontial.testimontial': ApiTestimontialTestimontial;
       'api::top-banner.top-banner': ApiTopBannerTopBanner;
