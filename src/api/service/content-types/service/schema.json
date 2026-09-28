@@ -38,6 +38,14 @@
     },
     "content": {
       "type": "richtext"
+    },
+    "audio": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "files",
+        "audios"
+      ]
     }
   }
 }

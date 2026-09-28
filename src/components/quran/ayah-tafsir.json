@@ -1,0 +1,47 @@
+{
+  "collectionName": "components_quran_ayah_tafsirs",
+  "info": {
+    "displayName": "AyeTafsir",
+    "icon": "book",
+    "description": "تفسیر اختصاصی هر آیه"
+  },
+  "options": {},
+  "attributes": {
+    "verseNumber": {
+      "type": "integer",
+      "required": true
+    },
+    "ayeText": {
+      "type": "text"
+    },
+    "ayeAudio": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "audios"
+      ]
+    },
+    "translationText": {
+      "type": "text"
+    },
+    "translationAudio": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "audios"
+      ]
+    },
+    "tafsirText": {
+      "type": "text"
+    },
+    "tafsirAudio": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": [
+        "audios",
+        "files"
+      ]
+    }
+  }
+}

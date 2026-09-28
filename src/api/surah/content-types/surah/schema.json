@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "surahs",
+  "info": {
+    "singularName": "surah",
+    "pluralName": "surahs",
+    "displayName": "Surah",
+    "description": "سوره‌های قرآن به همراه آیات تفسیر و تنظیمات نمایش"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "surahNumber": {
+      "type": "integer",
+      "required": true,
+      "unique": true
+    },
+    "title": {
+      "type": "string"
+    },
+    "showAllVerses": {
+      "type": "boolean",
+      "default": false
+    },
+    "ayeha": {
+      "type": "component",
+      "component": "quran.ayah-tafsir",
+      "repeatable": true
+    }
+  }
+}
