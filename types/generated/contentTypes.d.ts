@@ -888,6 +888,66 @@ export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'gateway_payment_attempts';
+  info: {
+    displayName: 'Gateway Payment Attempt';
+    pluralName: 'gateway-payment-attempts';
+    singularName: 'gateway-payment-attempt';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    affectiveAmountRial: Schema.Attribute.Decimal;
+    amountRial: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    gateway: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'SEP'>;
+    lastAttemptAtUtc: Schema.Attribute.DateTime;
+    lastError: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::gateway-payment-attempt.gateway-payment-attempt'
+    > &
+      Schema.Attribute.Private;
+    originalAmountRial: Schema.Attribute.Decimal;
+    publishedAt: Schema.Attribute.DateTime;
+    refNum: Schema.Attribute.String & Schema.Attribute.Unique;
+    resNum: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    retryCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    rrn: Schema.Attribute.String;
+    status: Schema.Attribute.Enumeration<
+      [
+        'created',
+        'token_issued',
+        'verifying',
+        'verified',
+        'confirmed',
+        'review',
+        'reverse_required',
+        'reversed',
+        'failed',
+      ]
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'created'>;
+    tokenIssuedAtUtc: Schema.Attribute.DateTime;
+    topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    verifiedAtUtc: Schema.Attribute.DateTime;
+  };
+}
+
 export interface ApiMentorFormSettingMentorFormSetting
   extends Struct.SingleTypeSchema {
   collectionName: 'mentor_form_settings';
@@ -2007,6 +2067,7 @@ declare module '@strapi/strapi' {
       'api::coupon.coupon': ApiCouponCoupon;
       'api::course.course': ApiCourseCourse;
       'api::faq.faq': ApiFaqFaq;
+      'api::gateway-payment-attempt.gateway-payment-attempt': ApiGatewayPaymentAttemptGatewayPaymentAttempt;
       'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;
