@@ -71,13 +71,55 @@ describe('ByeMoney Integration - getCourse Endpoint', () => {
   });
 
   describe('Authoritative DTO & Noor Contract', () => {
-    it('should return authoritative course DTO with priceNoor (and no priceRial)', async () => {
+    it('should return authoritative course DTO with priceNoor (and no priceRial or parentExternalId)', async () => {
       const mockCourse = {
         id: 42,
         documentId: 'course-doc-123',
         title: 'Mastering Antigravity',
         slug: 'mastering-antigravity',
-        price: 250,
+        price: 250.5,
+        publishedAt: '2026-09-20T00:00:00.000Z',
+        updatedAt: '2026-09-20T12:00:00.000Z',
+      };
+
+      mockCourseQuery.findOne.mockResolvedValueOnce(mockCourse);
+
+      const ctx = {
+        params: { documentId: 'course-doc-123' },
+        badRequest: jest.fn(),
+        notFound: jest.fn(),
+        send: jest.fn((data) => data),
+      };
+
+      const res = await integrationController.getCourse(ctx);
+
+      expect(ctx.send).toHaveBeenCalled();
+      expect(res).toEqual({
+        source: 'tarh_elahi',
+        type: 'course',
+        externalId: 'course-doc-123',
+        title: 'Mastering Antigravity',
+        slug: 'mastering-antigravity',
+        priceNoor: 250.5,
+        published: true,
+        available: true,
+        updatedAt: '2026-09-20T12:00:00.000Z',
+      });
+
+      // Verify no priceRial, parentExternalId, or internal id leaked
+      expect(res.parentExternalId).toBeUndefined();
+      expect(res.priceRial).toBeUndefined();
+      expect(res.id).toBeUndefined();
+      expect(res._id).toBeUndefined();
+    });
+
+    it('should support backward-compatible externalId param and preserve decimal precision', async () => {
+      const mockCourse = {
+        id: 42,
+        documentId: 'course-doc-123',
+        title: 'Course Title',
+        slug: 'course-slug',
+        price: 199.99,
         publishedAt: '2026-09-20T00:00:00.000Z',
         updatedAt: '2026-09-20T12:00:00.000Z',
       };
@@ -92,25 +134,8 @@ describe('ByeMoney Integration - getCourse Endpoint', () => {
       };
 
       const res = await integrationController.getCourse(ctx);
-
-      expect(ctx.send).toHaveBeenCalled();
-      expect(res).toEqual({
-        source: 'tarh_elahi',
-        type: 'course',
-        externalId: 'course-doc-123',
-        parentExternalId: null,
-        title: 'Mastering Antigravity',
-        slug: 'mastering-antigravity',
-        priceNoor: 250,
-        published: true,
-        available: true,
-        updatedAt: '2026-09-20T12:00:00.000Z',
-      });
-
-      // Verify no priceRial or internal id leaked
-      expect(res.priceRial).toBeUndefined();
-      expect(res.id).toBeUndefined();
-      expect(res._id).toBeUndefined();
+      expect(res.priceNoor).toBe(199.99);
+      expect(res.externalId).toBe('course-doc-123');
     });
 
     it('should return priceNoor: 0 for free courses', async () => {
@@ -127,7 +152,7 @@ describe('ByeMoney Integration - getCourse Endpoint', () => {
       mockCourseQuery.findOne.mockResolvedValueOnce(mockFreeCourse);
 
       const ctx = {
-        params: { externalId: 'course-free-123' },
+        params: { documentId: 'course-free-123' },
         badRequest: jest.fn(),
         notFound: jest.fn(),
         send: jest.fn((data) => data),

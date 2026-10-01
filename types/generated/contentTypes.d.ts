@@ -1946,7 +1946,6 @@ export interface PluginUsersPermissionsUser
       ['order.product-order-item', 'order.course-order-item']
     >;
     lastName: Schema.Attribute.String;
-    light: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',

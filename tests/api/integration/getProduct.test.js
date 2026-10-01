@@ -200,14 +200,14 @@ describe('ByeMoney Integration - getProduct Endpoint', () => {
       expect(res.purchasePriceNoor).toBeNull();
     });
 
-    it('should correctly include purchasePriceNoor when purchasePrice is set', async () => {
+    it('should correctly include purchasePriceNoor when purchasePrice is set as decimal', async () => {
       mockProductQuery.findOne.mockResolvedValueOnce({
         id: 9,
         documentId: 'prod-with-cost',
         title: 'Physical Goods',
         slug: 'physical-goods',
-        price: 500,
-        purchasePrice: 350,
+        price: 500.25,
+        purchasePrice: 350.75,
         stock: 10,
         isAvailable: true,
         publishedAt: '2026-09-17T00:00:00.000Z',
@@ -222,11 +222,11 @@ describe('ByeMoney Integration - getProduct Endpoint', () => {
       };
 
       const res = await integrationController.getProduct(ctx);
-      expect(res.priceNoor).toBe(500);
-      expect(res.purchasePriceNoor).toBe(350);
+      expect(res.priceNoor).toBe(500.25);
+      expect(res.purchasePriceNoor).toBe(350.75);
     });
 
-    it('should reject when purchasePrice is negative or not an integer', async () => {
+    it('should reject when purchasePrice is negative', async () => {
       mockProductQuery.findOne.mockResolvedValueOnce({
         id: 10,
         documentId: 'prod-invalid-cost',
@@ -248,7 +248,7 @@ describe('ByeMoney Integration - getProduct Endpoint', () => {
       };
 
       await integrationController.getProduct(ctx);
-      expect(ctx.badRequest).toHaveBeenCalledWith('purchasePrice must be a non-negative integer Noor amount');
+      expect(ctx.badRequest).toHaveBeenCalledWith('purchasePrice must be a non-negative Noor amount');
     });
   });
 

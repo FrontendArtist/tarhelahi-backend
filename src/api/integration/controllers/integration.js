@@ -53,7 +53,7 @@ module.exports = {
    * Authoritative Noor price and truthful published/available flags derived from existing system.
    */
   async getCourse(ctx) {
-    const { externalId } = ctx.params;
+    const externalId = ctx.params.documentId || ctx.params.externalId;
 
     if (!externalId) {
       return ctx.badRequest('externalId is required');
@@ -82,7 +82,6 @@ module.exports = {
       source: 'tarh_elahi',
       type: 'course',
       externalId: course.documentId,
-      parentExternalId: null,
       title: course.title,
       slug: course.slug,
       priceNoor: Number(course.price ?? 0),
@@ -99,7 +98,7 @@ module.exports = {
    * Returns type='course_chapter', externalId, and parentExternalId=course.documentId.
    */
   async getChapter(ctx) {
-    const { externalId } = ctx.params;
+    const externalId = ctx.params.documentId || ctx.params.externalId;
 
     if (!externalId || !externalId.trim()) {
       return ctx.badRequest('externalId is required');
@@ -160,7 +159,7 @@ module.exports = {
    * Resolves by product.documentId.
    */
   async getProduct(ctx) {
-    const { externalId } = ctx.params;
+    const externalId = ctx.params.documentId || ctx.params.externalId;
 
     if (!externalId || !externalId.trim()) {
       return ctx.badRequest('externalId is required');
@@ -191,8 +190,8 @@ module.exports = {
 
     if (product.purchasePrice != null && product.purchasePrice !== '') {
       const parsedPurchase = Number(product.purchasePrice);
-      if (isNaN(parsedPurchase) || parsedPurchase < 0 || !Number.isInteger(parsedPurchase)) {
-        return ctx.badRequest('purchasePrice must be a non-negative integer Noor amount');
+      if (isNaN(parsedPurchase) || parsedPurchase < 0) {
+        return ctx.badRequest('purchasePrice must be a non-negative Noor amount');
       }
       purchasePriceNoor = parsedPurchase;
 
