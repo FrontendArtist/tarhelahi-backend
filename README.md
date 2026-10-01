@@ -69,13 +69,12 @@ These endpoints are server-to-server endpoints protected exclusively by a static
 - **TarhElahi (Strapi)** is authoritative for:
   - User external identity (`documentId`)
   - Course catalog metadata
-  - Rial price (`priceRial`)
+  - Authoritative price in Noor (`priceNoor`)
   - Publication (`published`) & availability (`available`)
   - Educational entitlement
 - **ByeMoney** is authoritative for:
   - Noor balance, wallet, and ledger
-  - Rial → Noor conversion calculation
-  - Purchases, deals, and financial snapshots
+  - Purchases, deals, and purchase event snapshots (`snapshot.priceNoor`)
 
 ---
 
@@ -143,17 +142,16 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   "source": "tarh_elahi",
   "type": "course",
   "externalId": "crs_doc_123456789",
-  "parentExternalId": null,
   "title": "Mastering Digital Marketing",
   "slug": "mastering-digital-marketing",
-  "priceRial": 2500000,
+  "priceNoor": 250,
   "published": true,
   "available": true,
   "updatedAt": "2026-01-02T10:00:00.000Z"
 }
 ```
 *Notes on Catalog Semantics:*
-- `priceRial`: Authoritative Rial price from TarhElahi Strapi. ByeMoney calculates Rial → Noor.
+- `priceNoor`: Authoritative Noor price from TarhElahi Strapi.
 - `published`: `true` if course has been published (`publishedAt != null`).
 - `available`: Truthfully mirrors publication status (`publishedAt != null`). The current Strapi Course model contains no separate purchasability flag (`isPurchasable`, `salesEnabled`); publication status is the authoritative indicator of catalog availability without inventing artificial semantics.
 
