@@ -103,7 +103,8 @@ describe('ByeMoney Integration - getProduct Endpoint', () => {
         parentExternalId: null,
         title: 'Tarh Elahi Book',
         slug: 'tarh-elahi-book',
-        priceRial: 1800000,
+        priceNoor: 1800000,
+        purchasePriceNoor: null,
         stock: 35,
         published: true,
         available: true,
@@ -196,6 +197,58 @@ describe('ByeMoney Integration - getProduct Endpoint', () => {
       expect(res.published).toBe(false);
       expect(res.available).toBe(false);
       expect(res.externalId).toBe('prod-doc-draft');
+      expect(res.purchasePriceNoor).toBeNull();
+    });
+
+    it('should correctly include purchasePriceNoor when purchasePrice is set', async () => {
+      mockProductQuery.findOne.mockResolvedValueOnce({
+        id: 9,
+        documentId: 'prod-with-cost',
+        title: 'Physical Goods',
+        slug: 'physical-goods',
+        price: 500,
+        purchasePrice: 350,
+        stock: 10,
+        isAvailable: true,
+        publishedAt: '2026-09-17T00:00:00.000Z',
+        updatedAt: '2026-09-17T00:00:00.000Z',
+      });
+
+      const ctx = {
+        params: { externalId: 'prod-with-cost' },
+        badRequest: jest.fn(),
+        notFound: jest.fn(),
+        send: jest.fn((data) => data),
+      };
+
+      const res = await integrationController.getProduct(ctx);
+      expect(res.priceNoor).toBe(500);
+      expect(res.purchasePriceNoor).toBe(350);
+    });
+
+    it('should reject when purchasePrice is negative or not an integer', async () => {
+      mockProductQuery.findOne.mockResolvedValueOnce({
+        id: 10,
+        documentId: 'prod-invalid-cost',
+        title: 'Bad Goods',
+        slug: 'bad-goods',
+        price: 500,
+        purchasePrice: -50,
+        stock: 10,
+        isAvailable: true,
+        publishedAt: '2026-09-17T00:00:00.000Z',
+        updatedAt: '2026-09-17T00:00:00.000Z',
+      });
+
+      const ctx = {
+        params: { externalId: 'prod-invalid-cost' },
+        badRequest: jest.fn((msg) => ({ error: msg })),
+        notFound: jest.fn(),
+        send: jest.fn((data) => data),
+      };
+
+      await integrationController.getProduct(ctx);
+      expect(ctx.badRequest).toHaveBeenCalledWith('purchasePrice must be a non-negative integer Noor amount');
     });
   });
 

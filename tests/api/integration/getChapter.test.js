@@ -139,7 +139,7 @@ describe('ByeMoney Integration - getChapter Endpoint', () => {
         parentExternalId: 'course-doc-abc',
         title: 'Part 2: Advanced Concepts',
         slug: 'mastering-architecture-chapter-2',
-        priceRial: 750000,
+        priceNoor: 750000,
         duration: '02:15',
         published: true,
         available: true,

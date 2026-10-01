@@ -136,6 +136,16 @@
     },
     "paymentDate": {
       "type": "datetime"
+    },
+    "currency": {
+      "type": "enumeration",
+      "enum": [
+        "toman",
+        "noor"
+      ]
+    },
+    "purchaseId": {
+      "type": "string"
     }
   }
 }

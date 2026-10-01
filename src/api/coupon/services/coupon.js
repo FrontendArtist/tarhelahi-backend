@@ -190,7 +190,7 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       }
     }
 
-    // ۶. بررسی حداقل مبلغ سفارش
+    // ۶. بررسی حداقل مبلغ سفارش (به واحد نور)
     if (
       typeof coupon.minOrderAmount === 'number' &&
       coupon.minOrderAmount > 0 &&
@@ -199,7 +199,7 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       const formattedMin = new Intl.NumberFormat('fa-IR').format(coupon.minOrderAmount);
       return {
         valid: false,
-        message: `حداقل مبلغ سفارش برای استفاده از این کد تخفیف ${formattedMin} تومان می‌باشد.`,
+        message: `حداقل مبلغ سفارش برای استفاده از این کد تخفیف ${formattedMin} نور می‌باشد.`,
       };
     }
 
@@ -211,30 +211,70 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       };
     }
 
-    // ۸. محاسبه مبلغ تخفیف
-    let discountAmount = 0;
+    // ۸. محاسبه مبلغ تخفیف ردیف‌به‌ردیف (گرد به پایین به نور صحیح)
     const discountVal = Number(coupon.discountValue) || 0;
+    const itemDiscounts = new Map();
 
     if (coupon.discountType === 'percentage') {
-      discountAmount = Math.round((eligibleSubtotal * discountVal) / 100);
+      let totalRawDiscount = 0;
+      for (const item of cartItems) {
+        if (!eligibleItemIds.includes(item.id)) continue;
+        const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
+        const itemPrice = Number(item.price) || 0;
+        const itemTotal = itemPrice * itemQty;
 
-      // بررسی سقف تخفیف درصدی در صورت تعریف شدن
+        // تخفیف هر ردیف گرد به پایین به عدد صحیح نور
+        const rowDiscount = Math.floor((itemTotal * discountVal) / 100);
+        itemDiscounts.set(item.id, rowDiscount);
+        totalRawDiscount += rowDiscount;
+      }
+
+      // اعمال سقف تخفیف درصدی در صورت وجود
       if (
         typeof coupon.maxDiscountAmount === 'number' &&
         coupon.maxDiscountAmount > 0 &&
-        discountAmount > coupon.maxDiscountAmount
+        totalRawDiscount > coupon.maxDiscountAmount
       ) {
-        discountAmount = coupon.maxDiscountAmount;
+        let excess = totalRawDiscount - coupon.maxDiscountAmount;
+        for (let i = cartItems.length - 1; i >= 0 && excess > 0; i--) {
+          const it = cartItems[i];
+          if (!itemDiscounts.has(it.id)) continue;
+          const currentDisc = itemDiscounts.get(it.id);
+          const reduction = Math.min(currentDisc, excess);
+          itemDiscounts.set(it.id, currentDisc - reduction);
+          excess -= reduction;
+        }
       }
     } else {
-      // مبلغ ثابت (fixed)
-      discountAmount = Math.min(discountVal, eligibleSubtotal);
+      // تخفیف ثابت به نور: تخصیص عدد صحیح نور به اقلام واجد شرایط
+      let remainingFixed = Math.min(Math.floor(discountVal), Math.floor(eligibleSubtotal));
+      for (const item of cartItems) {
+        if (!eligibleItemIds.includes(item.id)) continue;
+        const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
+        const itemPrice = Number(item.price) || 0;
+        const itemTotal = itemPrice * itemQty;
+
+        const rowDiscount = Math.min(itemTotal, remainingFixed);
+        itemDiscounts.set(item.id, rowDiscount);
+        remainingFixed -= rowDiscount;
+      }
     }
 
-    // جلوگیری از تخفیف بیشتر از کل فاکتور
-    discountAmount = Math.min(discountAmount, calculatedCartTotal);
+    // قیمت نهایی هر ردیف از کم‌کردن تخفیف ردیف از قیمت پایه به دست می‌آید؛
+    // جمع سبد فقط جمع قیمت نهایی ردیف‌هاست و دوباره گرد نمی‌شود.
+    let finalPayable = 0;
+    let totalDiscountAmount = 0;
 
-    const finalPayable = Math.max(0, calculatedCartTotal - discountAmount);
+    for (const item of cartItems) {
+      const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
+      const itemPrice = Number(item.price) || 0;
+      const itemTotal = itemPrice * itemQty;
+      const rowDiscount = itemDiscounts.get(item.id) || 0;
+      const rowFinalPrice = Math.max(0, itemTotal - rowDiscount);
+
+      finalPayable += rowFinalPrice;
+      totalDiscountAmount += rowDiscount;
+    }
 
     return {
       valid: true,
@@ -243,7 +283,7 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       title: coupon.title || 'کد تخفیف',
       discountType: coupon.discountType,
       discountValue: discountVal,
-      discountAmount,
+      discountAmount: totalDiscountAmount,
       originalTotalPrice: calculatedCartTotal,
       finalTotalPrice: finalPayable,
       eligibleItemIds,

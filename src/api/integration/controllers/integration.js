@@ -50,7 +50,7 @@ module.exports = {
    * Read authoritative course catalog DTO for ByeMoney integration.
    * Resolves ONLY by the stable external identifier: course.documentId.
    * Numeric database IDs are NOT accepted.
-   * Authoritative Rial price and truthful published/available flags derived from existing system.
+   * Authoritative Noor price and truthful published/available flags derived from existing system.
    */
   async getCourse(ctx) {
     const { externalId } = ctx.params;
@@ -85,7 +85,7 @@ module.exports = {
       parentExternalId: null,
       title: course.title,
       slug: course.slug,
-      priceRial: Number(course.price ?? 0),
+      priceNoor: Number(course.price ?? 0),
       published: isPublished,
       available: isAvailable,
       updatedAt: course.updatedAt,
@@ -146,7 +146,7 @@ module.exports = {
       parentExternalId: course.documentId,
       title: chapter.title,
       slug: course.slug ? `${course.slug}-chapter-${chapterIndex + 1}` : null,
-      priceRial: Number(chapter.price ?? 0),
+      priceNoor: Number(chapter.price ?? 0),
       duration: chapter.duration ?? '00:00',
       published: isPublished,
       available: isAvailable,
@@ -186,6 +186,23 @@ module.exports = {
       isPublished && (product.isAvailable ?? true) && ((product.stock ?? 1) > 0)
     );
 
+    const basePriceNoor = Number(product.price ?? 0);
+    let purchasePriceNoor = null;
+
+    if (product.purchasePrice != null && product.purchasePrice !== '') {
+      const parsedPurchase = Number(product.purchasePrice);
+      if (isNaN(parsedPurchase) || parsedPurchase < 0 || !Number.isInteger(parsedPurchase)) {
+        return ctx.badRequest('purchasePrice must be a non-negative integer Noor amount');
+      }
+      purchasePriceNoor = parsedPurchase;
+
+      if (purchasePriceNoor > basePriceNoor) {
+        strapi.log?.warn?.(
+          `[getProduct] Product ${product.documentId} purchasePriceNoor (${purchasePriceNoor}) is greater than priceNoor (${basePriceNoor})`
+        );
+      }
+    }
+
     return ctx.send({
       source: 'tarh_elahi',
       type: 'product',
@@ -193,7 +210,8 @@ module.exports = {
       parentExternalId: null,
       title: product.title,
       slug: product.slug,
-      priceRial: Number(product.price ?? 0),
+      priceNoor: basePriceNoor,
+      purchasePriceNoor,
       stock: Number(product.stock ?? 0),
       published: isPublished,
       available: isAvailable,

@@ -1015,6 +1015,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    currency: Schema.Attribute.Enumeration<['toman', 'noor']>;
     discountAmount: Schema.Attribute.Decimal;
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
@@ -1043,6 +1044,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     phone: Schema.Attribute.String & Schema.Attribute.Required;
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    purchaseId: Schema.Attribute.String;
     receiptImage: Schema.Attribute.Media<'images'>;
     refNum: Schema.Attribute.String;
     rejectionReason: Schema.Attribute.Text;
@@ -1149,6 +1151,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     price: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
+    purchasePrice: Schema.Attribute.Decimal;
     shortDescription: Schema.Attribute.Text;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     specifications: Schema.Attribute.JSON;
