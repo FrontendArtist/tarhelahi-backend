@@ -27,6 +27,39 @@ function getStatusRank(order) {
 
 module.exports = createCoreController('api::order.order', ({ strapi }) => ({
   /**
+   * Create an order with validation:
+   * Blocks direct client/user creation of light_topup orders with card_to_card.
+   * Noor top-up for users is online-only through the SEP gateway.
+   * Card-to-card for Noor remains strictly an admin-assisted flow inside ByeMoney.
+   * POST /api/orders
+   */
+  async create(ctx) {
+    const data = ctx.request?.body?.data || ctx.request?.body || {};
+    const paymentMethod = (data.paymentMethod || '').trim().toLowerCase();
+    const items = Array.isArray(data.items) ? data.items : [];
+    const notes = typeof data.notes === 'string' ? data.notes : '';
+
+    const isLightTopup =
+      items.some(
+        (item) =>
+          item &&
+          (item.slug === 'light-topup' ||
+            item.type === 'light_topup' ||
+            (typeof item.title === 'string' && item.title.includes('شارژ نور')))
+      ) ||
+      notes.includes('[LIGHT_AMOUNT:') ||
+      notes.includes('[TOPUP_ID:');
+
+    if (paymentMethod === 'card_to_card' && isLightTopup) {
+      return ctx.badRequest(
+        'شارژ نور از طریق کارت به کارت مستقیم کاربر غیرفعال است. لطفاً از درگاه پرداخت آنلاین استفاده فرمایید.'
+      );
+    }
+
+    return super.create(ctx);
+  },
+
+  /**
    * Find orders with optional multi-tier statusPriority sorting across entire database
    * GET /api/orders
    */
