@@ -5,7 +5,7 @@
 - مسدودسازی ثبت سفارش جدید شارژ نور از طریق کارت‌به‌کارت در کنترلر سفارشات استراپی (`POST /api/orders`):
   - اضافه شدن متد `create(ctx)` در `src/api/order/controllers/order.js` برای جلوگیری از ثبت سفارش‌های مستقیم کاربران با روش `paymentMethod: 'card_to_card'` در صورت داشتن آیتم شارژ نور (`light-topup` / `light_topup`) یا برچسب‌های `[LIGHT_AMOUNT:` و `[TOPUP_ID:`.
   - عدم تغییر یا دستکاری رکوردهای گذشته و حفظ کامل سوابق تاریخی دیتابیس (Zero Historical Mutation).
-  - ثبت سند تسک‌های مهاجرت و پاکسازی (`MIGRATION_TASKS.md`) برای تعیین تکلیف سفارش‌های موروثی معلق قدیمی بدون ایجاد اختلال در سیستم.
+  - ثبت موضوع مهاجرت و پاکسازی سفارش‌های موروثی معلق؛ پیگیری آن اکنون در [فهرست مشترک](../../ByeMoney/TASKS.md) است.
   - اضافه شدن تست‌های جامع واحد در `tests/api/order/createOrder.test.js` و `tests/api/usersPermissionsLightDeprecation.test.js`.
 
 ## [2026-09-24]
