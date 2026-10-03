@@ -935,6 +935,7 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
         'reverse_required',
         'reversed',
         'failed',
+        'cancelled',
       ]
     > &
       Schema.Attribute.Required &

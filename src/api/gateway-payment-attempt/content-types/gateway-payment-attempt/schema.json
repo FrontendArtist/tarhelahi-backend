@@ -12,7 +12,7 @@
     "topUpRequestId": { "type": "string", "required": true },
     "gateway": { "type": "string", "required": true, "default": "SEP" },
     "amountRial": { "type": "decimal", "required": true },
-    "status": { "type": "enumeration", "enum": ["created", "token_issued", "verifying", "verified", "confirmed", "review", "reverse_required", "reversed", "failed"], "default": "created", "required": true },
+    "status": { "type": "enumeration", "enum": ["created", "token_issued", "verifying", "verified", "confirmed", "review", "reverse_required", "reversed", "failed", "cancelled"], "default": "created", "required": true },
     "refNum": { "type": "string", "unique": true },
     "rrn": { "type": "string" },
     "originalAmountRial": { "type": "decimal" },
