@@ -1,104 +1,66 @@
 'use strict';
 
-describe('cronTasks - retryGatewayTopUps', () => {
+jest.mock('../../src/services/gatewayTopUpRecovery', () => ({ recoverGatewayTopUps: jest.fn() }));
+jest.mock('../../src/services/gatewayReviewRecovery', () => ({ recoverGatewayReviews: jest.fn() }));
+
+describe('cronTasks - gateway recovery', () => {
   let cronTasks;
-  let mockStrapi;
+  let strapi;
+  let recoverGatewayTopUps;
+  let recoverGatewayReviews;
   const originalEnv = process.env;
 
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv };
-
-    mockStrapi = {
-      log: {
-        warn: jest.fn(),
-        error: jest.fn(),
-        info: jest.fn(),
-      },
-    };
-
-    global.fetch = jest.fn();
+    delete process.env.BYEMONEY_API_URL;
+    delete process.env.STRAPI_TO_BYEMONEY_SERVICE_KEY;
+    jest.clearAllMocks();
+    ({ recoverGatewayReviews } = require('../../src/services/gatewayReviewRecovery'));
+    ({ recoverGatewayTopUps } = require('../../src/services/gatewayTopUpRecovery'));
+    recoverGatewayReviews.mockResolvedValue({});
+    recoverGatewayTopUps.mockResolvedValue({});
+    strapi = { log: { warn: jest.fn(), error: jest.fn() } };
     cronTasks = require('../../config/cron-tasks');
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
-    jest.restoreAllMocks();
+  afterEach(() => { process.env = originalEnv; });
+
+  it('always scans and delivers review cases even when ByeMoney delivery is not configured', async () => {
+    await cronTasks.retryGatewayTopUps.task({ strapi });
+
+    expect(recoverGatewayReviews).toHaveBeenCalledWith(strapi);
+    expect(recoverGatewayTopUps).not.toHaveBeenCalled();
   });
 
-  it('should skip and warn when NEXT_FRONTEND_URL or BYEMONEY_SERVICE_KEY is missing', async () => {
-    delete process.env.NEXT_FRONTEND_URL;
-    delete process.env.BYEMONEY_SERVICE_KEY;
+  it('runs bank recovery only when both ByeMoney URL and service key are configured', async () => {
+    process.env.BYEMONEY_API_URL = 'https://money.example';
+    process.env.STRAPI_TO_BYEMONEY_SERVICE_KEY = 'x'.repeat(40);
 
-    await cronTasks.retryGatewayTopUps.task({ strapi: mockStrapi });
+    await cronTasks.retryGatewayTopUps.task({ strapi });
 
-    expect(mockStrapi.log.warn).toHaveBeenCalledWith(
-      expect.stringContaining('NEXT_FRONTEND_URL or BYEMONEY_SERVICE_KEY is not configured')
-    );
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(recoverGatewayReviews).toHaveBeenCalledWith(strapi);
+    expect(recoverGatewayTopUps).toHaveBeenCalledWith(strapi);
   });
 
-  it('should call NEXT_FRONTEND_URL endpoint with X-Service-Key', async () => {
-    process.env.NEXT_FRONTEND_URL = 'https://frontend.example.com/';
-    process.env.BYEMONEY_SERVICE_KEY = 'secret-service-key-123';
+  it('logs recovery failures without exposing service key material', async () => {
+    process.env.BYEMONEY_API_URL = 'https://money.example';
+    process.env.STRAPI_TO_BYEMONEY_SERVICE_KEY = 'sensitive-key';
+    recoverGatewayReviews.mockRejectedValueOnce(new Error('temporary failure'));
 
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-    });
+    await cronTasks.retryGatewayTopUps.task({ strapi });
 
-    await cronTasks.retryGatewayTopUps.task({ strapi: mockStrapi });
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://frontend.example.com/api/payment/retry-topups',
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'X-Service-Key': 'secret-service-key-123' },
-      })
-    );
-    expect(mockStrapi.log.error).not.toHaveBeenCalled();
+    expect(strapi.log.error).toHaveBeenCalledWith('Gateway payment recovery failed: temporary failure');
+    expect(strapi.log.error.mock.calls.flat().join(' ')).not.toContain('sensitive-key');
   });
 
-  it('should log error when endpoint returns non-ok status', async () => {
-    process.env.NEXT_FRONTEND_URL = 'https://frontend.example.com';
-    process.env.BYEMONEY_SERVICE_KEY = 'secret-service-key-123';
-
-    global.fetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      text: jest.fn().mockResolvedValue('Internal Server Error'),
-    });
-
-    await cronTasks.retryGatewayTopUps.task({ strapi: mockStrapi });
-
-    expect(mockStrapi.log.error).toHaveBeenCalledWith(
-      expect.stringContaining('Gateway TopUp retry returned 500: Internal Server Error')
-    );
-  });
-
-  it('should prevent overlapping executions while a task is running', async () => {
-    process.env.NEXT_FRONTEND_URL = 'https://frontend.example.com';
-    process.env.BYEMONEY_SERVICE_KEY = 'secret-service-key-123';
-
-    let finishFirstFetch;
-    const slowFetchPromise = new Promise((resolve) => {
-      finishFirstFetch = resolve;
-    });
-
-    global.fetch.mockReturnValueOnce(slowFetchPromise);
-
-    // Start first run
-    const run1 = cronTasks.retryGatewayTopUps.task({ strapi: mockStrapi });
-
-    // Immediate second run while first is in-flight
-    await cronTasks.retryGatewayTopUps.task({ strapi: mockStrapi });
-
-    expect(mockStrapi.log.warn).toHaveBeenCalledWith(
-      expect.stringContaining('already running')
-    );
-
-    // Complete first fetch
-    finishFirstFetch({ ok: true, status: 200 });
-    await run1;
+  it('prevents overlapping scheduler executions', async () => {
+    let finish;
+    recoverGatewayReviews.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const first = cronTasks.retryGatewayTopUps.task({ strapi });
+    await cronTasks.retryGatewayTopUps.task({ strapi });
+    expect(strapi.log.warn).toHaveBeenCalledWith(expect.stringContaining('already running'));
+    finish({});
+    await first;
   });
 });

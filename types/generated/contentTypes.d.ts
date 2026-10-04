@@ -927,6 +927,7 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
     retryCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     reverseIntentAtUtc: Schema.Attribute.DateTime;
     reverseRetryUntilUtc: Schema.Attribute.DateTime;
+    reviewScanLeaseUntilUtc: Schema.Attribute.DateTime;
     rrn: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
       [
@@ -946,6 +947,7 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
     > &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'created'>;
+    tokenExpiresAtUtc: Schema.Attribute.DateTime;
     tokenIssuedAtUtc: Schema.Attribute.DateTime;
     topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
@@ -1004,6 +1006,101 @@ export interface ApiGatewayPaymentEventGatewayPaymentEvent
     > &
       Schema.Attribute.Required;
     topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'gateway_review_case_histories';
+  info: {
+    displayName: 'Gateway Review Case History';
+    pluralName: 'gateway-review-case-histories';
+    singularName: 'gateway-review-case-history';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    caseId: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    details: Schema.Attribute.JSON;
+    eventId: Schema.Attribute.String;
+    eventType: Schema.Attribute.String & Schema.Attribute.Required;
+    evidenceKind: Schema.Attribute.String;
+    evidenceStage: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::gateway-review-case-history.gateway-review-case-history'
+    > &
+      Schema.Attribute.Private;
+    occurredAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiGatewayReviewCaseGatewayReviewCase
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'gateway_review_cases';
+  info: {
+    displayName: 'Gateway Review Case';
+    pluralName: 'gateway-review-cases';
+    singularName: 'gateway-review-case';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    caseId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    clientReferenceCode: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::gateway-review-case.gateway-review-case'
+    > &
+      Schema.Attribute.Private;
+    notificationError: Schema.Attribute.String;
+    notificationStatus: Schema.Attribute.Enumeration<
+      ['pending', 'delivered', 'conflict']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'pending'>;
+    openedAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    outcomeCode: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    reasonCode: Schema.Attribute.Enumeration<
+      [
+        'NO_CALLBACK',
+        'VERIFY_UNKNOWN',
+        'REVERSE_UNKNOWN',
+        'DELIVERY_UNKNOWN',
+        'BANK_CONFLICT',
+      ]
+    > &
+      Schema.Attribute.Required;
+    resolutionFinancialReferenceId: Schema.Attribute.String;
+    resolutionTopUpStatus: Schema.Attribute.String;
+    resolvedAtUtc: Schema.Attribute.DateTime;
+    status: Schema.Attribute.Enumeration<['open', 'resolved']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'open'>;
+    topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
+    topUpStatusAtOpen: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -2131,6 +2228,8 @@ declare module '@strapi/strapi' {
       'api::faq.faq': ApiFaqFaq;
       'api::gateway-payment-attempt.gateway-payment-attempt': ApiGatewayPaymentAttemptGatewayPaymentAttempt;
       'api::gateway-payment-event.gateway-payment-event': ApiGatewayPaymentEventGatewayPaymentEvent;
+      'api::gateway-review-case-history.gateway-review-case-history': ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory;
+      'api::gateway-review-case.gateway-review-case': ApiGatewayReviewCaseGatewayReviewCase;
       'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;

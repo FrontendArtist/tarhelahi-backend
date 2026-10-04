@@ -3,6 +3,14 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 const EVENT_UID = 'api::gateway-payment-event.gateway-payment-event';
 const ATTEMPT_UID = 'api::gateway-payment-attempt.gateway-payment-attempt';
+const { getOrCreateCase, appendEvidence, addHistory } = require('../../../services/gatewayReviewCases');
+
+function ignoreClientTokenTimes(ctx) {
+  const data = ctx.request?.body?.data || ctx.request?.body;
+  if (!data || typeof data !== 'object') return;
+  delete data.tokenIssuedAtUtc;
+  delete data.tokenExpiresAtUtc;
+}
 
 function resultBody(event) {
   return {
@@ -20,6 +28,14 @@ function resultBody(event) {
 }
 
 module.exports = createCoreController('api::gateway-payment-attempt.gateway-payment-attempt', ({ strapi }) => ({
+  async create(ctx) {
+    ignoreClientTokenTimes(ctx);
+    return super.create(ctx);
+  },
+  async update(ctx) {
+    ignoreClientTokenTimes(ctx);
+    return super.update(ctx);
+  },
   async claim(ctx) {
     const resNum = String(ctx.request.body?.resNum || '');
     if (!resNum) return ctx.badRequest();
@@ -53,6 +69,9 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
       (existing.affectiveAmountRial == null ? null : Number(existing.affectiveAmountRial)) !==
         (input.affectiveAmountRial == null ? null : Number(input.affectiveAmountRial));
     if (event && conflicts(event)) {
+      const { reviewCase } = await getOrCreateCase(strapi, attempt, 'BANK_CONFLICT', { eventId, stage });
+      await addHistory(strapi, { caseId: reviewCase.caseId, eventType: 'event_conflict', eventId,
+        evidenceStage: stage, evidenceKind: kind, details: { reasonCode: 'BANK_CONFLICT' } });
       ctx.status = 409;
       ctx.body = { code: 'GATEWAY_EVENT_CONFLICT' };
       return;
@@ -83,6 +102,10 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
         }
       }
     }
+    const reasonCode = stage === 'verify' && kind === 'Unknown' ? 'VERIFY_UNKNOWN' :
+      stage === 'reverse' && ['Unknown', 'ReverseFailed'].includes(kind) ? 'REVERSE_UNKNOWN' : null;
+    if (reasonCode) await getOrCreateCase(strapi, attempt, reasonCode, { eventId, stage, kind });
+    await appendEvidence(strapi, attempt, event);
     ctx.body = { eventId, deliveryStatus: event.deliveryStatus, result: resultBody(event),
       expectedAmountRial: Number(attempt.amountRial) };
   },

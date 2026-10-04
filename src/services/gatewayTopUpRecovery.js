@@ -6,6 +6,7 @@ const ATTEMPT = 'api::gateway-payment-attempt.gateway-payment-attempt';
 const EVENT = 'api::gateway-payment-event.gateway-payment-event';
 const VERIFY_URL = process.env.SEP_VERIFY_URL || 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction';
 const REVERSE_URL = 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction';
+const { getOrCreateCase, appendEvidence } = require('./gatewayReviewCases');
 
 function byeMoneyBody(event) {
   return {
@@ -20,7 +21,7 @@ function byeMoneyBody(event) {
 }
 
 async function recordEvent(strapi, attempt, data) {
-  return strapi.db.query(EVENT).create({ data: {
+  const event = await strapi.db.query(EVENT).create({ data: {
     eventId: randomUUID(), resNum: attempt.resNum, topUpRequestId: attempt.topUpRequestId,
     stage: data.stage, kind: data.kind, bankTransactionId: data.bankTransactionId || null,
     bankReferenceNumber: data.bankReferenceNumber || null,
@@ -31,6 +32,11 @@ async function recordEvent(strapi, attempt, data) {
     occurredAtUtc: new Date().toISOString(),
     deliveryStatus: data.stage === 'reverse_intent' ? 'delivered' : 'pending',
   } });
+  const reasonCode = data.stage === 'verify' && data.kind === 'Unknown' ? 'VERIFY_UNKNOWN' :
+    data.stage === 'reverse' && ['ReverseFailed', 'Unknown'].includes(data.kind) ? 'REVERSE_UNKNOWN' : null;
+  if (reasonCode) await getOrCreateCase(strapi, attempt, reasonCode, { eventId: event.eventId, stage: event.stage });
+  await appendEvidence(strapi, attempt, event);
+  return event;
 }
 
 async function sendPendingEvents(strapi) {
@@ -52,6 +58,23 @@ async function sendPendingEvents(strapi) {
       const rejectedTopUp = event.kind === 'Verified' && response.status === 409 &&
         body.code === 'TOPUP_REQUIRES_REVIEW';
       if (!response.ok && !mismatch && !rejectedTopUp) {
+        const attempt = await strapi.db.query(ATTEMPT).findOne({ where: { resNum: event.resNum } });
+        if (attempt) {
+          const { reviewCase } = await getOrCreateCase(strapi, attempt,
+            response.status === 409 ? 'BANK_CONFLICT' : 'DELIVERY_UNKNOWN',
+            { eventId: event.eventId, httpStatus: response.status, responseCode: body.code || null });
+          await appendEvidence(strapi, attempt, event, 'delivery_unknown');
+          const existingFailure = await strapi.db.query('api::gateway-review-case-history.gateway-review-case-history').findOne({
+            where: { caseId: reviewCase.caseId, eventType: 'delivery_failed', eventId: event.eventId },
+          });
+          if (!existingFailure) {
+            await strapi.db.query('api::gateway-review-case-history.gateway-review-case-history').create({ data: {
+              caseId: reviewCase.caseId, eventType: 'delivery_failed', eventId: event.eventId,
+              details: { httpStatus: response.status, responseCode: body.code || null },
+              occurredAtUtc: new Date().toISOString(),
+            } });
+          }
+        }
         await strapi.db.query(EVENT).update({ where: { eventId: event.eventId },
           data: { deliveryStatus: response.status === 409 ? 'review' : 'pending',
             deliveryError: body.code || `HTTP_${response.status}` } });
@@ -77,6 +100,20 @@ async function sendPendingEvents(strapi) {
       await strapi.db.query(EVENT).update({ where: { eventId: event.eventId },
         data: { deliveryError: 'NETWORK_ERROR' } });
       strapi.log.error(`Gateway outcome delivery failed for ${event.resNum}: ${error.message}`);
+      const attempt = await strapi.db.query(ATTEMPT).findOne({ where: { resNum: event.resNum } });
+      if (attempt) {
+        const { reviewCase } = await getOrCreateCase(strapi, attempt, 'DELIVERY_UNKNOWN', { eventId: event.eventId });
+        await appendEvidence(strapi, attempt, event, 'delivery_unknown');
+        const existingFailure = await strapi.db.query('api::gateway-review-case-history.gateway-review-case-history').findOne({
+          where: { caseId: reviewCase.caseId, eventType: 'delivery_failed', eventId: event.eventId },
+        });
+        if (!existingFailure) {
+          await strapi.db.query('api::gateway-review-case-history.gateway-review-case-history').create({ data: {
+            caseId: reviewCase.caseId, eventType: 'delivery_failed', eventId: event.eventId,
+            details: { errorCode: 'NETWORK_ERROR' }, occurredAtUtc: new Date().toISOString(),
+          } });
+        }
+      }
     }
   }
 }
