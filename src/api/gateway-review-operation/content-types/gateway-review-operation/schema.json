@@ -1,0 +1,16 @@
+{
+  "kind": "collectionType",
+  "collectionName": "gateway_review_operations",
+  "info": { "singularName": "gateway-review-operation", "pluralName": "gateway-review-operations", "displayName": "Gateway Review Operation" },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "operationId": { "type": "string", "required": true, "unique": true },
+    "caseId": { "type": "string", "required": true },
+    "actorDocumentId": { "type": "string", "required": true },
+    "payload": { "type": "json", "required": true },
+    "status": { "type": "enumeration", "enum": ["pending", "applied", "rejected"], "required": true },
+    "result": { "type": "json" },
+    "errorCode": { "type": "string" },
+    "errorStatus": { "type": "integer" }
+  }
+}

@@ -12,5 +12,11 @@ module.exports = {
       config: { auth: { scope: ['api::gateway-review-case.gateway-review-case.find'] } } },
     { method: 'POST', path: '/admin/gateway-reviews/:clientReferenceCode/resolve', handler: 'gateway-review-case.resolve',
       config: { auth: { scope: ['api::gateway-review-case.gateway-review-case.update'] } } },
+    { method: 'POST', path: '/admin/gateway-reviews/:clientReferenceCode/reopen', handler: 'gateway-review-case.reopen', config: {} },
   ],
 };
+
+// نقش استرپی مجوز مالی نیست؛ همه مسیرهای این بخش از بای‌مانی اجازه می‌گیرند.
+for (const route of module.exports.routes) {
+  route.config = { auth: { scope: [] }, policies: ['global::has-financial-review-permission'] };
+}

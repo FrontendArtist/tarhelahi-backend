@@ -187,6 +187,7 @@ async function backfillLegacyCases(strapi, { apply = false } = {}) {
 async function recoverGatewayReviews(strapi) {
   const scan = await scanNoCallbackAttempts(strapi);
   const delivery = await sendPendingReviewOpens(strapi);
+  await require('./gatewayReviewWorkflow').recoverReviewWorkflows(strapi);
   return { scan, delivery };
 }
 

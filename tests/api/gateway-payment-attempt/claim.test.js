@@ -52,8 +52,8 @@ describe('Gateway Payment Attempt Controller - claim', () => {
     await controller.claim(ctx);
 
     expect(mockDbQuery.updateMany).toHaveBeenCalledWith({
-      where: { resNum: 'RES-123456', status: 'token_issued' },
-      data: { status: 'verifying' },
+      where: { resNum: 'RES-123456', status: 'token_issued', $or: [{ recoveryLeaseUntilUtc: null }, { recoveryLeaseUntilUtc: { $lt: expect.any(String) } }] },
+      data: { status: 'verifying', recoveryLeaseUntilUtc: expect.any(String) },
     });
     expect(ctx.body).toEqual({ claimed: true });
   });
@@ -71,8 +71,8 @@ describe('Gateway Payment Attempt Controller - claim', () => {
     await controller.claim(ctx);
 
     expect(mockDbQuery.updateMany).toHaveBeenCalledWith({
-      where: { resNum: 'RES-ALREADY-CLAIMED', status: 'token_issued' },
-      data: { status: 'verifying' },
+      where: { resNum: 'RES-ALREADY-CLAIMED', status: 'token_issued', $or: [{ recoveryLeaseUntilUtc: null }, { recoveryLeaseUntilUtc: { $lt: expect.any(String) } }] },
+      data: { status: 'verifying', recoveryLeaseUntilUtc: expect.any(String) },
     });
     expect(ctx.body).toEqual({ claimed: false });
   });

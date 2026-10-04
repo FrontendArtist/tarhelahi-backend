@@ -118,13 +118,18 @@ async function appendEvidence(strapi, attempt, event, type = 'bank_event', known
     });
 
     if (duplicate) {
+      if (type === 'manual_evidence' && (duplicate.details?.note !== event.rawPayload?.note ||
+          duplicate.details?.actorDocumentId !== event.rawPayload?.actorDocumentId))
+        throw Object.assign(new Error('REVIEW_CASE_CONFLICT'), { status: 409, code: 'REVIEW_CASE_CONFLICT' });
       return existing;
     }
   }
 
-  await addHistory(strapi, {
+  try { await addHistory(strapi, {
     caseId: existing.caseId,
     eventType: type,
+    dedupKey: event?.eventId ? `${existing.caseId}:${event.eventId}` : null,
+    syncStatus: event?.eventId ? 'pending' : null,
     eventId: event?.eventId || null,
     evidenceStage: event?.stage || null,
     evidenceKind: event?.kind || null,
@@ -140,8 +145,22 @@ async function appendEvidence(strapi, attempt, event, type = 'bank_event', known
       verifySuccess: event.rawPayload?.Success == null ? null : Boolean(event.rawPayload.Success),
       verifyResultCode: event.rawPayload?.ResultCode == null ? null : String(event.rawPayload.ResultCode),
       occurredAtUtc: event.occurredAtUtc || null,
+      note: event.rawPayload?.note || null,
+      actorDocumentId: event.rawPayload?.actorDocumentId || null,
     } : {},
-  });
+  }); } catch (error) {
+    const duplicate = event?.eventId && await strapi.db.query(HISTORY).findOne({
+      where: { dedupKey: `${existing.caseId}:${event.eventId}` },
+    });
+    if (!duplicate) throw error;
+    if (type === 'manual_evidence' && (duplicate.details?.note !== event.rawPayload?.note ||
+        duplicate.details?.actorDocumentId !== event.rawPayload?.actorDocumentId))
+      throw Object.assign(new Error('REVIEW_CASE_CONFLICT'), { status: 409, code: 'REVIEW_CASE_CONFLICT' });
+  }
+
+  await strapi.db.query(CASE).update({ where: { caseId: existing.caseId }, data: {
+    status: 'open', notificationStatus: 'pending', notificationError: 'REVIEW_NEW_EVIDENCE',
+  } });
 
   return existing;
 }

@@ -1028,6 +1028,7 @@ export interface ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    dedupKey: Schema.Attribute.String & Schema.Attribute.Unique;
     details: Schema.Attribute.JSON;
     eventId: Schema.Attribute.String;
     eventType: Schema.Attribute.String & Schema.Attribute.Required;
@@ -1041,6 +1042,7 @@ export interface ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory
       Schema.Attribute.Private;
     occurredAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    syncStatus: Schema.Attribute.Enumeration<['pending', 'delivered']>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1074,6 +1076,7 @@ export interface ApiGatewayReviewCaseGatewayReviewCase
       'api::gateway-review-case.gateway-review-case'
     > &
       Schema.Attribute.Private;
+    manualRefundReference: Schema.Attribute.String;
     notificationError: Schema.Attribute.String;
     notificationStatus: Schema.Attribute.Enumeration<
       ['pending', 'delivered', 'conflict']
@@ -1093,14 +1096,56 @@ export interface ApiGatewayReviewCaseGatewayReviewCase
       ]
     > &
       Schema.Attribute.Required;
+    resolutionAudit: Schema.Attribute.JSON;
     resolutionFinancialReferenceId: Schema.Attribute.String;
+    resolutionOperationId: Schema.Attribute.String;
     resolutionTopUpStatus: Schema.Attribute.String;
     resolvedAtUtc: Schema.Attribute.DateTime;
+    revision: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<1>;
     status: Schema.Attribute.Enumeration<['open', 'resolved']> &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'open'>;
     topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
     topUpStatusAtOpen: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiGatewayReviewOperationGatewayReviewOperation
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'gateway_review_operations';
+  info: {
+    displayName: 'Gateway Review Operation';
+    pluralName: 'gateway-review-operations';
+    singularName: 'gateway-review-operation';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    actorDocumentId: Schema.Attribute.String & Schema.Attribute.Required;
+    caseId: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    errorCode: Schema.Attribute.String;
+    errorStatus: Schema.Attribute.Integer;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::gateway-review-operation.gateway-review-operation'
+    > &
+      Schema.Attribute.Private;
+    operationId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    payload: Schema.Attribute.JSON & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    result: Schema.Attribute.JSON;
+    status: Schema.Attribute.Enumeration<['pending', 'applied', 'rejected']> &
+      Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -2230,6 +2275,7 @@ declare module '@strapi/strapi' {
       'api::gateway-payment-event.gateway-payment-event': ApiGatewayPaymentEventGatewayPaymentEvent;
       'api::gateway-review-case-history.gateway-review-case-history': ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory;
       'api::gateway-review-case.gateway-review-case': ApiGatewayReviewCaseGatewayReviewCase;
+      'api::gateway-review-operation.gateway-review-operation': ApiGatewayReviewOperationGatewayReviewOperation;
       'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;

@@ -1,6 +1,7 @@
 'use strict';
 
 const { createCoreController } = require('@strapi/strapi').factories;
+const { createHash } = require('node:crypto');
 const EVENT_UID = 'api::gateway-payment-event.gateway-payment-event';
 const ATTEMPT_UID = 'api::gateway-payment-attempt.gateway-payment-attempt';
 const { getOrCreateCase, appendEvidence, addHistory } = require('../../../services/gatewayReviewCases');
@@ -27,6 +28,12 @@ function resultBody(event) {
   };
 }
 
+async function recordConflictEvidence(strapi, attempt, input) {
+  const { reviewCase } = await getOrCreateCase(strapi, attempt, 'BANK_CONFLICT', { eventId: input.eventId, stage: input.stage });
+  const eventId = `conflict:${createHash('sha256').update(JSON.stringify(input)).digest('hex')}`;
+  await appendEvidence(strapi, attempt, { ...input, eventId, occurredAtUtc: new Date().toISOString() }, 'event_conflict', reviewCase);
+}
+
 module.exports = createCoreController('api::gateway-payment-attempt.gateway-payment-attempt', ({ strapi }) => ({
   async create(ctx) {
     ignoreClientTokenTimes(ctx);
@@ -40,8 +47,9 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
     const resNum = String(ctx.request.body?.resNum || '');
     if (!resNum) return ctx.badRequest();
     const result = await strapi.db.query('api::gateway-payment-attempt.gateway-payment-attempt').updateMany({
-      where: { resNum, status: 'token_issued' },
-      data: { status: 'verifying' },
+      where: { resNum, status: 'token_issued',
+        $or: [{ recoveryLeaseUntilUtc: null }, { recoveryLeaseUntilUtc: { $lt: new Date().toISOString() } }] },
+      data: { status: 'verifying', recoveryLeaseUntilUtc: new Date(Date.now() + 5 * 60_000).toISOString() },
     });
     ctx.body = { claimed: result.count === 1 };
   },
@@ -69,9 +77,7 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
       (existing.affectiveAmountRial == null ? null : Number(existing.affectiveAmountRial)) !==
         (input.affectiveAmountRial == null ? null : Number(input.affectiveAmountRial));
     if (event && conflicts(event)) {
-      const { reviewCase } = await getOrCreateCase(strapi, attempt, 'BANK_CONFLICT', { eventId, stage });
-      await addHistory(strapi, { caseId: reviewCase.caseId, eventType: 'event_conflict', eventId,
-        evidenceStage: stage, evidenceKind: kind, details: { reasonCode: 'BANK_CONFLICT' } });
+      await recordConflictEvidence(strapi, attempt, input);
       ctx.status = 409;
       ctx.body = { code: 'GATEWAY_EVENT_CONFLICT' };
       return;
@@ -96,6 +102,7 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
         event = await events.findOne({ where: { eventId } });
         if (!event) throw error;
         if (conflicts(event)) {
+          await recordConflictEvidence(strapi, attempt, input);
           ctx.status = 409;
           ctx.body = { code: 'GATEWAY_EVENT_CONFLICT' };
           return;
