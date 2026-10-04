@@ -902,6 +902,7 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
   attributes: {
     affectiveAmountRial: Schema.Attribute.Decimal;
     amountRial: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    bankTransactionDateRaw: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -918,11 +919,14 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
       Schema.Attribute.Private;
     originalAmountRial: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
+    recoveryLeaseUntilUtc: Schema.Attribute.DateTime;
     refNum: Schema.Attribute.String & Schema.Attribute.Unique;
     resNum: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
     retryCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    reverseIntentAtUtc: Schema.Attribute.DateTime;
+    reverseRetryUntilUtc: Schema.Attribute.DateTime;
     rrn: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
       [
@@ -932,10 +936,12 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
         'verified',
         'confirmed',
         'review',
+        'financial_review',
         'reverse_required',
         'reversed',
         'failed',
         'cancelled',
+        'pending_sync',
       ]
     > &
       Schema.Attribute.Required &
@@ -946,6 +952,61 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     verifiedAtUtc: Schema.Attribute.DateTime;
+  };
+}
+
+export interface ApiGatewayPaymentEventGatewayPaymentEvent
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'gateway_payment_events';
+  info: {
+    displayName: 'Gateway Payment Event';
+    pluralName: 'gateway-payment-events';
+    singularName: 'gateway-payment-event';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    affectiveAmountRial: Schema.Attribute.Decimal;
+    bankDateRaw: Schema.Attribute.String;
+    bankReferenceNumber: Schema.Attribute.String;
+    bankResultCode: Schema.Attribute.String;
+    bankTransactionId: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    deliveryError: Schema.Attribute.Text;
+    deliveryStatus: Schema.Attribute.Enumeration<
+      ['pending', 'delivered', 'review']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'pending'>;
+    eventId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    kind: Schema.Attribute.Enumeration<
+      ['Unpaid', 'Verified', 'ReverseSucceeded', 'ReverseFailed', 'Unknown']
+    > &
+      Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::gateway-payment-event.gateway-payment-event'
+    > &
+      Schema.Attribute.Private;
+    occurredAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    originalAmountRial: Schema.Attribute.Decimal;
+    publishedAt: Schema.Attribute.DateTime;
+    rawPayload: Schema.Attribute.JSON;
+    resNum: Schema.Attribute.String & Schema.Attribute.Required;
+    stage: Schema.Attribute.Enumeration<
+      ['callback', 'verify', 'reverse', 'reverse_intent']
+    > &
+      Schema.Attribute.Required;
+    topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
   };
 }
 
@@ -2069,6 +2130,7 @@ declare module '@strapi/strapi' {
       'api::course.course': ApiCourseCourse;
       'api::faq.faq': ApiFaqFaq;
       'api::gateway-payment-attempt.gateway-payment-attempt': ApiGatewayPaymentAttemptGatewayPaymentAttempt;
+      'api::gateway-payment-event.gateway-payment-event': ApiGatewayPaymentEventGatewayPaymentEvent;
       'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;

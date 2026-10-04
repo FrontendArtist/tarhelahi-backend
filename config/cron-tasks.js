@@ -1,5 +1,6 @@
 'use strict';
 
+const { recoverGatewayTopUps } = require('../src/services/gatewayTopUpRecovery');
 let isRunning = false;
 
 module.exports = {
@@ -10,24 +11,14 @@ module.exports = {
         return;
       }
 
-      const baseUrl = process.env.NEXT_FRONTEND_URL;
-      const key = process.env.BYEMONEY_SERVICE_KEY;
-      if (!baseUrl || !key) {
-        strapi.log.warn('Gateway TopUp retry skipped: NEXT_FRONTEND_URL or BYEMONEY_SERVICE_KEY is not configured.');
+      if (!process.env.BYEMONEY_API_URL || !process.env.STRAPI_TO_BYEMONEY_SERVICE_KEY) {
+        strapi.log.warn('Gateway TopUp recovery skipped: ByeMoney delivery is not configured.');
         return;
       }
 
       isRunning = true;
       try {
-        const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/payment/retry-topups`, {
-          method: 'POST',
-          headers: { 'X-Service-Key': key },
-          signal: AbortSignal.timeout(30_000),
-        });
-        if (!response.ok) {
-          const text = await response.text().catch(() => '');
-          strapi.log.error(`Gateway TopUp retry returned ${response.status}: ${text}`);
-        }
+        await recoverGatewayTopUps(strapi);
       } catch (error) {
         strapi.log.error(`Gateway TopUp retry failed: ${error.message}`);
       } finally {
