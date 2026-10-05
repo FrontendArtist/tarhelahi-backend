@@ -19,6 +19,10 @@ describe('financial review API authorization and translation', () => {
     await expect(policy(context())).resolves.toBe(true);
     expect(workflow.money).toHaveBeenCalledWith('/api/admin/topups/permissions', { jwt: 'staff-jwt' });
   });
+  test('a financial permission works with new Permission Matrix array format', async () => {
+    workflow.money.mockResolvedValue({ permissions: ['TopUp.Review'], roles: ['Admin'] });
+    await expect(policy(context())).resolves.toBe(true);
+  });
   test('administrator role alone never grants financial permission', async () => {
     const ctx = context(); ctx.state.user.role.type = 'administrator';
     workflow.money.mockResolvedValue({ canReviewTopUps: false });

@@ -7,6 +7,6 @@ module.exports = async (ctx) => {
   if (!ctx.state?.user?.documentId || !authorization.startsWith('Bearer ')) return false;
   try {
     const permissions = await money('/api/admin/topups/permissions', { jwt: authorization.slice(7) });
-    return permissions.canReviewTopUps === true;
+    return permissions?.canReviewTopUps === true || (Array.isArray(permissions?.permissions) && permissions.permissions.includes('TopUp.Review'));
   } catch (_) { return false; }
 };
