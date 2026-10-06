@@ -71,7 +71,12 @@ module.exports = require('@strapi/strapi').factories.createCoreController(CASE, 
         strapi.db.query(CASE).findMany({ where, orderBy: { openedAtUtc: 'desc' }, offset: (page - 1) * pageSize, limit: pageSize }),
         strapi.db.query(CASE).count({ where }),
       ]);
-      ctx.body = { data: rows.map(publicCase), pagination: { page, pageSize, total } };
+      // نسخه نمایشی پرونده‌های قدیمی پس از مهاجرت از مرجع مالی تازه می‌شود.
+      const currentRows = await Promise.all(rows.map(row =>
+        row.status === 'resolved' && ['Pending', 'Rejected'].includes(row.resolutionTopUpStatus) &&
+        (row.manualRefundReference || ['MANUAL_REFUND', 'NO_MATCHING_DEPOSIT'].includes(row.outcomeCode))
+          ? syncReview(strapi, row) : row));
+      ctx.body = { data: currentRows.map(publicCase), pagination: { page, pageSize, total } };
     }),
     findOne: action(async (ctx) => { ctx.body = { data: await detail(strapi, await findCase(ctx), ctx) }; }),
     resolve: action(async (ctx) => {

@@ -55,4 +55,18 @@ describe('financial review API authorization and translation', () => {
       expect(route.config.auth).not.toBe(false);
     }
   });
+  test('list refreshes closed legacy status from ByeMoney', async () => {
+    const stale = { caseId: 'case-1', status: 'resolved', outcomeCode: 'MANUAL_REFUND',
+      resolutionTopUpStatus: 'Pending', manualRefundReference: 'refund-1' };
+    const current = { ...stale, resolutionTopUpStatus: 'ManuallyRefunded' };
+    const query = { findMany: jest.fn().mockResolvedValue([stale]), count: jest.fn().mockResolvedValue(1) };
+    const strapi = { db: { query: () => query } };
+    workflow.syncReview.mockResolvedValueOnce(current);
+    const ctx = context(); ctx.query = {};
+
+    await factory({ strapi }).find(ctx);
+
+    expect(workflow.syncReview).toHaveBeenCalledWith(strapi, stale);
+    expect(ctx.body.data[0].topUpStatus).toBe('ManuallyRefunded');
+  });
 });

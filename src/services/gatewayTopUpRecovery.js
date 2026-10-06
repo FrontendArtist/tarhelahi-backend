@@ -246,6 +246,12 @@ async function recoverReverse(strapi, attempt) {
       data: { status: 'financial_review', lastError: 'TOPUP_ALREADY_CONFIRMED' } });
     return;
   }
+  if (topUp.hasManualRefund || ['ManuallyRefunded', 'Unresolved'].includes(topUp.status)) {
+    await strapi.db.query(ATTEMPT).update({ where: { resNum: attempt.resNum },
+      data: { status: 'financial_review', lastError: topUp.status === 'Unresolved'
+        ? 'TOPUP_REQUIRES_REVIEW' : 'REVIEW_MANUAL_REFUND_NOT_SUPPORTED' } });
+    return;
+  }
   // بازپرداخت ثبت‌شده حتی پس از بازگشایی پرونده نباید دوباره برگشت بانکی ایجاد کند.
   try {
     const stateResponse = await fetch(`${base.replace(/\/+$/, '')}/api/integrations/topups/v1/gateway-reviews/${encodeURIComponent(attempt.resNum)}`, {
