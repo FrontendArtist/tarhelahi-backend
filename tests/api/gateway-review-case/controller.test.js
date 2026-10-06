@@ -49,7 +49,7 @@ describe('financial review API authorization and translation', () => {
     expect(ctx.body.code).toBe('REVIEW_MANUAL_REFUND_NOT_SUPPORTED');
   });
   test('all review routes require the financial permission policy', () => {
-    const { routes } = require('../../../src/api/gateway-review-case/routes/gateway-review-case');
+    const { routes } = require('../../../src/api/gateway-review-case/routes/gateway-review-case')({ strapi: {} });
     for (const route of routes) {
       expect(route.config.policies).toContain('global::has-financial-review-permission');
       expect(route.config.auth).not.toBe(false);
