@@ -2,6 +2,7 @@
 
 const { CASE, HISTORY, OPERATION, money, failure, syncReview, resolveReview } = require('../../../services/gatewayReviewWorkflow');
 const { getThresholdMinutes, setThresholdMinutes } = require('../../../services/gatewayReviewRecovery');
+const { getBankResults } = require('../../../services/gatewayReviewBankResults');
 
 function publicCase(row) {
   return {
@@ -76,7 +77,11 @@ module.exports = require('@strapi/strapi').factories.createCoreController(CASE, 
         row.status === 'resolved' && ['Pending', 'Rejected'].includes(row.resolutionTopUpStatus) &&
         (row.manualRefundReference || ['MANUAL_REFUND', 'NO_MATCHING_DEPOSIT'].includes(row.outcomeCode))
           ? syncReview(strapi, row) : row));
-      ctx.body = { data: currentRows.map(publicCase), pagination: { page, pageSize, total } };
+      const bankResults = await getBankResults(strapi, currentRows.map(row => row.clientReferenceCode));
+      ctx.body = { data: currentRows.map(row => ({
+        ...publicCase(row),
+        ...(bankResults.get(row.clientReferenceCode) || { bankResultCode: null, bankResultDescription: null }),
+      })), pagination: { page, pageSize, total } };
     }),
     findOne: action(async (ctx) => { ctx.body = { data: await detail(strapi, await findCase(ctx), ctx) }; }),
     resolve: action(async (ctx) => {

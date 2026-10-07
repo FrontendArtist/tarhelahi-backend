@@ -292,31 +292,46 @@ async function recoverReverse(strapi, attempt) {
 
 async function recoverGatewayTopUps(strapi) {
   await sendPendingEvents(strapi);
+  const now = new Date();
+  const due = minutes => ({ $or: [
+    { lastAttemptAtUtc: { $lte: new Date(now.getTime() - minutes * 60_000).toISOString() } },
+    { lastAttemptAtUtc: null, updatedAt: { $lte: new Date(now.getTime() - minutes * 60_000).toISOString() } },
+  ] });
   const attempts = await strapi.db.query(ATTEMPT).findMany({ where: {
-    status: { $in: ['verifying', 'reverse_required', 'financial_review'] },
+    $or: [
+      { status: 'verifying', ...due(2) },
+      { status: 'reverse_required', ...due(1) },
+      { status: 'financial_review', reverseIntentAtUtc: { $notNull: true },
+        lastError: { $startsWith: 'REVERSE_' }, ...due(1) },
+    ],
   }, orderBy: { updatedAt: 'asc' }, limit: 100 });
   for (const attempt of attempts) {
+    const verify = attempt.status === 'verifying';
+    const reverse = attempt.status === 'reverse_required' || attempt.status === 'financial_review' &&
+      attempt.reverseIntentAtUtc && attempt.lastError?.startsWith('REVERSE_');
+    const lastAttempt = Date.parse(attempt.lastAttemptAtUtc || attempt.updatedAt);
+    // تلاش زودهنگام هیچ رکوردی را تغییر نمی‌دهد؛ زمان قفل، زمان انتظار بانکی نیست.
+    if ((!verify && !reverse) || !Number.isFinite(lastAttempt) ||
+        now.getTime() - lastAttempt < (verify ? 2 : 1) * 60_000) continue;
+    const leaseUntil = new Date(now.getTime() + 5 * 60_000).toISOString();
     const claim = await strapi.db.query(ATTEMPT).updateMany({ where: {
       resNum: attempt.resNum, status: attempt.status,
+      lastAttemptAtUtc: attempt.lastAttemptAtUtc || null,
       $or: [{ recoveryLeaseUntilUtc: null }, { recoveryLeaseUntilUtc: { $lt: new Date().toISOString() } }],
-    }, data: { recoveryLeaseUntilUtc: new Date(Date.now() + 60_000).toISOString() } });
+    }, data: { recoveryLeaseUntilUtc: leaseUntil, lastAttemptAtUtc: now.toISOString() } });
     if (claim.count !== 1) continue;
     try {
-      if (attempt.status === 'verifying' &&
-        Date.now() - Date.parse(attempt.updatedAt) >= 2 * 60_000) {
+      if (verify) {
         if (attempt.refNum) await recoverVerify(strapi, attempt);
         else await strapi.db.query(ATTEMPT).update({ where: { resNum: attempt.resNum },
           data: { status: 'financial_review', lastError: 'CALLBACK_WITHOUT_REFNUM_REVIEW' } });
       }
-      else if (Date.now() - Date.parse(attempt.updatedAt) >= 60_000 &&
-        (attempt.status === 'reverse_required' ||
-          attempt.status === 'financial_review' && attempt.reverseIntentAtUtc &&
-          attempt.lastError?.startsWith('REVERSE_')))
+      else if (reverse)
         await recoverReverse(strapi, attempt);
     } catch (error) {
       strapi.log.error(`Gateway recovery failed for ${attempt.resNum}: ${error.message}`);
     } finally {
-      await strapi.db.query(ATTEMPT).update({ where: { resNum: attempt.resNum },
+      await strapi.db.query(ATTEMPT).updateMany({ where: { resNum: attempt.resNum, recoveryLeaseUntilUtc: leaseUntil },
         data: { recoveryLeaseUntilUtc: null } });
     }
   }

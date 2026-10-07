@@ -69,4 +69,41 @@ describe('financial review API authorization and translation', () => {
     expect(workflow.syncReview).toHaveBeenCalledWith(strapi, stale);
     expect(ctx.body.data[0].topUpStatus).toBe('ManuallyRefunded');
   });
+  test('فهرست آخرین نتیجهٔ هر پرونده را همراه ترجمه با یک خواندن گروهی برمی‌گرداند', async () => {
+    const rows = ['TR-1', 'TR-2', 'TR-3', 'TR-4'].map((reference, index) => ({
+      caseId: `case-${index}`, clientReferenceCode: reference, status: 'open',
+    }));
+    const cases = { findMany: jest.fn().mockResolvedValue(rows), count: jest.fn().mockResolvedValue(4) };
+    const events = { findMany: jest.fn().mockResolvedValue([
+      { resNum: 'TR-1', bankResultCode: '0', stage: 'verify' },
+      { resNum: 'TR-2', bankResultCode: '-2', stage: 'reverse' },
+      { resNum: 'TR-3', bankResultCode: '999', stage: 'verify' },
+      { resNum: 'TR-1', bankResultCode: '-6', stage: 'verify' },
+    ]) };
+    const strapi = { db: { query: uid => uid.includes('gateway-payment-event') ? events : cases } };
+    const ctx = context(); ctx.query = {};
+
+    await factory({ strapi }).find(ctx);
+
+    expect(ctx.body.data.map(row => [row.bankResultCode, row.bankResultDescription])).toEqual([
+      ['0', 'موفق'], ['-2', 'تراکنش یافت نشد.'], ['999', null], [null, null],
+    ]);
+    expect(events.findMany).toHaveBeenCalledTimes(1);
+    expect(events.findMany).toHaveBeenCalledWith({
+      where: { resNum: { $in: ['TR-1', 'TR-2', 'TR-3', 'TR-4'] }, bankResultCode: { $notNull: true } },
+      select: ['resNum', 'bankResultCode', 'stage'],
+      orderBy: [{ occurredAtUtc: 'desc' }, { id: 'desc' }],
+    });
+    expect(workflow.money).not.toHaveBeenCalled();
+  });
+  test('فهرست خالی رویدادهای پرداخت را نمی‌خواند', async () => {
+    const cases = { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) };
+    const strapi = { db: { query: jest.fn(() => cases) } };
+    const ctx = context(); ctx.query = {};
+
+    await factory({ strapi }).find(ctx);
+
+    expect(ctx.body.data).toEqual([]);
+    expect(strapi.db.query).not.toHaveBeenCalledWith('api::gateway-payment-event.gateway-payment-event');
+  });
 });
