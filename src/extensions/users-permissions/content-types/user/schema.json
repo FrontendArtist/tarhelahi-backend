@@ -92,10 +92,6 @@
       "target": "api::order.order",
       "mappedBy": "user"
     },
-    "light": {
-      "type": "decimal",
-      "default": 0
-    },
     "items": {
       "type": "dynamiczone",
       "components": [

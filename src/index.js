@@ -170,6 +170,9 @@ module.exports = {
    * Bootstrap: آماده‌سازی upload provider و اعمال مسیر اختصاصی
    */
   async bootstrap({ strapi }) {
+    const { getThresholdMinutes } = require('./services/gatewayReviewRecovery');
+    await getThresholdMinutes(strapi);
+
     const uploadPlugin = strapi.plugin('upload');
     if (!uploadPlugin) return;
 

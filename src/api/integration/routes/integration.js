@@ -17,7 +17,7 @@ module.exports = {
     },
     {
       method: 'GET',
-      path: '/integrations/byemoney/v1/courses/:externalId',
+      path: '/integrations/byemoney/v1/courses/:documentId',
       handler: 'integration.getCourse',
       config: {
         auth: false,

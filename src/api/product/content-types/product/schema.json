@@ -38,6 +38,9 @@
     "price": {
       "type": "decimal"
     },
+    "purchasePrice": {
+      "type": "decimal"
+    },
     "discountPercent": {
       "type": "integer",
       "min": 0,

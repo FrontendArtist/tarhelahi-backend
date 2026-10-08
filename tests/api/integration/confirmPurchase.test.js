@@ -710,5 +710,64 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
       expect(isUniqueConstraintError({ code: '42P01', message: 'relation does not exist' })).toBe(false);
     });
   });
+
+  describe('ByeMoney Outbound Notification Payload Compatibility', () => {
+    it('should successfully process notification payload with snapshot containing priceNoor (and no priceRial or conversionRate)', async () => {
+      const payload = {
+        eventId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        purchaseId: 'bm_pur_noor_999',
+        buyerExternalUserId: 'usr_doc_10',
+        strapiUserId: 'usr_doc_10',
+        item: {
+          type: 'Course',
+          externalId: 'crs_doc_20',
+          parentExternalId: null,
+        },
+        courseId: 'crs_doc_20',
+        snapshot: {
+          productSource: 'tarh_elahi',
+          productTitle: 'آموزش نور',
+          priceNoor: 1500.5,
+        },
+        purchasedAtUtc: '2026-10-01T09:47:49.000Z',
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne.mockResolvedValue(null);
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 55,
+        documentId: 'usr_doc_10',
+      });
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 77,
+        documentId: 'crs_doc_20',
+        users_permissions_users: [],
+      });
+      mockDbQueries['api::course.course'].update.mockResolvedValue({});
+      mockDbQueries['plugin::users-permissions.user'].update.mockResolvedValue({});
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockResolvedValue({
+        id: 99,
+        purchaseId: 'bm_pur_noor_999',
+        strapiUserId: 'usr_doc_10',
+        courseId: 'crs_doc_20',
+        status: 'processed',
+      });
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(200);
+      expect(result.response).toEqual({
+        success: true,
+        purchaseId: 'bm_pur_noor_999',
+        status: 'granted',
+        message: 'Course access granted successfully',
+      });
+
+      // Verify payload matches the updated Noor snapshot contract (no priceRial or conversionRate)
+      expect(payload.snapshot.priceRial).toBeUndefined();
+      expect(payload.snapshot.conversionRate).toBeUndefined();
+      expect(payload.snapshot.priceNoor).toBe(1500.5);
+    });
+  });
 });
+
 

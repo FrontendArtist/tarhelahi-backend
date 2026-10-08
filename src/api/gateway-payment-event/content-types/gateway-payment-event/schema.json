@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "gateway_payment_events",
+  "info": {
+    "singularName": "gateway-payment-event",
+    "pluralName": "gateway-payment-events",
+    "displayName": "Gateway Payment Event"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "eventId": { "type": "string", "required": true, "unique": true },
+    "resNum": { "type": "string", "required": true },
+    "topUpRequestId": { "type": "string", "required": true },
+    "stage": { "type": "enumeration", "enum": ["callback", "verify", "reverse", "reverse_intent"], "required": true },
+    "kind": { "type": "enumeration", "enum": ["Unpaid", "Verified", "ReverseSucceeded", "ReverseFailed", "Unknown"], "required": true },
+    "bankTransactionId": { "type": "string" },
+    "bankReferenceNumber": { "type": "string" },
+    "bankResultCode": { "type": "string" },
+    "originalAmountRial": { "type": "decimal" },
+    "affectiveAmountRial": { "type": "decimal" },
+    "bankDateRaw": { "type": "string" },
+    "rawPayload": { "type": "json" },
+    "occurredAtUtc": { "type": "datetime", "required": true },
+    "deliveryStatus": { "type": "enumeration", "enum": ["pending", "delivered", "review"], "default": "pending", "required": true },
+    "deliveryError": { "type": "text" }
+  }
+}

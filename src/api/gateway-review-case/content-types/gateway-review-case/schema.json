@@ -1,0 +1,93 @@
+{
+  "kind": "collectionType",
+  "collectionName": "gateway_review_cases",
+  "info": {
+    "singularName": "gateway-review-case",
+    "pluralName": "gateway-review-cases",
+    "displayName": "Gateway Review Case"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "caseId": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "clientReferenceCode": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "topUpRequestId": {
+      "type": "string",
+      "required": true
+    },
+    "reasonCode": {
+      "type": "enumeration",
+      "enum": [
+        "NO_CALLBACK",
+        "VERIFY_UNKNOWN",
+        "REVERSE_UNKNOWN",
+        "DELIVERY_UNKNOWN",
+        "BANK_CONFLICT"
+      ],
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "open",
+        "resolved"
+      ],
+      "default": "open",
+      "required": true
+    },
+    "notificationStatus": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "delivered",
+        "conflict"
+      ],
+      "default": "pending",
+      "required": true
+    },
+    "notificationError": {
+      "type": "string"
+    },
+    "openedAtUtc": {
+      "type": "datetime",
+      "required": true
+    },
+    "resolvedAtUtc": {
+      "type": "datetime"
+    },
+    "outcomeCode": {
+      "type": "string"
+    },
+    "resolutionFinancialReferenceId": {
+      "type": "string"
+    },
+    "resolutionTopUpStatus": {
+      "type": "string"
+    },
+    "topUpStatusAtOpen": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer",
+      "default": 1
+    },
+    "resolutionOperationId": {
+      "type": "string"
+    },
+    "resolutionAudit": {
+      "type": "json"
+    },
+    "manualRefundReference": {
+      "type": "string"
+    }
+  }
+}

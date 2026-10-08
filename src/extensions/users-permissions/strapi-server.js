@@ -9,6 +9,10 @@ module.exports = (plugin) => {
     const { id } = ctx.params;
     const requestBody = ctx.request?.body;
 
+    if (requestBody && Object.prototype.hasOwnProperty.call(requestBody, 'light')) {
+      return ctx.badRequest('The "light" field on Users-Permissions is deprecated and blocked.');
+    }
+
     const hasIdentityField = byeMoneySyncService.hasIdentityFieldsInPayload(requestBody);
 
     let userBefore = null;
@@ -36,6 +40,48 @@ module.exports = (plugin) => {
       }
     }
   };
+
+  if (plugin.controllers.user?.create) {
+    const originalCreate = plugin.controllers.user.create;
+    plugin.controllers.user.create = async function (ctx) {
+      const requestBody = ctx.request?.body;
+      if (requestBody && Object.prototype.hasOwnProperty.call(requestBody, 'light')) {
+        return ctx.badRequest('The "light" field on Users-Permissions is deprecated and blocked.');
+      }
+      return originalCreate.call(this, ctx);
+    };
+  }
+
+  if (plugin.controllers.auth?.register) {
+    const originalRegister = plugin.controllers.auth.register;
+    plugin.controllers.auth.register = async function (ctx) {
+      const requestBody = ctx.request?.body;
+      if (requestBody && Object.prototype.hasOwnProperty.call(requestBody, 'light')) {
+        return ctx.badRequest('The "light" field on Users-Permissions is deprecated and blocked.');
+      }
+      return originalRegister.call(this, ctx);
+    };
+  }
+
+  if (plugin.routes?.['content-api']?.routes) {
+    const blockedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    for (const method of blockedMethods) {
+      plugin.routes['content-api'].routes.unshift(
+        {
+          method,
+          path: '/users/light',
+          handler: (ctx) => ctx.badRequest('The "light" route on Users-Permissions is deprecated and blocked.'),
+          config: { auth: false },
+        },
+        {
+          method,
+          path: '/users/:id/light',
+          handler: (ctx) => ctx.badRequest('The "light" route on Users-Permissions is deprecated and blocked.'),
+          config: { auth: false },
+        }
+      );
+    }
+  }
 
   const originalFind = plugin.controllers.user.find;
 

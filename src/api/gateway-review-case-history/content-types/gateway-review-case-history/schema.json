@@ -1,0 +1,49 @@
+{
+  "kind": "collectionType",
+  "collectionName": "gateway_review_case_histories",
+  "info": {
+    "singularName": "gateway-review-case-history",
+    "pluralName": "gateway-review-case-histories",
+    "displayName": "Gateway Review Case History"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "caseId": {
+      "type": "string",
+      "required": true
+    },
+    "eventType": {
+      "type": "string",
+      "required": true
+    },
+    "eventId": {
+      "type": "string"
+    },
+    "evidenceStage": {
+      "type": "string"
+    },
+    "evidenceKind": {
+      "type": "string"
+    },
+    "details": {
+      "type": "json"
+    },
+    "occurredAtUtc": {
+      "type": "datetime",
+      "required": true
+    },
+    "dedupKey": {
+      "type": "string",
+      "unique": true
+    },
+    "syncStatus": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "delivered"
+      ]
+    }
+  }
+}

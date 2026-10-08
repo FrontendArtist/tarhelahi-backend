@@ -237,22 +237,13 @@ function summarizeOrderItems(items = []) {
 /**
  * Calculate comprehensive financial and revenue metrics
  */
-function calculateRevenueMetrics(orders = []) {
-  const now = new Date();
-  const nowDetails = getPersianDateDetails(now);
-
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const yesterdayStart = todayStart - oneDayMs;
-  const yesterdayEnd = todayStart - 1;
-  const sevenDaysAgo = now.getTime() - 7 * oneDayMs;
-  const thirtyDaysAgo = now.getTime() - 30 * oneDayMs;
-
+function calculateMetricsForSubset(orderList, nowDetails, todayStart, yesterdayStart, yesterdayEnd, sevenDaysAgo, thirtyDaysAgo, unitName) {
   let totalRevenue = 0;
   let totalPaidOrders = 0;
   let totalPendingOrders = 0;
   let totalFailedOrders = 0;
-  let totalAllOrders = orders.length;
+  let totalFreeOrders = 0;
+  let totalAllOrders = orderList.length;
 
   let todayRevenue = 0;
   let todayPaidOrders = 0;
@@ -260,10 +251,10 @@ function calculateRevenueMetrics(orders = []) {
   let yesterdayRevenue = 0;
   let yesterdayPaidOrders = 0;
 
-  let weeklyRevenue = 0; // last 7 days
+  let weeklyRevenue = 0;
   let weeklyPaidOrders = 0;
 
-  let monthlyRevenue = 0; // last 30 days
+  let monthlyRevenue = 0;
   let monthlyPaidOrders = 0;
 
   let currentPersianMonthRevenue = 0;
@@ -274,52 +265,49 @@ function calculateRevenueMetrics(orders = []) {
   let totalCourseItemsSold = 0;
   let totalProductItemsSold = 0;
 
-  const dailyMap = {}; // key: YYYY/MM/DD (Persian)
-  const monthlyMap = {}; // key: YYYY/MM (Persian)
+  const dailyMap = {};
+  const monthlyMap = {};
 
-  orders.forEach((order) => {
+  orderList.forEach((order) => {
     const paid = isOrderPaid(order);
+    const isFree = Boolean(order.isFree || (order.paymentMethod || '').trim().toLowerCase() === 'free');
     const orderDate = new Date(order.createdAt || order.updatedAt || Date.now());
     const dateDetails = getPersianDateDetails(orderDate);
     const orderTime = dateDetails.timestamp;
-    const price = Number(order.totalPrice) || 0;
+    // سفارش رایگان جدید در بخش نور مبلغ پرداخت‌شده صفر دارد:
+    const price = isFree ? 0 : (Number(order.totalPrice) || 0);
     const itemsSummary = summarizeOrderItems(order.items || []);
 
     if (paid) {
       totalRevenue += price;
       totalPaidOrders++;
+      if (isFree) totalFreeOrders++;
 
-      // Today
       if (dateDetails.dateStr === nowDetails.dateStr || orderTime >= todayStart) {
         todayRevenue += price;
         todayPaidOrders++;
       }
 
-      // Yesterday
       if (orderTime >= yesterdayStart && orderTime <= yesterdayEnd) {
         yesterdayRevenue += price;
         yesterdayPaidOrders++;
       }
 
-      // 7 Days
       if (orderTime >= sevenDaysAgo) {
         weeklyRevenue += price;
         weeklyPaidOrders++;
       }
 
-      // 30 Days
       if (orderTime >= thirtyDaysAgo) {
         monthlyRevenue += price;
         monthlyPaidOrders++;
       }
 
-      // Persian Month
       if (dateDetails.ymKey === nowDetails.ymKey) {
         currentPersianMonthRevenue += price;
         currentPersianMonthOrders++;
       }
 
-      // Item types breakdown
       if (itemsSummary.hasCourse) {
         totalCourseItemsSold += itemsSummary.coursesCount;
         if (!itemsSummary.hasProduct) {
@@ -333,7 +321,6 @@ function calculateRevenueMetrics(orders = []) {
         }
       }
 
-      // Daily Grouping
       if (!dailyMap[dateDetails.dateStr]) {
         dailyMap[dateDetails.dateStr] = {
           persianDate: dateDetails.dateStr,
@@ -347,7 +334,6 @@ function calculateRevenueMetrics(orders = []) {
       dailyMap[dateDetails.dateStr].orderCount += 1;
       dailyMap[dateDetails.dateStr].totalRevenue += price;
 
-      // Monthly Grouping
       if (!monthlyMap[dateDetails.ymKey]) {
         monthlyMap[dateDetails.ymKey] = {
           persianYearMonth: dateDetails.ymKey,
@@ -379,8 +365,7 @@ function calculateRevenueMetrics(orders = []) {
   const averageOrderValue = totalPaidOrders > 0 ? Math.round(totalRevenue / totalPaidOrders) : 0;
 
   return {
-    generatedAtPersian: nowDetails.fullStr,
-    generatedAtISO: now.toISOString(),
+    unit: unitName,
     metrics: {
       totalRevenue,
       todayRevenue,
@@ -393,6 +378,7 @@ function calculateRevenueMetrics(orders = []) {
       totalPaidOrders,
       totalPendingOrders,
       totalFailedOrders,
+      totalFreeOrders,
       todayPaidOrders,
       yesterdayPaidOrders,
       weeklyPaidOrders,
@@ -405,6 +391,42 @@ function calculateRevenueMetrics(orders = []) {
     },
     dailyBreakdown,
     monthlyBreakdown,
+  };
+}
+
+/**
+ * Calculate comprehensive financial and revenue metrics separated cleanly by currency (Noor vs Legacy Toman)
+ */
+function calculateRevenueMetrics(orders = []) {
+  const now = new Date();
+  const nowDetails = getPersianDateDetails(now);
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - oneDayMs;
+  const yesterdayEnd = todayStart - 1;
+  const sevenDaysAgo = now.getTime() - 7 * oneDayMs;
+  const thirtyDaysAgo = now.getTime() - 30 * oneDayMs;
+
+  const noorOrders = orders.filter((o) => o.currency === 'noor');
+  const legacyOrders = orders.filter((o) => !o.currency || o.currency === 'toman');
+
+  const noorStats = calculateMetricsForSubset(
+    noorOrders, nowDetails, todayStart, yesterdayStart, yesterdayEnd, sevenDaysAgo, thirtyDaysAgo, 'نور'
+  );
+  const legacyStats = calculateMetricsForSubset(
+    legacyOrders, nowDetails, todayStart, yesterdayStart, yesterdayEnd, sevenDaysAgo, thirtyDaysAgo, 'تومان'
+  );
+
+  return {
+    generatedAtPersian: nowDetails.fullStr,
+    generatedAtISO: now.toISOString(),
+    totalAllOrders: orders.length,
+    noor: noorStats,
+    legacy: legacyStats,
+    metrics: noorStats.metrics,
+    dailyBreakdown: noorStats.dailyBreakdown,
+    monthlyBreakdown: noorStats.monthlyBreakdown,
   };
 }
 
@@ -438,6 +460,8 @@ async function buildOrdersWorkbook(orders = []) {
   wsOrders.columns = [
     { header: 'ردیف', key: 'rowNum', width: 8 },
     { header: 'کد سفارش (ID)', key: 'id', width: 14 },
+    { header: 'شناسه خرید بای‌مانی', key: 'purchaseId', width: 24 },
+    { header: 'واحد مالی', key: 'currency', width: 16 },
     { header: 'شماره پیگیری', key: 'trackingNumber', width: 18 },
     { header: 'نام و نام خانوادگی خریدار', key: 'fullName', width: 24 },
     { header: 'شماره تماس', key: 'phone', width: 16 },
@@ -445,7 +469,7 @@ async function buildOrdersWorkbook(orders = []) {
     { header: 'نوع سفارش', key: 'typeLabel', width: 16 },
     { header: 'شرح اقلام سفارش', key: 'itemsSummary', width: 42 },
     { header: 'تعداد کل اقلام', key: 'itemsCount', width: 14 },
-    { header: 'مبلغ کل (تومان)', key: 'totalPrice', width: 20 },
+    { header: 'مبلغ پرداختی (نور / تومان)', key: 'totalPrice', width: 22 },
     { header: 'وضعیت پرداخت', key: 'paymentStatus', width: 20 },
     { header: 'وضعیت سفارش', key: 'orderStatus', width: 20 },
     { header: 'روش پرداخت', key: 'paymentMethod', width: 20 },
@@ -473,10 +497,15 @@ async function buildOrdersWorkbook(orders = []) {
     const createdFa = getPersianDateDetails(order.createdAt);
     const itemsInfo = summarizeOrderItems(order.items || []);
     const isPaid = isOrderPaid(order);
+    const isNoor = order.currency === 'noor';
+    const currencyLabel = isNoor ? 'نور' : 'تومان (قدیمی)';
+    const purchaseIdVal = order.purchaseId || '-';
 
     const row = wsOrders.addRow({
       rowNum: index + 1,
       id: order.id || order.documentId || '-',
+      purchaseId: purchaseIdVal,
+      currency: currencyLabel,
       trackingNumber: order.trackingNumber || '-',
       fullName: order.fullName || '-',
       phone: order.phone || '-',
@@ -577,98 +606,102 @@ async function buildOrdersWorkbook(orders = []) {
   // Subtitle / Date
   wsRevenue.mergeCells(`B${curRow}:F${curRow}`);
   const subCell = wsRevenue.getCell(`B${curRow}`);
-  subCell.value = `تاریخ گزارش‌گیری: ${generatedAtPersian}  |  تعداد کل سفارشات در سیستم: ${metrics.totalAllOrders}`;
+  subCell.value = `تاریخ گزارش‌گیری: ${generatedAtPersian}  |  تعداد کل سفارشات در سیستم: ${stats.totalAllOrders} (نور: ${stats.noor.metrics.totalAllOrders} | قدیمی: ${stats.legacy.metrics.totalAllOrders})`;
   subCell.font = { name: 'Vazirmatn', size: 10, color: { argb: '475569' } };
   subCell.alignment = { vertical: 'middle', horizontal: 'center' };
   subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
   wsRevenue.getRow(curRow).height = 24;
   curRow += 2;
 
-  // Section 1: KPI Table Header
-  wsRevenue.mergeCells(`B${curRow}:E${curRow}`);
-  const kpiSectionHeader = wsRevenue.getCell(`B${curRow}`);
-  kpiSectionHeader.value = '📌 شاخص‌های کلیدی درآمد (روزانه، هفتگی، ماهانه، کل)';
-  kpiSectionHeader.font = { name: 'Vazirmatn', bold: true, size: 12, color: { argb: 'FFFFFF' } };
-  kpiSectionHeader.alignment = { vertical: 'middle', horizontal: 'right' };
-  kpiSectionHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accentEmerald } };
-  wsRevenue.getRow(curRow).height = 28;
-  curRow++;
+  function renderKpiSection(sectionTitle, kpiMetrics, unitLabel, headerColor) {
+    wsRevenue.mergeCells(`B${curRow}:E${curRow}`);
+    const sectionHeader = wsRevenue.getCell(`B${curRow}`);
+    sectionHeader.value = sectionTitle;
+    sectionHeader.font = { name: 'Vazirmatn', bold: true, size: 12, color: { argb: 'FFFFFF' } };
+    sectionHeader.alignment = { vertical: 'middle', horizontal: 'right' };
+    sectionHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
+    wsRevenue.getRow(curRow).height = 28;
+    curRow++;
 
-  // KPI Table Column Headers
-  const kpiHeaderRow = wsRevenue.getRow(curRow);
-  kpiHeaderRow.height = 26;
-  const kpiHeaders = ['شاخص مالی و درآمدی', 'مبلغ درآمد (تومان)', 'تعداد سفارشات پرداخت‌شده', 'توضیحات دوره'];
-  ['B', 'C', 'D', 'E'].forEach((col, idx) => {
-    const cell = wsRevenue.getCell(`${col}${curRow}`);
-    cell.value = kpiHeaders[idx];
-    cell.font = { name: 'Vazirmatn', bold: true, size: 10, color: { argb: 'FFFFFF' } };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryDark } };
-    cell.border = { top: borderMedium, bottom: borderMedium, left: borderThin, right: borderThin };
-  });
-  curRow++;
+    const kpiHeaders = ['شاخص مالی و درآمدی', `مبلغ درآمد (${unitLabel})`, 'تعداد سفارشات پرداخت‌شده', 'توضیحات دوره'];
+    ['B', 'C', 'D', 'E'].forEach((col, idx) => {
+      const cell = wsRevenue.getCell(`${col}${curRow}`);
+      cell.value = kpiHeaders[idx];
+      cell.font = { name: 'Vazirmatn', bold: true, size: 10, color: { argb: 'FFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryDark } };
+      cell.border = { top: borderMedium, bottom: borderMedium, left: borderThin, right: borderThin };
+    });
+    wsRevenue.getRow(curRow).height = 26;
+    curRow++;
 
-  // KPI Rows Data
-  const kpiRows = [
-    { title: 'درآمد امروز', amount: metrics.todayRevenue, count: metrics.todayPaidOrders, desc: 'از بامداد امروز تا لحظه گزارش' },
-    { title: 'درآمد دیروز', amount: metrics.yesterdayRevenue, count: metrics.yesterdayPaidOrders, desc: '۲۴ ساعت کامل روز گذشته' },
-    { title: 'درآمد هفتگی (۷ روز اخیر)', amount: metrics.weeklyRevenue, count: metrics.weeklyPaidOrders, desc: 'مجموع فروش ۷ روز گذشته' },
-    { title: 'درآمد ماهانه (۳۰ روز اخیر)', amount: metrics.monthlyRevenue, count: metrics.monthlyPaidOrders, desc: 'مجموع فروش ۳۰ روز گذشته' },
-    { title: 'درآمد ماه جاری خورشیدی', amount: metrics.currentPersianMonthRevenue, count: metrics.currentPersianMonthOrders, desc: 'از یکم ماه شمسی تا امروز' },
-    { title: 'کل درآمد تاریخ فروشگاه', amount: metrics.totalRevenue, count: metrics.totalPaidOrders, desc: 'مجموع کل خریدهای موفق' },
-    { title: 'میانگین مبلغ هر سفارش (AOV)', amount: metrics.averageOrderValue, count: metrics.totalPaidOrders, desc: 'ارزش میانگین سبد خرید' },
-  ];
+    const kpiRows = [
+      { title: 'درآمد امروز', amount: kpiMetrics.todayRevenue, count: kpiMetrics.todayPaidOrders, desc: 'از بامداد امروز تا لحظه گزارش' },
+      { title: 'درآمد دیروز', amount: kpiMetrics.yesterdayRevenue, count: kpiMetrics.yesterdayPaidOrders, desc: '۲۴ ساعت کامل روز گذشته' },
+      { title: 'درآمد هفتگی (۷ روز اخیر)', amount: kpiMetrics.weeklyRevenue, count: kpiMetrics.weeklyPaidOrders, desc: 'مجموع فروش ۷ روز گذشته' },
+      { title: 'درآمد ماهانه (۳۰ روز اخیر)', amount: kpiMetrics.monthlyRevenue, count: kpiMetrics.monthlyPaidOrders, desc: 'مجموع فروش ۳۰ روز گذشته' },
+      { title: 'درآمد ماه جاری خورشیدی', amount: kpiMetrics.currentPersianMonthRevenue, count: kpiMetrics.currentPersianMonthOrders, desc: 'از یکم ماه شمسی تا امروز' },
+      { title: `کل درآمد (${unitLabel})`, amount: kpiMetrics.totalRevenue, count: kpiMetrics.totalPaidOrders, desc: 'مجموع کل خریدهای موفق (تفکیک‌شده و بدون جمع با سایر ارزها)' },
+      { title: 'میانگین مبلغ هر سفارش (AOV)', amount: kpiMetrics.averageOrderValue, count: kpiMetrics.totalPaidOrders, desc: 'ارزش میانگین سبد خرید' },
+    ];
 
-  kpiRows.forEach((item, idx) => {
-    const r = wsRevenue.getRow(curRow);
-    r.height = 24;
-    const isHighlight = item.title.includes('کل درآمد') || item.title.includes('درآمد امروز');
+    kpiRows.forEach((item, idx) => {
+      const r = wsRevenue.getRow(curRow);
+      r.height = 24;
+      const isHighlight = item.title.includes('کل درآمد') || item.title.includes('درآمد امروز');
 
-    const cellB = wsRevenue.getCell(`B${curRow}`);
-    const cellC = wsRevenue.getCell(`C${curRow}`);
-    const cellD = wsRevenue.getCell(`D${curRow}`);
-    const cellE = wsRevenue.getCell(`E${curRow}`);
+      const cellB = wsRevenue.getCell(`B${curRow}`);
+      const cellC = wsRevenue.getCell(`C${curRow}`);
+      const cellD = wsRevenue.getCell(`D${curRow}`);
+      const cellE = wsRevenue.getCell(`E${curRow}`);
 
-    cellB.value = item.title;
-    cellC.value = item.amount;
-    cellD.value = item.count;
-    cellE.value = item.desc;
+      cellB.value = item.title;
+      cellC.value = item.amount;
+      cellD.value = item.count;
+      cellE.value = item.desc;
 
-    cellB.alignment = { vertical: 'middle', horizontal: 'right' };
-    cellC.alignment = { vertical: 'middle', horizontal: 'center' };
-    cellD.alignment = { vertical: 'middle', horizontal: 'center' };
-    cellE.alignment = { vertical: 'middle', horizontal: 'right' };
+      cellB.alignment = { vertical: 'middle', horizontal: 'right' };
+      cellC.alignment = { vertical: 'middle', horizontal: 'center' };
+      cellD.alignment = { vertical: 'middle', horizontal: 'center' };
+      cellE.alignment = { vertical: 'middle', horizontal: 'right' };
 
-    cellC.numFmt = '#,##0';
+      cellC.numFmt = '#,##0';
 
-    const fontStyle = { name: 'Vazirmatn', bold: isHighlight, size: 10, color: { argb: isHighlight ? '0F172A' : '334155' } };
-    cellB.font = fontStyle;
-    cellC.font = { name: 'Vazirmatn', bold: true, size: 11, color: { argb: '047857' } };
-    cellD.font = fontStyle;
-    cellE.font = { name: 'Vazirmatn', size: 9, color: { argb: '64748B' } };
+      const fontStyle = { name: 'Vazirmatn', bold: isHighlight, size: 10, color: { argb: isHighlight ? '0F172A' : '334155' } };
+      cellB.font = fontStyle;
+      cellC.font = { name: 'Vazirmatn', bold: true, size: 11, color: { argb: '047857' } };
+      cellD.font = fontStyle;
+      cellE.font = { name: 'Vazirmatn', size: 9, color: { argb: '64748B' } };
 
-    const bg = idx % 2 === 0 ? 'F8FAFC' : 'FFFFFF';
-    [cellB, cellC, cellD, cellE].forEach((c) => {
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-      c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+      const bg = idx % 2 === 0 ? 'F8FAFC' : 'FFFFFF';
+      [cellB, cellC, cellD, cellE].forEach((c) => {
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+      });
+
+      curRow++;
     });
 
-    curRow++;
-  });
+    curRow += 2;
+  }
 
-  curRow += 2;
+  // بخش ۱: شاخص‌های مالی فروش جدید بر حسب نور
+  renderKpiSection('✨ ۱. شاخص‌های کلیدی فروش جدید (واحد: نور)', stats.noor.metrics, 'نور', accentEmerald);
 
-  // Section 2: Daily Breakdown Table (Recent 30 Days)
+  // بخش ۲: شاخص‌های مالی سوابق گذشته بر حسب تومان
+  renderKpiSection('🏛️ ۲. شاخص‌های مالی سوابق گذشته (Legacy - واحد: تومان)', stats.legacy.metrics, 'تومان', '64748B');
+
+  // Section 3: Daily Breakdown Table (Recent 30 Days - Noor)
   wsRevenue.mergeCells(`B${curRow}:F${curRow}`);
   const dailySectionHeader = wsRevenue.getCell(`B${curRow}`);
-  dailySectionHeader.value = '📅 جدول ریز درآمد روزانه (۳۰ روز اخیر)';
+  dailySectionHeader.value = '📅 ۳. جدول ریز درآمد روزانه فروش جدید (۳۰ روز اخیر - واحد: نور)';
   dailySectionHeader.font = { name: 'Vazirmatn', bold: true, size: 12, color: { argb: 'FFFFFF' } };
   dailySectionHeader.alignment = { vertical: 'middle', horizontal: 'right' };
   dailySectionHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2563EB' } }; // Blue 600
   wsRevenue.getRow(curRow).height = 28;
   curRow++;
 
-  const dailyHeaders = ['ردیف', 'تاریخ شمسی', 'روز هفته', 'تعداد سفارشات', 'درآمد روزانه (تومان)'];
+  const dailyHeaders = ['ردیف', 'تاریخ شمسی', 'روز هفته', 'تعداد سفارشات', 'درآمد روزانه (نور)'];
   ['B', 'C', 'D', 'E', 'F'].forEach((col, idx) => {
     const cell = wsRevenue.getCell(`${col}${curRow}`);
     cell.value = dailyHeaders[idx];
@@ -680,15 +713,16 @@ async function buildOrdersWorkbook(orders = []) {
   wsRevenue.getRow(curRow).height = 26;
   curRow++;
 
-  if (dailyBreakdown.length === 0) {
+  const noorDailyBreakdown = stats.noor.dailyBreakdown || [];
+  if (noorDailyBreakdown.length === 0) {
     wsRevenue.mergeCells(`B${curRow}:F${curRow}`);
     const emptyCell = wsRevenue.getCell(`B${curRow}`);
-    emptyCell.value = 'هنوز خریدی در این دوره ثبت نشده است.';
+    emptyCell.value = 'هنوز خریدی در واحد نور در این دوره ثبت نشده است.';
     emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
     emptyCell.font = { name: 'Vazirmatn', size: 10, color: { argb: '64748B' } };
     curRow++;
   } else {
-    dailyBreakdown.slice(0, 30).forEach((day, idx) => {
+    noorDailyBreakdown.slice(0, 30).forEach((day, idx) => {
       const cellB = wsRevenue.getCell(`B${curRow}`);
       const cellC = wsRevenue.getCell(`C${curRow}`);
       const cellD = wsRevenue.getCell(`D${curRow}`);
@@ -723,17 +757,17 @@ async function buildOrdersWorkbook(orders = []) {
 
   curRow += 2;
 
-  // Section 3: Monthly Breakdown Table (All Months)
+  // Section 4: Monthly Breakdown Table (All Months - Noor)
   wsRevenue.mergeCells(`B${curRow}:F${curRow}`);
   const monthSectionHeader = wsRevenue.getCell(`B${curRow}`);
-  monthSectionHeader.value = '🗓️ جدول مقایسه درآمد ماه‌های خورشیدی';
+  monthSectionHeader.value = '🗓️ ۴. جدول مقایسه درآمد ماه‌های خورشیدی فروش جدید (واحد: نور)';
   monthSectionHeader.font = { name: 'Vazirmatn', bold: true, size: 12, color: { argb: 'FFFFFF' } };
   monthSectionHeader.alignment = { vertical: 'middle', horizontal: 'right' };
   monthSectionHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7C3AED' } }; // Violet 600
   wsRevenue.getRow(curRow).height = 28;
   curRow++;
 
-  const monthHeaders = ['ردیف', 'کد ماه (سال/ماه)', 'نام ماه خورشیدی', 'تعداد سفارشات', 'درآمد کل ماه (تومان)'];
+  const monthHeaders = ['ردیف', 'کد ماه (سال/ماه)', 'نام ماه خورشیدی', 'تعداد سفارشات', 'درآمد کل ماه (نور)'];
   ['B', 'C', 'D', 'E', 'F'].forEach((col, idx) => {
     const cell = wsRevenue.getCell(`${col}${curRow}`);
     cell.value = monthHeaders[idx];
@@ -745,15 +779,16 @@ async function buildOrdersWorkbook(orders = []) {
   wsRevenue.getRow(curRow).height = 26;
   curRow++;
 
-  if (monthlyBreakdown.length === 0) {
+  const noorMonthlyBreakdown = stats.noor.monthlyBreakdown || [];
+  if (noorMonthlyBreakdown.length === 0) {
     wsRevenue.mergeCells(`B${curRow}:F${curRow}`);
     const emptyCell = wsRevenue.getCell(`B${curRow}`);
-    emptyCell.value = 'هنوز داده ماهانه‌ای ثبت نشده است.';
+    emptyCell.value = 'هنوز داده ماهانه‌ای در واحد نور ثبت نشده است.';
     emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
     emptyCell.font = { name: 'Vazirmatn', size: 10, color: { argb: '64748B' } };
     curRow++;
   } else {
-    monthlyBreakdown.forEach((month, idx) => {
+    noorMonthlyBreakdown.forEach((month, idx) => {
       const cellB = wsRevenue.getCell(`B${curRow}`);
       const cellC = wsRevenue.getCell(`C${curRow}`);
       const cellD = wsRevenue.getCell(`D${curRow}`);

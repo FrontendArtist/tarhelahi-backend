@@ -1,0 +1,32 @@
+{
+  "kind": "collectionType",
+  "collectionName": "gateway_payment_attempts",
+  "info": {
+    "singularName": "gateway-payment-attempt",
+    "pluralName": "gateway-payment-attempts",
+    "displayName": "Gateway Payment Attempt"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "resNum": { "type": "string", "required": true, "unique": true },
+    "topUpRequestId": { "type": "string", "required": true },
+    "gateway": { "type": "string", "required": true, "default": "SEP" },
+    "amountRial": { "type": "decimal", "required": true },
+    "status": { "type": "enumeration", "enum": ["created", "token_issued", "verifying", "verified", "confirmed", "review", "financial_review", "reverse_required", "reversed", "failed", "cancelled", "pending_sync"], "default": "created", "required": true },
+    "refNum": { "type": "string", "unique": true },
+    "rrn": { "type": "string" },
+    "originalAmountRial": { "type": "decimal" },
+    "affectiveAmountRial": { "type": "decimal" },
+    "tokenIssuedAtUtc": { "type": "datetime" },
+    "tokenExpiresAtUtc": { "type": "datetime" },
+    "verifiedAtUtc": { "type": "datetime" },
+    "lastAttemptAtUtc": { "type": "datetime" },
+    "retryCount": { "type": "integer", "default": 0 },
+    "lastError": { "type": "text" },
+    "bankTransactionDateRaw": { "type": "string" },
+    "reverseIntentAtUtc": { "type": "datetime" },
+    "reverseRetryUntilUtc": { "type": "datetime" },
+    "recoveryLeaseUntilUtc": { "type": "datetime" },
+    "reviewScanLeaseUntilUtc": { "type": "datetime" }
+  }
+}
