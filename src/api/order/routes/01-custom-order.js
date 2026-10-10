@@ -7,6 +7,10 @@
 module.exports = {
   routes: [
     {
+      method: 'POST', path: '/orders/cancel-abandoned', handler: 'order.cancelAbandoned',
+      config: { auth: { strategies: ['api-token'], scope: ['api::order.order.update'] } },
+    },
+    {
       method: 'POST', path: '/orders/checkout', handler: 'order.checkout',
       config: { auth: { strategies: ['api-token'], scope: ['api::order.order.create'] } },
     },

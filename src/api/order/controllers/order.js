@@ -7,6 +7,7 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 const excelService = require('../services/excel-export');
 const { createCheckout } = require('../services/checkout-pricing');
+const { cancelAfterCartRemoval } = require('../services/abandoned-order');
 
 const canManageOrders = ctx => ctx.state?.auth?.strategy?.name === 'api-token' ||
   ctx.state?.user?.role?.type === 'administrator';
@@ -30,6 +31,12 @@ function getStatusRank(order) {
 }
 
 module.exports = createCoreController('api::order.order', ({ strapi }) => ({
+  async cancelAbandoned(ctx) {
+    if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('لغو سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
+    const result = await cancelAfterCartRemoval(strapi, ctx.request?.body?.data || {});
+    if (result.error) return ctx.badRequest(result.error);
+    return result;
+  },
   async checkout(ctx) {
     if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('ثبت سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
     return createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
