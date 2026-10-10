@@ -99,6 +99,21 @@ test('شماره فصل مجوز استفاده از کوپن یک دوره دی
   await assert.rejects(createCheckout(strapi, input({ couponCode: 'TEN',
     cartItems: [{ type: 'chapter', courseId: 7, chapterId: 22 }] }), save));
 });
+test('کوپن مبلغ ثابت روی تعداد واقعی کالای مجاز اعمال می‌شود', async () => {
+  const strapi = fixture();
+  strapi.coupon = { code: 'FIXED', discountType: 'fixed', discountValue: 150,
+    appliesToAllProducts: false, products: [{ id: 8 }], isActive: true };
+  const order = await createCheckout(strapi, input({ couponCode: 'FIXED',
+    cartItems: [{ type: 'product', id: 8, quantity: 3 }, { type: 'course', id: 7 }] }), save);
+  assert.equal(order.originalTotalPrice, 698);
+  assert.equal(order.totalPrice, 548);
+  assert.equal(order.items[0].quantity, 3);
+});
+test('حداقل مبلغ کوپن با قیمت واقعی محاسبه می‌شود', async () => {
+  const strapi = fixture(); strapi.coupon.minOrderAmount = 1000;
+  await assert.rejects(createCheckout(strapi, input({ couponCode: 'TEN',
+    cartItems: [{ type: 'course', id: 7, price: 100000 }] }), save));
+});
 test('شارژ با نرخ سرور قیمت‌گذاری و نشانگر مالی مرورگر حذف می‌شود', async () => {
   const order = await createCheckout(fixture(), input({ cartItems: [{ type: 'light_topup', lightAmount: 3, price: 0 }],
     pricingContext: { lightToTomanRate: 1000 }, notes: '[LIGHT_AMOUNT:999] [TOPUP_ID:fake]' }), save);
@@ -159,6 +174,15 @@ test('خرید کالا با اسلاگ مشابه دوره، دسترسی دو�
   try {
     await lifecycle.afterCreate({ result: { id: 1 } });
     assert.equal(updates.length, 0);
+    order.orderStatus = 'pending';
+    order.items = [{ __component: 'order.course-order-item', courseId: 7 }];
+    await lifecycle.afterCreate({ result: { id: 1 } });
+    assert.equal(updates.length, 0);
+    order.orderStatus = 'paid';
+    await lifecycle.afterUpdate({ result: { id: 1 } });
+    assert.equal(updates[0].uid, 'api::course.course');
+    assert.deepEqual(updates[0].data.data.users_permissions_users, [5]);
+    updates = [];
     order.items = [{ __component: 'order.course-order-item', courseId: 7, chapterId: 22 }];
     await lifecycle.afterCreate({ result: { id: 1 } });
     assert.deepEqual(updates[0].data.data.enrolledChapters, [22]);
