@@ -25,6 +25,7 @@ describe('Order Controller - create (Light TopUp Guard)', () => {
 
   it('should block order creation when paymentMethod is card_to_card and item slug is light-topup', async () => {
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       request: {
         body: {
           data: {
@@ -53,6 +54,7 @@ describe('Order Controller - create (Light TopUp Guard)', () => {
 
   it('should block order creation when paymentMethod is card_to_card and item type is light_topup', async () => {
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       request: {
         body: {
           data: {
@@ -78,6 +80,7 @@ describe('Order Controller - create (Light TopUp Guard)', () => {
 
   it('should block order creation when paymentMethod is card_to_card and notes contains [LIGHT_AMOUNT:X]', async () => {
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       request: {
         body: {
           data: {
@@ -98,6 +101,7 @@ describe('Order Controller - create (Light TopUp Guard)', () => {
 
   it('should block order creation when paymentMethod is card_to_card and notes contains [TOPUP_ID:X]', async () => {
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       request: {
         body: {
           data: {
@@ -119,6 +123,7 @@ describe('Order Controller - create (Light TopUp Guard)', () => {
   it('should allow regular product order with card_to_card paymentMethod', async () => {
     let superCalled = false;
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       request: {
         body: {
           data: {
@@ -157,6 +162,7 @@ describe('Order Controller - create (Light TopUp Guard)', () => {
   it('should allow online payment even if items include light-topup', async () => {
     let superCalled = false;
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       request: {
         body: {
           data: {

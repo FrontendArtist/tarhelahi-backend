@@ -140,9 +140,8 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
         } else {
           // بررسی تطابق با دوره والد بر اساس ID، DocumentId یا Slug
           const matchesId =
-            couponCourseIds.includes(itemIdStr) ||
-            couponCourseIds.includes(itemCourseIdStr) ||
-            couponCourseIds.includes(itemIdStr.replace(/^chapter-/, ''));
+            (item.type === 'course' && couponCourseIds.includes(itemIdStr)) ||
+            couponCourseIds.includes(itemCourseIdStr);
 
           const matchesDocId =
             couponCourseDocIds.includes(itemIdStr) ||
@@ -302,7 +301,12 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
     const cleanCode = code.trim();
 
     try {
-      return await strapi.db.transaction(async () => {
+      return await strapi.db.transaction(async ({ trx }) => {
+        // آخرین ظرفیت کوپن میان مصرف‌های هم‌زمان فقط یک بار استفاده می‌شود.
+        const metadata = strapi.db.metadata.get('api::coupon.coupon');
+        await trx(metadata.tableName)
+          .whereRaw('LOWER(??) = LOWER(?)', [metadata.attributes.code.columnName, cleanCode])
+          .orderBy('id').forUpdate().select('id');
         const coupons = await strapi.db.query('api::coupon.coupon').findMany({
           where: { code: { $eqi: cleanCode } },
         });
