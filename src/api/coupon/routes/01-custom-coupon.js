@@ -21,7 +21,7 @@ module.exports = {
       path: '/coupons/consume',
       handler: 'coupon.consume',
       config: {
-        auth: { strategies: ['api-token'], scope: ['api::coupon.coupon.update'] },
+        auth: false, // احراز هویت سیستمی با توکن استراپی
         policies: [],
         middlewares: [],
       },

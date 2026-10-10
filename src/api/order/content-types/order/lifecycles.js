@@ -57,8 +57,6 @@ async function syncUserPurchases(orderIdentifier) {
     const chapterIdsToConnect = new Set();
 
     for (const item of items) {
-      // اسلاگ یک محصول نباید به‌اشتباه دسترسی دورهٔ هم‌نام را ایجاد کند.
-      if (item.__component !== 'order.course-order-item') continue;
       // Chapter purchase
       if (item.chapterId) {
         chapterIdsToConnect.add(Number(item.chapterId));

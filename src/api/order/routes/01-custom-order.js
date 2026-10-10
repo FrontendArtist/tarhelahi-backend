@@ -7,10 +7,6 @@
 module.exports = {
   routes: [
     {
-      method: 'POST', path: '/orders/checkout', handler: 'order.checkout',
-      config: { auth: { strategies: ['api-token'], scope: ['api::order.order.create'] } },
-    },
-    {
       method: 'GET',
       path: '/orders/export-excel',
       handler: 'order.exportExcel',
