@@ -57,6 +57,8 @@ async function syncUserPurchases(orderIdentifier) {
     const chapterIdsToConnect = new Set();
 
     for (const item of items) {
+      // اسلاگ یک محصول نباید به‌اشتباه دسترسی دورهٔ هم‌نام را ایجاد کند.
+      if (item.__component !== 'order.course-order-item') continue;
       // Chapter purchase
       if (item.chapterId) {
         chapterIdsToConnect.add(Number(item.chapterId));
@@ -195,6 +197,9 @@ async function processProductStock(orderIdentifier) {
     }
 
     if (!order || order.stockDeducted) return;
+
+    // ویرایش سفارش لغوشده نباید موجودی آزادشده را دوباره رزرو کند؛ پرداخت معتبر دیرهنگام وضعیت را paid می‌کند.
+    if (['canceled', 'cancelled'].includes(order.orderStatus) || order.paymentStatus === 'failed') return;
 
     const items = order.items || [];
     let updatedProductCount = 0;
