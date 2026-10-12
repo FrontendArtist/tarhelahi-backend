@@ -258,19 +258,7 @@ async function processProductStock(orderIdentifier) {
   }
 }
 
-const excelService = require('../../services/excel-export');
 
-function autoUpdateExcelReport() {
-  setImmediate(async () => {
-    try {
-      if (typeof strapi !== 'undefined' && strapi.db) {
-        await excelService.generateAndSaveExcelReport();
-      }
-    } catch (err) {
-      console.error('[Order Lifecycle Excel Auto-Sync Error]:', err.message || err);
-    }
-  });
-}
 
 module.exports = {
   async afterCreate(event) {
@@ -281,7 +269,6 @@ module.exports = {
         await processProductStock(targetId);
         await syncUserPurchases(targetId);
       }
-      autoUpdateExcelReport();
     } catch (err) {
       console.error('[afterCreate Error]:', err.message || err);
     }
@@ -295,17 +282,8 @@ module.exports = {
         await processProductStock(targetId);
         await syncUserPurchases(targetId);
       }
-      autoUpdateExcelReport();
     } catch (err) {
       console.error('[afterUpdate Error]:', err.message || err);
-    }
-  },
-
-  async afterDelete(event) {
-    try {
-      autoUpdateExcelReport();
-    } catch (err) {
-      console.error('[afterDelete Error]:', err.message || err);
     }
   },
 };
