@@ -6,6 +6,11 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 const excelService = require('../services/excel-export');
+const { createCheckout } = require('../services/checkout-pricing');
+const { cancelAfterCartRemoval } = require('../services/abandoned-order');
+
+const canManageOrders = ctx => ctx.state?.auth?.strategy?.name === 'api-token' ||
+  ctx.state?.user?.role?.type === 'administrator';
 
 function getStatusRank(order) {
   const attrs = order?.attributes || order || {};
@@ -26,6 +31,29 @@ function getStatusRank(order) {
 }
 
 module.exports = createCoreController('api::order.order', ({ strapi }) => ({
+  async cancelAbandoned(ctx) {
+    if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('لغو سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
+    const result = await cancelAfterCartRemoval(strapi, ctx.request?.body?.data || {});
+    if (result.error) return ctx.badRequest(result.error);
+    return result;
+  },
+  async checkout(ctx) {
+    if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('ثبت سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
+    return createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
+      ctx.request.body = { data };
+      return super.create(ctx);
+    });
+  },
+
+  async create(ctx) {
+    if (!canManageOrders(ctx)) return ctx.forbidden('ثبت مستقیم سفارش برای کاربر مجاز نیست.');
+    return super.create(ctx);
+  },
+
+  async update(ctx) {
+    if (!canManageOrders(ctx)) return ctx.forbidden('تغییر مستقیم سفارش برای کاربر مجاز نیست.');
+    return super.update(ctx);
+  },
   /**
    * Find orders with optional multi-tier statusPriority sorting across entire database
    * GET /api/orders
