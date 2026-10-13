@@ -17,7 +17,7 @@ function fixture(overrides = {}) {
       const record = uid === 'api::course.course' ? course : product;
       return documentId === record.documentId ? record : null;
     }, findMany: async () => [strapi.coupon] }),
-    db: { transaction: async fn => fn({}), query: uid => ({ findOne: async ({ where }) => {
+    db: { transaction: async fn => fn({ trx: { raw: async () => {} } }), query: uid => ({ findMany: async () => [], findOne: async ({ where }) => {
       const record = uid === 'api::course.course' ? course : product;
       return where.id === record.id ? record : null;
     } }) },

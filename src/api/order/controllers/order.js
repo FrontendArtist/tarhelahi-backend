@@ -42,6 +42,9 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
     return createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
       ctx.request.body = { data };
       return super.create(ctx);
+    }, async order => {
+      ctx.status = 200;
+      return this.transformResponse(await this.sanitizeOutput(order, ctx));
     });
   },
 

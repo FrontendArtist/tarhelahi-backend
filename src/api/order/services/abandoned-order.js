@@ -57,4 +57,4 @@ async function cancelAfterCartRemoval(strapi, input) {
   return { canceledOrderIds: [...canceledOrderIds] };
 }
 
-module.exports = { cancelAfterCartRemoval };
+module.exports = { cancelAfterCartRemoval, restoreStock };
