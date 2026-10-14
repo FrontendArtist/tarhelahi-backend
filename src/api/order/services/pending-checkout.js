@@ -56,7 +56,7 @@ async function cancelSupersededCheckouts(strapi, trx, userId, keepId = null) {
       order.items.some(item => !item.courseId && !item.productId)) continue;
     // The conditional update also locks the row until stock restoration and checkout commit.
     const changed = await repository.updateMany({
-      where: { id: order.id, user: { id: userId }, paymentMethod: 'online',
+      where: { id: order.id, paymentMethod: 'online',
         orderStatus: 'pending', paymentStatus: 'pending_payment', refNum: { $null: true } },
       data: { orderStatus: 'canceled', rejectionReason: 'جایگزین‌شده با سفارش جدید', updatedAt: new Date() },
     });

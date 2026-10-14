@@ -17,7 +17,7 @@ test('concurrent pending checkout and rollback on PostgreSQL', { skip: !process.
     db: {
       transaction: fn => knex.transaction(trx => storage.run(trx, () => fn({ trx }))),
       query: () => ({ findMany: async ({ where }) => (await table().where({ user_id: where.user.id }).select()).map(row => row.payload),
-        updateMany: async ({ where, data }) => ({ count: await table().where({ id: where.id, user_id: where.user.id })
+        updateMany: async ({ where, data }) => ({ count: await table().where({ id: where.id, ...(where.user ? { user_id: where.user.id } : {}) })
           .whereRaw("payload->>'orderStatus' = ? AND payload->>'paymentStatus' = ? AND payload->>'paymentMethod' = ? AND payload->>'refNum' IS NULL",
             [where.orderStatus, where.paymentStatus, where.paymentMethod])
           .update({ payload: knex.raw('payload || ?::jsonb', [JSON.stringify(data)]) }) }) }),

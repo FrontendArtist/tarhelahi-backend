@@ -47,7 +47,7 @@ function fixture() {
     db: { transaction: async fn => fn({ trx: { raw: async () => {} } }),
       query: () => ({ findMany: async ({ where }) => orders.filter(order => order.user === where.user.id),
         updateMany: async ({ where, data }) => {
-          const order = orders.find(order => order.id === where.id && order.user === where.user.id &&
+          const order = orders.find(order => order.id === where.id && (!where.user || order.user === where.user.id) &&
             order.paymentMethod === where.paymentMethod && order.orderStatus === where.orderStatus &&
             order.paymentStatus === where.paymentStatus && !order.refNum);
           if (!order) return { count: 0 };
