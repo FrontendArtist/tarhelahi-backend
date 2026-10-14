@@ -39,10 +39,21 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
   },
   async checkout(ctx) {
     if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('ثبت سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
-    return createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
-      ctx.request.body = { data };
-      return this.create(ctx);
-    });
+    try {
+      return await createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
+        ctx.request.body = { data };
+        return this.create(ctx);
+      }, async order => {
+        ctx.status = 200;
+        return this.transformResponse(await this.sanitizeOutput(order, ctx));
+      });
+    } catch (err) {
+      console.error('[Order Checkout Error]:', err);
+      if (err.name === 'ValidationError') {
+        return ctx.badRequest(err.message);
+      }
+      throw err;
+    }
   },
 
   async update(ctx) {

@@ -2,6 +2,7 @@
 
 const { errors: { ValidationError } } = require('@strapi/utils');
 const invalid = message => { throw new ValidationError(message); };
+const { lockPendingCheckout, findPendingCheckout, cancelSupersededCheckouts } = require('./pending-checkout');
 
 function validPrice(value) {
   if (value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0) {
@@ -83,8 +84,15 @@ async function priceCart(strapi, cartItems, context = {}) {
   return { items, total };
 }
 
-async function createCheckout(strapi, input, save) {
-  return strapi.db.transaction(async () => {
+async function createCheckout(strapi, input, save, reuse = order => order) {
+  return strapi.db.transaction(async ({ trx }) => {
+    const reusable = input.paymentMethod !== 'card_to_card' &&
+      Array.isArray(input.cartItems) && !input.cartItems.some(item => item?.type === 'light_topup');
+    if (reusable) {
+      const userId = Number(input.user);
+      if (!Number.isSafeInteger(userId) || userId <= 0 || userId > 2147483647) invalid('شناسهٔ کاربر معتبر نیست.');
+      await lockPendingCheckout(trx, userId);
+    }
     const { items, total } = await priceCart(strapi, input.cartItems, input.pricingContext);
     const code = input.couponCode == null ? null : input.couponCode;
     if (code !== null && (typeof code !== 'string' || !code.trim())) invalid('کد تخفیف معتبر نیست.');
@@ -106,7 +114,7 @@ async function createCheckout(strapi, input, save) {
     const summary = items.map((item, index) => `${index + 1}. ${item.title}${item.type === 'light_topup' ? ` [LIGHT_AMOUNT:${item.lightAmount}]` : ''}`).join('\n');
     // نشانگر مالی فقط از دادهٔ محاسبه‌شده ساخته می‌شود؛ یادداشت کاربر آن را جعل نمی‌کند.
     const notes = typeof input.notes === 'string' ? input.notes.replace(/\[(?:LIGHT_AMOUNT|TOPUP_ID):[^\]]*\]/g, '').trim() : '';
-    return save({
+    const data = {
       user: input.user, fullName: input.fullName, address: input.address, postalCode: input.postalCode,
       phone: input.phone, email: input.email, notes: `📋 اقلام این سفارش:\n${summary}${notes ? `\n\n${notes}` : ''}`,
       totalPrice: finalTotal, originalTotalPrice: total, couponCode: code?.trim() || null, discountAmount: discount,
@@ -118,7 +126,13 @@ async function createCheckout(strapi, input, save) {
         ...(item.type === 'course' || item.type === 'chapter' ? { courseId: item.courseId,
           ...(item.type === 'chapter' ? { chapterId: item.chapterId } : {}) } : { productId: item.productId, quantity: item.quantity }),
       })),
-    });
+    };
+    if (reusable && !isFree) {
+      const previous = await findPendingCheckout(strapi, data);
+      await cancelSupersededCheckouts(strapi, trx, data.user, previous?.documentId);
+      if (previous) return reuse(previous);
+    }
+    return save(data);
   });
 }
 

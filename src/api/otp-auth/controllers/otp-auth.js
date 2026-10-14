@@ -110,25 +110,39 @@ module.exports = {
             });
         }
         
-        // ارسال پیامک یا حالت تست بدون ارسال
-        if (isTestMode) {
+        // ──── Show OTP code in console only in local development ────
+        const isDev = process.env.NODE_ENV !== 'production';
+        if (isDev) {
             const banner = [
                 '====================================================================',
-                `🧪 [حالت تست / دیباگ لاگین - پیامک ارسال نمی‌شود]`,
-                `📱 شماره کاربر هدف: ${targetPhoneNumber} (ورودی درخواست: ${phoneNumber})`,
-                `🔑 کد یکبار مصرف (OTP): ${otpCode}`,
-                `⏱️ انقضا تا: ${otpExpiresAt.toLocaleTimeString('fa-IR')}`,
-                '===================================================================='
+                isTestMode
+                    ? `[TEST / DEBUG MODE - NO SMS SENT]`
+                    : `[SMS.ir OTP SENDING]`,
+                `Target Phone: ${targetPhoneNumber} (Input: ${phoneNumber})`,
+                `OTP Code: ${otpCode}`,
+                `Expires At: ${otpExpiresAt.toISOString()}`,
+                '====================================================================',
             ].join('\n');
-
-            strapi.log.warn(banner);
+            strapi.log.info(banner);
             console.log('\n' + banner + '\n');
+        }
+
+        // Send SMS or test mode bypass
+        if (isTestMode) {
+            if (isDev) strapi.log.warn(`[OTP] Test mode active - SMS not sent. OTP Code: ${otpCode}`);
         } else {
-            // ارسال کد OTP از طریق SMS.ir (Verify)
+            // Send OTP via SMS.ir (Verify)
             try {
                 await smsService.sendOtp(targetPhoneNumber, otpCode);
+                if (isDev) strapi.log.info(`[SMS Service] [OK] OTP sent successfully to ${targetPhoneNumber}`);
             } catch (smsError) {
-                strapi.log.error(`[SMS Service] Failed to send OTP to ${targetPhoneNumber}: ${smsError.message}`);
+                if (isDev) {
+                    const detail = smsError.response
+                        ? JSON.stringify(smsError.response.data || smsError.response.statusText)
+                        : smsError.message;
+                    strapi.log.error(`[SMS Service] [ERROR] Failed to send OTP to ${targetPhoneNumber}: ${detail}`);
+                    console.error(`[SMS Service] Full error:`, smsError);
+                }
                 throw new ApplicationError('خطا در ارسال پیامک. لطفاً بعداً تلاش کنید.');
             }
         }
