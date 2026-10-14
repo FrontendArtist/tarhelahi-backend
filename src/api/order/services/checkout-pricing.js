@@ -129,7 +129,7 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
     };
     if (reusable && !isFree) {
       const previous = await findPendingCheckout(strapi, data);
-      await cancelSupersededCheckouts(strapi, trx, data.user, previous?.id);
+      await cancelSupersededCheckouts(strapi, trx, data.user, previous?.documentId);
       if (previous) return reuse(previous);
     }
     return save(data);

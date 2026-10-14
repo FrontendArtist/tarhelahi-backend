@@ -26,7 +26,7 @@ test('concurrent pending checkout and rollback on PostgreSQL', { skip: !process.
   const input = { user: 5, paymentMethod: 'online', cartItems: [{ type: 'course', documentId: 'course-seven' }],
     address: 'Tehran', postalCode: '123', phone: '09120000000', fullName: 'Buyer', email: 'a@example.com' };
   const save = async data => {
-    const order = { ...data, documentId: randomUUID(), createdAt: new Date().toISOString() };
+    const order = { ...data, documentId: randomUUID(), createdAt: new Date().toISOString(), publishedAt: new Date().toISOString() };
     const [row] = await table().insert({ user_id: data.user, payload: order }).returning('id');
     order.id = row.id;
     await table().where({ id: row.id }).update({ payload: order });

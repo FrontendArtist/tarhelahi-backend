@@ -19,8 +19,8 @@ function matchesPendingOrder(order, data, now) {
     ['address', 'postalCode', 'phone', 'fullName', 'email'].every(key => order[key] === data[key]) &&
     (order.couponCode || null) === data.couponCode &&
     // The generated item summary may change order; customer instructions must remain identical.
-    String(order.notes || '').split('\n\n').slice(1).join('\n\n') ===
-      String(data.notes || '').split('\n\n').slice(1).join('\n\n') &&
+    String(order.notes || '').split('\n\n---\n')[0].split('\n\n').slice(1).join('\n\n') ===
+      String(data.notes || '').split('\n\n---\n')[0].split('\n\n').slice(1).join('\n\n') &&
     ['totalPrice', 'originalTotalPrice', 'discountAmount'].every(key =>
       order[key] != null && Number(order[key]) === data[key]) &&
     Array.isArray(order.items) && itemSignature(order.items) === itemSignature(data.items);
@@ -37,6 +37,8 @@ async function findPendingCheckout(strapi, data) {
     where: {
       user: { id: data.user }, paymentMethod: 'online', paymentStatus: 'pending_payment',
       orderStatus: 'pending', refNum: { $null: true },
+      // Core REST services default to published; reuse the same version read by payment/request.
+      publishedAt: { $notNull: true },
       createdAt: { $gt: new Date(now - PENDING_ORDER_TTL_MS), $lte: new Date(now) },
     },
     populate: ['items'], orderBy: { createdAt: 'desc' },
@@ -44,7 +46,7 @@ async function findPendingCheckout(strapi, data) {
   return orders.find(order => matchesPendingOrder(order, data, now));
 }
 
-async function cancelSupersededCheckouts(strapi, trx, userId, keepId = null) {
+async function cancelSupersededCheckouts(strapi, trx, userId, keepDocumentId = null) {
   const repository = strapi.db.query('api::order.order');
   const orders = await repository.findMany({
     where: { user: { id: userId }, paymentMethod: 'online', orderStatus: 'pending',
@@ -52,7 +54,8 @@ async function cancelSupersededCheckouts(strapi, trx, userId, keepId = null) {
     populate: ['items'],
   });
   for (const order of orders) {
-    if (order.id === keepId || !order.items?.length ||
+    // Draft and published rows share documentId but have different numeric IDs.
+    if ((keepDocumentId && order.documentId === keepDocumentId) || !order.items?.length ||
       order.items.some(item => !item.courseId && !item.productId)) continue;
     // The conditional update also locks the row until stock restoration and checkout commit.
     const changed = await repository.updateMany({

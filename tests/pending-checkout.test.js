@@ -45,7 +45,8 @@ function fixture() {
     service: () => ({ validateAndCalculate: async () => ({ valid: validCoupon,
       finalTotalPrice: price - 10, discountAmount: 10, message: 'expired' }) }),
     db: { transaction: async fn => fn({ trx: { raw: async () => {} } }),
-      query: () => ({ findMany: async ({ where }) => orders.filter(order => order.user === where.user.id),
+      query: () => ({ findMany: async ({ where }) => orders.filter(order => order.user === where.user.id &&
+        (!where.publishedAt || order.publishedAt != null)),
         updateMany: async ({ where, data }) => {
           const order = orders.find(order => order.id === where.id && (!where.user || order.user === where.user.id) &&
             order.paymentMethod === where.paymentMethod && order.orderStatus === where.orderStatus &&
@@ -56,7 +57,8 @@ function fixture() {
   };
   const input = { ...data, cartItems: [{ type: 'course', documentId: 'course-seven' }], paymentMethod: 'online' };
   const save = async fields => {
-    const order = { ...fields, id: orders.length + 1, documentId: `order-${orders.length + 1}`, createdAt: new Date().toISOString() };
+    const order = { ...fields, id: orders.length + 1, documentId: `order-${orders.length + 1}`,
+      createdAt: new Date().toISOString(), publishedAt: new Date().toISOString() };
     orders.push(order);
     return { data: order };
   };
@@ -72,6 +74,32 @@ test('retry returns same documentId, revalidates catalog and does not save twice
   assert.equal(first.data.documentId, second.data.documentId);
   assert.equal(f.orders.length, 1);
   assert.equal(f.reads(), 2);
+});
+
+test('draft and published versions of active document are both preserved on retry', async () => {
+  const f = fixture();
+  await createCheckout(f.strapi, f.input, f.save, f.reuse);
+  f.orders.unshift({ ...f.orders[0], id: 99, publishedAt: null });
+  const result = await createCheckout(f.strapi, f.input, f.save, f.reuse);
+  assert.equal(result.data.id, 1);
+  assert.equal(f.orders.length, 2);
+  assert.ok(f.orders.every(order => order.orderStatus === 'pending'));
+});
+
+test('ten unsuccessful attempts do not create or cancel order and keep customer instructions', async () => {
+  const f = fixture();
+  f.input.notes = 'ارسال عصر\n\nتماس قبل از ارسال';
+  const first = await createCheckout(f.strapi, f.input, f.save, f.reuse);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    f.orders[0].notes += '\n\n---\n❌ پرداخت ناموفق در درگاه';
+    const result = await createCheckout(f.strapi, f.input, f.save, f.reuse);
+    assert.equal(result.data.documentId, first.data.documentId);
+    assert.equal(result.data.orderStatus, 'pending');
+    assert.equal(result.data.paymentStatus, 'pending_payment');
+  }
+  assert.equal(f.orders.length, 1);
+  const changed = await createCheckout(f.strapi, { ...f.input, notes: 'ارسال صبح' }, f.save, f.reuse);
+  assert.notEqual(changed.data.documentId, first.data.documentId);
 });
 test('price change creates new order and cancels previous pending order', async () => {
   const f = fixture();
