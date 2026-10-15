@@ -78,13 +78,22 @@ module.exports = {
     const isPublished = Boolean(course.publishedAt != null);
     const isAvailable = isPublished;
 
+    const basePriceNoor = Number(course.price ?? 0);
+    const discountPercent = Number(course.discountPercent ?? 0);
+    const discountUntil = course.discountUntil ? new Date(course.discountUntil).getTime() : null;
+    const hasActiveDiscount = discountPercent > 0 &&
+      (discountUntil === null || discountUntil > Date.now());
+    // طبق D07، مبلغ تخفیف به پایین گرد و سپس از قیمت پایه کم می‌شود.
+    const discountNoor = hasActiveDiscount ? Math.floor(basePriceNoor * discountPercent / 100) : 0;
+    const priceNoor = basePriceNoor - discountNoor;
+
     return ctx.send({
       source: 'tarh_elahi',
       type: 'course',
       externalId: course.documentId,
       title: course.title,
       slug: course.slug,
-      priceNoor: Number(course.price ?? 0),
+      priceNoor,
       published: isPublished,
       available: isAvailable,
       updatedAt: course.updatedAt,

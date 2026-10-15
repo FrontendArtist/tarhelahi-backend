@@ -35,6 +35,7 @@ describe('ByeMoney Integration - getCourse Endpoint', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     delete global.strapi;
     process.env = originalEnv;
@@ -71,6 +72,39 @@ describe('ByeMoney Integration - getCourse Endpoint', () => {
   });
 
   describe('Authoritative DTO & Noor Contract', () => {
+    it.each([
+      ['بدون تخفیف', 100, 0, null, 100],
+      ['تخفیف فعال', 100, 20, '2026-10-16T00:00:00.000Z', 80],
+      ['تخفیف منقضی', 100, 20, '2026-10-14T00:00:00.000Z', 100],
+      ['لحظه پایان تخفیف', 100, 20, '2026-10-15T00:00:00.000Z', 100],
+      ['تخفیف بدون تاریخ پایان', 100, 20, null, 80],
+      ['گردکردن مبلغ تخفیف به پایین', 101, 15, null, 86],
+      ['تخفیف کمتر از یک نور', 1, 15, null, 1],
+      ['درصد ذخیره‌شده به صورت رشته', '101', '15', null, 86],
+    ])('%s', async (_, price, discountPercent, discountUntil, expectedPriceNoor) => {
+      jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-15T00:00:00.000Z'));
+      mockCourseQuery.findOne.mockResolvedValueOnce({
+        documentId: 'course-doc-123',
+        title: 'دوره آزمون',
+        slug: 'test-course',
+        price,
+        discountPercent,
+        discountUntil,
+        publishedAt: '2026-10-01T00:00:00.000Z',
+      });
+      const ctx = {
+        params: { documentId: 'course-doc-123' },
+        send: jest.fn(data => data),
+      };
+
+      const result = await integrationController.getCourse(ctx);
+
+      expect(result.priceNoor).toBe(expectedPriceNoor);
+      expect(result.externalId).toBe('course-doc-123');
+      expect(result.published).toBe(true);
+      expect(result.available).toBe(true);
+    });
+
     it('should return authoritative course DTO with priceNoor (and no priceRial or parentExternalId)', async () => {
       const mockCourse = {
         id: 42,
