@@ -18,4 +18,6 @@ npm run dev
 
 شناسهٔ خارجی در هر دو مسیر `documentId` است. مرز مالکیت داده، DTO و قواعد احراز هویت را از [قرارداد اتصال](../../ByeMoney/docs/integration/ByeMoney-Strapi-Integration.md) بخوانید؛ متن این README مرجع موازی قرارداد نیست.
 
-[تصمیم‌های بای‌مانی](../../ByeMoney/docs/architecture/ByeMoney-Decisions.md)، [موارد پیگیری مشترک](../../ByeMoney/TASKS.md) و [تاریخچهٔ تغییرات](CHANGELOG.md) نیز در دسترس‌اند.
+[راهنمای مشترک اسناد سه پروژه](../../ByeMoney/docs/README.md)، [تصمیم‌های بای‌مانی](../../ByeMoney/docs/architecture/ByeMoney-Decisions.md)، [کارهای باز مشترک](../../ByeMoney/TASKS.md)، [باگ‌های محمد](../../ByeMoney/HOTFIXES.md) و [تاریخچهٔ تغییرات](CHANGELOG.md) نیز در دسترس‌اند.
+
+برای هر شاخه فهرست تسک یا قرارداد مستقل نسازید. `CHANGELOG.md` سابقهٔ تغییرات است و مرجع وضعیت امروز یا انتشار نیست؛ وجود یک شرح در آن به معنی حضور همان کد روی master یا سرور نیست. یادداشت استقرار شاخهٔ `liara` فقط پیشینهٔ همان شاخه است و تنظیمات محیط فعلی باید جدا بررسی شوند.
