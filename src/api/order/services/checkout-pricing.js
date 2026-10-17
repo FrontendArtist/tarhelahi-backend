@@ -12,7 +12,7 @@ function validPrice(value) {
 }
 
 function discountedPrice(record, isForeign = false) {
-  // گردکردن و قیمت بین‌المللی همان رفتار فعلی master را حفظ می‌کنند.
+  // قیمت بین‌المللی مستقل است؛ تخفیف داخلی رو به پایین به واحد صحیح گرد می‌شود.
   if (isForeign && Number(record.internationalPrice) > 0) return validPrice(record.internationalPrice);
   const base = validPrice(record.price);
   const percent = Number(record.discountPercent ?? 0);
@@ -20,7 +20,7 @@ function discountedPrice(record, isForeign = false) {
   if (!Number.isInteger(percent) || percent < 0 || percent > 100 || (expiry !== null && !Number.isFinite(expiry))) {
     invalid('تخفیف کاتالوگ معتبر نیست.');
   }
-  return percent > 0 && (expiry === null || expiry > Date.now()) ? Math.round(base * (1 - percent / 100)) : base;
+  return percent > 0 && (expiry === null || expiry > Date.now()) ? base - Math.floor(base * percent / 100) : base;
 }
 
 async function publishedItem(strapi, uid, identifier, populate = []) {

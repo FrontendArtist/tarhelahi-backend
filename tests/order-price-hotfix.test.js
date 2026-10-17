@@ -6,10 +6,10 @@ const { priceCart, createCheckout } = require('../src/api/order/services/checkou
 const couponFactory = require('../src/api/coupon/services/coupon');
 const controllerFactory = require('../src/api/order/controllers/order');
 
-function fixture(overrides = {}) {
+function fixture(overrides = {}, productOverrides = {}) {
   const course = { id: 7, documentId: 'course-seven', title: 'دوره', slug: 'course', price: 109,
     discountPercent: 10, chapters: [{ id: 22, title: 'فصل', price: 40 }], ...overrides };
-  const product = { id: 8, documentId: 'product-eight', title: 'کالا', slug: 'product', price: 200 };
+  const product = { id: 8, documentId: 'product-eight', title: 'کالا', slug: 'product', price: 200, ...productOverrides };
   const strapi = {
     contentType: () => ({}),
     documents: uid => ({ findOne: async ({ documentId, status }) => {
@@ -32,9 +32,54 @@ const input = changes => ({ user: 5, cartItems: [{ type: 'course', id: 7, price:
   paymentMethod: 'free', paymentStatus: 'paid', totalPrice: 0, ...changes });
 const save = async data => data;
 
+for (const type of ['course', 'product']) {
+  for (const [price, discountPercent, expected] of [[101, 10, 91], [109, 10, 99], [1, 99, 1], [101, 100, 0], [0, 0, 0], [100.5, 10, 90.5]]) {
+    test(`ثبت ${type} با پایه ${price} و تخفیف ${discountPercent}٪ مبلغ ${expected} را حفظ می‌کند`, async () => {
+      const record = { price, discountPercent };
+      const strapi = type === 'course' ? fixture(record) : fixture({}, record);
+      const order = await createCheckout(strapi, input({ cartItems: [{ type, id: type === 'course' ? 7 : 8, price: 0 }] }), save);
+      assert.equal(order.items[0].price, expected);
+      assert.equal(order.originalTotalPrice, expected);
+      assert.equal(order.totalPrice, expected);
+      assert.equal(order.paymentMethod, expected === 0 ? 'free' : 'online');
+      assert.equal(order.paymentStatus, expected === 0 ? 'paid' : 'pending_payment');
+      assert.equal(order.orderStatus, expected === 0 ? 'paid' : 'pending');
+    });
+  }
+}
+
+test('تخفیف هر واحد کالا پیش از اعمال تعداد محاسبه و با اقلام سبد جمع می‌شود', async () => {
+  const order = await createCheckout(fixture({}, { price: 109, discountPercent: 10 }), input({
+    cartItems: [{ type: 'product', id: 8, quantity: 3 }, { type: 'course', id: 7 }],
+  }), save);
+  assert.equal(order.items[0].price, 99);
+  assert.equal(order.items[0].quantity, 3);
+  assert.equal(order.totalPrice, 396);
+});
+
+test('تخفیف در لحظه پایان اعمال نمی‌شود و یک لحظه پیش از پایان معتبر است', async t => {
+  const now = Date.parse('2026-10-17T10:00:00Z');
+  t.mock.method(Date, 'now', () => now);
+  for (const type of ['course', 'product']) {
+    for (const [expiry, expected] of [[now - 1, 109], [now, 109], [now + 1, 99]]) {
+      const record = { price: 109, discountPercent: 10, discountUntil: new Date(expiry).toISOString() };
+      const strapi = type === 'course' ? fixture(record) : fixture({}, record);
+      const result = await priceCart(strapi, [{ type, id: type === 'course' ? 7 : 8 }]);
+      assert.equal(result.total, expected);
+    }
+  }
+});
+
+test('تخفیف داخلی صددرصد قیمت بین‌المللی را رایگان نمی‌کند', async () => {
+  const order = await createCheckout(fixture({ price: 1, discountPercent: 100, internationalPrice: 500 }),
+    input({ pricingContext: { isForeign: true } }), save);
+  assert.equal(order.totalPrice, 500);
+  assert.equal(order.paymentStatus, 'pending_payment');
+});
+
 test('قیمت جعلی و پرداخت رایگان مرورگر بی‌اثر است', async () => {
   const order = await createCheckout(fixture(), input(), save);
-  assert.equal(order.totalPrice, 98);
+  assert.equal(order.totalPrice, 99);
   assert.equal(order.paymentStatus, 'pending_payment');
   assert.equal(order.paymentMethod, 'online');
   assert.equal(order.items[0].slug, 'course');
@@ -42,14 +87,14 @@ test('قیمت جعلی و پرداخت رایگان مرورگر بی‌اثر 
 });
 test('قیمت معتبر دوره با گردکردن رو به پایین کوپن در ByeMoney ترکیب می‌شود', async () => {
   const order = await createCheckout(fixture(), input({ couponCode: 'TEN' }), save);
-  assert.equal(order.originalTotalPrice, 98);
+  assert.equal(order.originalTotalPrice, 99);
   assert.equal(order.discountAmount, 9);
-  assert.equal(order.totalPrice, 89);
+  assert.equal(order.totalPrice, 90);
 });
 test('سبد مختلط دوره، فصل و تعداد کالا حفظ می‌شود', async () => {
   const result = await priceCart(fixture(), [{ type: 'course', id: 7 },
     { type: 'chapter', courseId: 7, chapterId: 22, price: 0 }, { type: 'product', id: 8, quantity: 3, price: 0 }]);
-  assert.equal(result.total, 738);
+  assert.equal(result.total, 739);
   assert.equal(result.items[1].price, 40);
   assert.equal(result.items[2].quantity, 3);
 });
@@ -105,8 +150,8 @@ test('کوپن مبلغ ثابت روی تعداد واقعی کالای مجا�
     appliesToAllProducts: false, products: [{ id: 8 }], isActive: true };
   const order = await createCheckout(strapi, input({ couponCode: 'FIXED',
     cartItems: [{ type: 'product', id: 8, quantity: 3 }, { type: 'course', id: 7 }] }), save);
-  assert.equal(order.originalTotalPrice, 698);
-  assert.equal(order.totalPrice, 548);
+  assert.equal(order.originalTotalPrice, 699);
+  assert.equal(order.totalPrice, 549);
   assert.equal(order.items[0].quantity, 3);
 });
 test('حداقل مبلغ کوپن با قیمت واقعی محاسبه می‌شود', async () => {
@@ -182,7 +227,7 @@ test('checkout مجاز قیمت معتبر سرور را از مسیر ایجا
     state: { auth: { strategy: { name: 'api-token' } } },
     request: { body: { data: input() } },
   });
-  assert.equal(order.totalPrice, 98);
+  assert.equal(order.totalPrice, 99);
   assert.equal(order.paymentStatus, 'pending_payment');
 });
 test('خرید کالا با اسلاگ مشابه دوره، دسترسی دوره نمی‌دهد؛ خرید فصل معتبر دسترسی می‌دهد', async () => {
