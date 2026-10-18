@@ -1,5 +1,7 @@
 'use strict';
 
+const { allocateDiscount } = require('../../../services/coupon-allocation');
+
 const { createCoreService } = require('@strapi/strapi').factories;
 
 module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
@@ -157,10 +159,8 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
           }
         }
       } else if (item.type === 'light_topup') {
-        // شارژ نور در صورت فعال بودن تخفیف همگانی محصولات و دوره‌ها
-        if (coupon.appliesToAllProducts && coupon.appliesToAllCourses) {
-          isItemEligible = true;
-        }
+        // کوپن خرید روی شارژ نور اعمال نمی‌شود.
+        isItemEligible = false;
       } else {
         // محصول فیزیکی
         if (coupon.appliesToAllProducts) {
@@ -210,55 +210,26 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       };
     }
 
-    // ۸. محاسبه مبلغ تخفیف ردیف‌به‌ردیف (گرد به پایین به نور صحیح)
-    const discountVal = Number(coupon.discountValue) || 0;
-    const itemDiscounts = new Map();
-
-    if (coupon.discountType === 'percentage') {
-      let totalRawDiscount = 0;
-      for (const item of cartItems) {
-        if (!eligibleItemIds.includes(item.id)) continue;
-        const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
-        const itemPrice = Number(item.price) || 0;
-        const itemTotal = itemPrice * itemQty;
-
-        // تخفیف هر ردیف گرد به پایین به عدد صحیح نور
-        const rowDiscount = Math.floor((itemTotal * discountVal) / 100);
-        itemDiscounts.set(item.id, rowDiscount);
-        totalRawDiscount += rowDiscount;
-      }
-
-      // اعمال سقف تخفیف درصدی در صورت وجود
-      if (
-        typeof coupon.maxDiscountAmount === 'number' &&
-        coupon.maxDiscountAmount > 0 &&
-        totalRawDiscount > coupon.maxDiscountAmount
-      ) {
-        let excess = totalRawDiscount - coupon.maxDiscountAmount;
-        for (let i = cartItems.length - 1; i >= 0 && excess > 0; i--) {
-          const it = cartItems[i];
-          if (!itemDiscounts.has(it.id)) continue;
-          const currentDisc = itemDiscounts.get(it.id);
-          const reduction = Math.min(currentDisc, excess);
-          itemDiscounts.set(it.id, currentDisc - reduction);
-          excess -= reduction;
-        }
-      }
-    } else {
-      // تخفیف ثابت به نور: تخصیص عدد صحیح نور به اقلام واجد شرایط
-      let remainingFixed = Math.min(Math.floor(discountVal), Math.floor(eligibleSubtotal));
-      for (const item of cartItems) {
-        if (!eligibleItemIds.includes(item.id)) continue;
-        const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
-        const itemPrice = Number(item.price) || 0;
-        const itemTotal = itemPrice * itemQty;
-
-        const rowDiscount = Math.min(itemTotal, remainingFixed);
-        itemDiscounts.set(item.id, rowDiscount);
-        remainingFixed -= rowDiscount;
-      }
+    // کوپن عمومی یک بار روی جمع اقلام مشمول گرد می‌شود؛ کوپن اختصاصی ردیفی است.
+    const discountVal = Number(coupon.discountValue);
+    if (!Number.isFinite(discountVal) || discountVal < 0 ||
+        (coupon.discountType === 'percentage' && discountVal > 100)) {
+      return { valid: false, message: 'مقدار تخفیف معتبر نیست.' };
     }
-
+    const eligibleRows = cartItems.filter(item => eligibleItemIds.includes(item.id))
+      .map(item => ({ id: item.id, total: Number(item.price) * (Number(item.quantity) > 0 ? Number(item.quantity) : 1) }));
+    const general = coupon.appliesToAllCourses === true || coupon.appliesToAllProducts === true;
+    let itemDiscounts;
+    if (coupon.discountType === 'percentage' && !general) {
+      itemDiscounts = new Map(eligibleRows.map(row => [row.id, Math.floor(row.total * discountVal / 100)]));
+    } else {
+      const amount = coupon.discountType === 'percentage' ? eligibleSubtotal * discountVal / 100 : discountVal;
+      itemDiscounts = allocateDiscount(eligibleRows, amount);
+    }
+    const calculatedDiscount = [...itemDiscounts.values()].reduce((sum, value) => sum + value, 0);
+    if (Number(coupon.maxDiscountAmount) > 0 && calculatedDiscount > Number(coupon.maxDiscountAmount)) {
+      itemDiscounts = allocateDiscount(eligibleRows.map(row => ({ ...row, total: itemDiscounts.get(row.id) || 0 })), Number(coupon.maxDiscountAmount));
+    }
     // قیمت نهایی هر ردیف از کم‌کردن تخفیف ردیف از قیمت پایه به دست می‌آید؛
     // جمع سبد فقط جمع قیمت نهایی ردیف‌هاست و دوباره گرد نمی‌شود.
     let finalPayable = 0;
@@ -286,6 +257,7 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       originalTotalPrice: calculatedCartTotal,
       finalTotalPrice: finalPayable,
       eligibleItemIds,
+      itemDiscounts: [...itemDiscounts].map(([id, discountAmount]) => ({ id, discountAmount })),
       message: 'کد تخفیف با موفقیت اعمال گردید.',
     };
   },

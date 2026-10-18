@@ -6,7 +6,45 @@ const byeMoneyPurchaseService = require('../../../services/byeMoneyPurchaseServi
  * ByeMoney <-> TarhElahi Integration Controller (v1)
  * Strict service-to-service read and webhook endpoints for ByeMoney.
  */
+async function cartAction(ctx, action) {
+  try {
+    const service = require('../../../services/byeMoneyCartService');
+    const input = { ...ctx.request.body, ...(ctx.params.cartId ? { cartId: ctx.params.cartId } : {}) };
+    ctx.body = action === 'prepare' ? await service.prepare(strapi, input) : await service.transition(strapi, input, action);
+  } catch (error) {
+    if (!error.status) throw error;
+    ctx.status = error.status;
+    ctx.body = { code: 'CART_INVALID', error: error.message };
+  }
+}
 module.exports = {
+  async previewCart(ctx) {
+    let claims;
+    if (ctx.state.user?.documentId) {
+      try { claims = await strapi.plugin('users-permissions').service('jwt').getToken(ctx); }
+      catch { /* توکن غیرکاربری یا نامعتبر، هویت خریدار نیست. */ }
+    }
+    if (!claims?.documentId || claims.documentId !== ctx.state.user?.documentId) {
+      ctx.status = 401;
+      ctx.body = { code: 'CART_UNAUTHORIZED', error: 'نشست شما معتبر نیست.' };
+      return;
+    }
+    try {
+      const { externalCourseIds, couponCode } = ctx.request.body || {};
+      ctx.set('Cache-Control', 'no-store');
+      ctx.body = await require('../../../services/byeMoneyCartService').preview(strapi, {
+        buyerExternalUserId: claims.documentId, externalCourseIds, couponCode,
+      });
+    } catch (error) {
+      if (!error.status) throw error;
+      ctx.status = error.status;
+      ctx.body = { code: 'CART_INVALID', error: error.message };
+    }
+  },
+  prepareCart: ctx => cartAction(ctx, 'prepare'),
+  checkCart: ctx => cartAction(ctx, 'check'),
+  commitCart: ctx => cartAction(ctx, 'commit'),
+  releaseCart: ctx => cartAction(ctx, 'release'),
   /**
    * GET /api/integrations/byemoney/v1/users/:externalUserId
    * Read authoritative user details for ByeMoney integration.

@@ -580,6 +580,44 @@ export interface ApiBankSettingBankSetting extends Struct.SingleTypeSchema {
   };
 }
 
+export interface ApiByemoneyCartByemoneyCart
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'byemoney_carts';
+  info: {
+    displayName: 'ByeMoney Cart';
+    pluralName: 'byemoney-carts';
+    singularName: 'byemoney-cart';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    buyerExternalUserId: Schema.Attribute.String & Schema.Attribute.Required;
+    cartId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    couponCode: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    fingerprint: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::byemoney-cart.byemoney-cart'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    purchaseIds: Schema.Attribute.JSON;
+    snapshot: Schema.Attribute.JSON;
+    state: Schema.Attribute.Enumeration<['reserved', 'committed', 'released']> &
+      Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiByemoneyPurchaseLogByemoneyPurchaseLog
   extends Struct.CollectionTypeSchema {
   collectionName: 'byemoney_purchase_logs';
@@ -2264,6 +2302,7 @@ declare module '@strapi/strapi' {
       'api::article.article': ApiArticleArticle;
       'api::articles-category.articles-category': ApiArticlesCategoryArticlesCategory;
       'api::bank-setting.bank-setting': ApiBankSettingBankSetting;
+      'api::byemoney-cart.byemoney-cart': ApiByemoneyCartByemoneyCart;
       'api::byemoney-purchase-log.byemoney-purchase-log': ApiByemoneyPurchaseLogByemoneyPurchaseLog;
       'api::category.category': ApiCategoryCategory;
       'api::comment.comment': ApiCommentComment;

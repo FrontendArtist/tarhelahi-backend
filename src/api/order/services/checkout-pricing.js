@@ -136,4 +136,4 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
   });
 }
 
-module.exports = { priceCart, createCheckout };
+module.exports = { priceCart, createCheckout, discountedPrice };

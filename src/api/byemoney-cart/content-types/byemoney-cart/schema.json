@@ -1,0 +1,15 @@
+{
+  "kind": "collectionType",
+  "collectionName": "byemoney_carts",
+  "info": { "singularName": "byemoney-cart", "pluralName": "byemoney-carts", "displayName": "ByeMoney Cart" },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "cartId": { "type": "string", "required": true, "unique": true },
+    "buyerExternalUserId": { "type": "string", "required": true },
+    "fingerprint": { "type": "text" },
+    "state": { "type": "enumeration", "enum": ["reserved", "committed", "released"], "required": true },
+    "snapshot": { "type": "json" },
+    "couponCode": { "type": "string" },
+    "purchaseIds": { "type": "json" }
+  }
+}

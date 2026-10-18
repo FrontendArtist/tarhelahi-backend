@@ -1,6 +1,6 @@
 'use strict';
 
-describe('Coupon Calculation - Row-by-Row Floor Rounding in Noor', () => {
+describe('Coupon Calculation - Cart and Restricted Rounding in Noor', () => {
   let couponService;
   let mockStrapi;
 
@@ -35,7 +35,7 @@ describe('Coupon Calculation - Row-by-Row Floor Rounding in Noor', () => {
     jest.clearAllMocks();
   });
 
-  it('should calculate percentage discount per row rounded DOWN to integer Noor without secondary rounding', async () => {
+  it('rounds a general percentage coupon once on the eligible subtotal', async () => {
     const mockCoupon = {
       documentId: 'cpn-doc-1',
       code: 'OFF15',
@@ -54,13 +54,7 @@ describe('Coupon Calculation - Row-by-Row Floor Rounding in Noor', () => {
 
     mockStrapi.mockFindMany.mockResolvedValueOnce([mockCoupon]);
 
-    // Cart items:
-    // Item 1: price = 33 Noor, qty = 1 -> row = 33 -> 15% of 33 = 4.95 -> Math.floor = 4 -> final row = 29
-    // Item 2: price = 25 Noor, qty = 1 -> row = 25 -> 15% of 25 = 3.75 -> Math.floor = 3 -> final row = 22
-    // Item 3: price = 10 Noor, qty = 1 -> row = 10 -> 15% of 10 = 1.50 -> Math.floor = 1 -> final row = 9
-    // Total raw before discount = 33 + 25 + 10 = 68 Noor (>= minOrderAmount 50)
-    // Total discount = 4 + 3 + 1 = 8 Noor
-    // Final payable = 29 + 22 + 9 = 60 Noor (sum of row final prices, no secondary rounding)
+    // تخفیف عمومی: floor(68 × 15٪) = 10 نور؛ تخصیص ردیفی این جمع را حفظ می‌کند.
     const cartItems = [
       { id: 'item-1', price: 33, quantity: 1, type: 'course' },
       { id: 'item-2', price: 25, quantity: 1, type: 'course' },
@@ -70,8 +64,8 @@ describe('Coupon Calculation - Row-by-Row Floor Rounding in Noor', () => {
     const result = await couponService.validateAndCalculate('OFF15', cartItems, 68);
 
     expect(result.valid).toBe(true);
-    expect(result.discountAmount).toBe(8);
-    expect(result.finalTotalPrice).toBe(60);
+    expect(result.discountAmount).toBe(10);
+    expect(result.finalTotalPrice).toBe(58);
     expect(result.originalTotalPrice).toBe(68);
   });
 
