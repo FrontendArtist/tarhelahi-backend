@@ -15,35 +15,54 @@ function validatePayload(payload) {
     };
   }
 
-  const { purchaseId, strapiUserId, courseId } = payload;
+  const purchaseId =
+    typeof payload.purchaseId === 'string' && payload.purchaseId.trim()
+      ? payload.purchaseId.trim()
+      : typeof payload.dealId === 'string' && payload.dealId.trim()
+      ? payload.dealId.trim()
+      : '';
 
-  if (typeof purchaseId !== 'string' || !purchaseId.trim()) {
+  const strapiUserId =
+    typeof payload.buyerExternalUserId === 'string' && payload.buyerExternalUserId.trim()
+      ? payload.buyerExternalUserId.trim()
+      : typeof payload.strapiUserId === 'string' && payload.strapiUserId.trim()
+      ? payload.strapiUserId.trim()
+      : '';
+
+  const courseId =
+    typeof payload.courseId === 'string' && payload.courseId.trim()
+      ? payload.courseId.trim()
+      : payload.item && typeof payload.item.externalId === 'string' && payload.item.externalId.trim()
+      ? payload.item.externalId.trim()
+      : '';
+
+  if (!purchaseId) {
     return {
       isValid: false,
-      message: 'Field purchaseId is required and must be a non-empty string',
+      message: 'Field purchaseId is required (or dealId) and must be a non-empty string',
     };
   }
 
-  if (typeof strapiUserId !== 'string' || !strapiUserId.trim()) {
+  if (!strapiUserId) {
     return {
       isValid: false,
-      message: 'Field strapiUserId is required and must be a non-empty string',
+      message: 'Field strapiUserId is required (or buyerExternalUserId) and must be a non-empty string',
     };
   }
 
-  if (typeof courseId !== 'string' || !courseId.trim()) {
+  if (!courseId) {
     return {
       isValid: false,
-      message: 'Field courseId is required and must be a non-empty string',
+      message: 'Field courseId is required (or item.externalId) and must be a non-empty string',
     };
   }
 
   return {
     isValid: true,
     sanitized: {
-      purchaseId: purchaseId.trim(),
-      strapiUserId: strapiUserId.trim(),
-      courseId: courseId.trim(),
+      purchaseId,
+      strapiUserId,
+      courseId,
     },
   };
 }
@@ -91,7 +110,11 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
   const validation = validatePayload(payload);
   if (!validation.isValid) {
     const rawPurchaseId =
-      payload && typeof payload.purchaseId === 'string' ? payload.purchaseId.trim() : '';
+      payload && typeof payload.purchaseId === 'string'
+        ? payload.purchaseId.trim()
+        : payload && typeof payload.dealId === 'string'
+        ? payload.dealId.trim()
+        : '';
     return {
       httpStatus: 400,
       response: {

@@ -245,7 +245,12 @@ module.exports = {
       ctx.status = 500;
       ctx.body = {
         success: false,
-        purchaseId: typeof ctx.request?.body?.purchaseId === 'string' ? ctx.request.body.purchaseId : '',
+        purchaseId:
+          typeof ctx.request?.body?.purchaseId === 'string'
+            ? ctx.request.body.purchaseId
+            : typeof ctx.request?.body?.dealId === 'string'
+            ? ctx.request.body.dealId
+            : '',
         status: 'error',
         message: 'Internal server error while processing purchase confirmation',
       };

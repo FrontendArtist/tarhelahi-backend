@@ -767,6 +767,65 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
       expect(payload.snapshot.conversionRate).toBeUndefined();
       expect(payload.snapshot.priceNoor).toBe(1500.5);
     });
+
+    it('should successfully grant access when using buyerExternalUserId, item.externalId, and dealId aliases', async () => {
+      const payload = {
+        eventId: 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e',
+        dealId: 'deal_pur_alias_100',
+        buyerExternalUserId: 'usr_doc_buyer_99',
+        item: {
+          type: 'Course',
+          externalId: 'crs_doc_item_88',
+        },
+      };
+
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].findOne.mockResolvedValue(null);
+      mockDbQueries['plugin::users-permissions.user'].findOne.mockResolvedValue({
+        id: 101,
+        documentId: 'usr_doc_buyer_99',
+      });
+      mockDbQueries['api::course.course'].findOne.mockResolvedValue({
+        id: 202,
+        documentId: 'crs_doc_item_88',
+        users_permissions_users: [],
+      });
+      mockDbQueries['api::course.course'].update.mockResolvedValue({});
+      mockDbQueries['plugin::users-permissions.user'].update.mockResolvedValue({});
+      mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create.mockResolvedValue({
+        id: 1001,
+        purchaseId: 'deal_pur_alias_100',
+        strapiUserId: 'usr_doc_buyer_99',
+        courseId: 'crs_doc_item_88',
+        status: 'processed',
+      });
+
+      const result = await byeMoneyPurchaseService.confirmPurchase(payload, { strapiInstance: mockStrapi });
+
+      expect(result.httpStatus).toBe(200);
+      expect(result.response).toEqual({
+        success: true,
+        purchaseId: 'deal_pur_alias_100',
+        status: 'granted',
+        message: 'Course access granted successfully',
+      });
+
+      expect(mockDbQueries['plugin::users-permissions.user'].findOne).toHaveBeenCalledWith({
+        where: { documentId: 'usr_doc_buyer_99' },
+        populate: ['courses'],
+      });
+      expect(mockDbQueries['api::course.course'].findOne).toHaveBeenCalledWith({
+        where: { documentId: 'crs_doc_item_88', publishedAt: { $notNull: true } },
+        populate: ['users_permissions_users', 'chapters'],
+      });
+      expect(mockDbQueries['api::byemoney-purchase-log.byemoney-purchase-log'].create).toHaveBeenCalledWith({
+        data: {
+          purchaseId: 'deal_pur_alias_100',
+          strapiUserId: 'usr_doc_buyer_99',
+          courseId: 'crs_doc_item_88',
+          status: 'processed',
+        },
+      });
+    });
   });
 });
 
