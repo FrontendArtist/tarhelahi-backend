@@ -53,6 +53,35 @@ test('کوپن صددرصد پیش‌نمایش صفر دارد و مصرف نم
   expect(writes).not.toHaveBeenCalled();
 });
 
+test.each([false, true])('قیمت بر اساس هویت ذخیره‌شدهٔ خریدار تعیین می‌شود: %s', async isForeign => {
+  const { strapi, courses } = fixture();
+  courses[0].internationalPrice = 801;
+  courses[0].discountPercent = 10;
+  strapi.db.query = () => ({
+    findOne: async () => ({ confirmed: true, courses: [], is_foreigner: isForeign }),
+  });
+
+  const data = await service.preview(strapi, {
+    buyerExternalUserId: 'buyer', externalCourseIds: ['one'], isForeign: !isForeign,
+  });
+
+  expect(data.originalTotalInNoor).toBe(isForeign ? 801 : 105);
+  expect(data.itemDiscountInNoor).toBe(isForeign ? 0 : 10);
+  expect(data.priceInNoor).toBe(isForeign ? 801 : 95);
+});
+
+test('کوپن عمومی روی قیمت بین‌المللی معتبر و با حفظ جمع اعمال می‌شود', async () => {
+  const { strapi, courses } = fixture();
+  courses[0].internationalPrice = 801;
+  strapi.db.query = () => ({
+    findOne: async () => ({ confirmed: true, courses: [], is_foreigner: true }),
+  });
+  const data = await service.preview(strapi, input);
+  expect(data.originalTotalInNoor).toBe(906);
+  expect(data.couponDiscountInNoor).toBe(90);
+  expect(data.priceInNoor).toBe(816);
+});
+
 test.each([[], ['one', 'one'], ['missing'], [''], Array(101).fill('one')].map(ids => [ids]))('اقلام نامعتبر رد می‌شوند: %j', async ids => {
   const { strapi, writes } = fixture();
   await expect(service.preview(strapi, { ...input, externalCourseIds: ids })).rejects.toMatchObject({ status: 400 });

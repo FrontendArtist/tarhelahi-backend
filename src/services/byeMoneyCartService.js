@@ -17,11 +17,15 @@ async function lockCoupon(strapi, trx, code) {
   await trx(metadata.tableName).whereRaw('LOWER(??) = LOWER(?)', [metadata.attributes.code.columnName, code])
     .orderBy('id').forUpdate().select('id');
 }
-async function assertAvailable(strapi, snapshot) {
+async function loadBuyer(strapi, externalUserId) {
   const user = await strapi.db.query('plugin::users-permissions.user').findOne({
-    where: { documentId: snapshot.buyerExternalUserId }, populate: ['courses'],
+    where: { documentId: externalUserId }, populate: ['courses'],
   });
   if (!user || !user.confirmed || user.blocked) fail('خریدار معتبر و فعال نیست.');
+  return user;
+}
+async function assertAvailable(strapi, snapshot, buyer = null) {
+  const user = buyer || await loadBuyer(strapi, snapshot.buyerExternalUserId);
   const owned = new Set((user.courses || []).map(course => course.documentId));
   for (const item of snapshot.items) {
     if (owned.has(item.externalCourseId)) fail('یکی از دوره‌های سبد قبلاً خریداری شده است.');
@@ -39,16 +43,20 @@ function validateSelection(input) {
 }
 // پیش‌نمایش و رزرو از یک محاسبه استفاده می‌کنند؛ این تابع هیچ داده‌ای نمی‌نویسد.
 async function quote(strapi, input) {
+  const buyer = await loadBuyer(strapi, input.buyerExternalUserId);
+  const isForeign = buyer.is_foreigner === true;
   const items = [];
   const baseItems = [];
   for (const documentId of [...input.externalCourseIds].sort()) {
     const course = await strapi.documents('api::course.course').findOne({ documentId, status: 'published' });
     if (!course) fail('دورهٔ منتشرشده یافت نشد.', 400);
-    const price = discountedPrice(course);
-    if (!Number.isSafeInteger(Number(course.price)) || !Number.isSafeInteger(price) || Number(course.price) < price) fail('قیمت پایهٔ دوره معتبر نیست.', 400);
+    const basePrice = Number(isForeign && Number(course.internationalPrice) > 0
+      ? course.internationalPrice : course.price);
+    const price = discountedPrice(course, isForeign);
+    if (!Number.isSafeInteger(basePrice) || !Number.isSafeInteger(price) || basePrice < price) fail('قیمت پایهٔ دوره معتبر نیست.', 400);
     items.push({ id: course.id, documentId, courseId: course.id, title: course.title, slug: course.slug, type: 'course', quantity: 1, price });
-    baseItems.push({ externalCourseId: documentId, title: course.title, basePriceInNoor: Number(course.price),
-      itemDiscountInNoor: Number(course.price) - price, couponDiscountInNoor: 0, priceInNoor: price });
+    baseItems.push({ externalCourseId: documentId, title: course.title, basePriceInNoor: basePrice,
+      itemDiscountInNoor: basePrice - price, couponDiscountInNoor: 0, priceInNoor: price });
   }
   const code = input.couponCode?.trim().toUpperCase() || null;
   if (code) {
@@ -61,7 +69,7 @@ async function quote(strapi, input) {
     }
   }
   const snapshot = { cartId: input.cartId, buyerExternalUserId: input.buyerExternalUserId, couponCode: code, items: baseItems };
-  await assertAvailable(strapi, snapshot);
+  await assertAvailable(strapi, snapshot, buyer);
   return snapshot;
 }
 async function preview(strapi, input) {
