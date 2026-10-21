@@ -14,7 +14,7 @@ async function cartAction(ctx, action) {
   } catch (error) {
     if (!error.status) throw error;
     ctx.status = error.status;
-    ctx.body = { code: 'CART_INVALID', error: error.message };
+    ctx.body = { code: error.code || 'CART_INVALID', error: error.message };
   }
 }
 module.exports = {
@@ -38,7 +38,7 @@ module.exports = {
     } catch (error) {
       if (!error.status) throw error;
       ctx.status = error.status;
-      ctx.body = { code: 'CART_INVALID', error: error.message };
+      ctx.body = { code: error.code || 'CART_INVALID', error: error.message };
     }
   },
   prepareCart: ctx => cartAction(ctx, 'prepare'),
@@ -183,7 +183,7 @@ module.exports = {
 
     const chapter = course.chapters[chapterIndex];
     const isPublished = Boolean(course.publishedAt != null);
-    const isAvailable = Boolean(isPublished && (course.isChaptered ?? true));
+    const isAvailable = Boolean(isPublished && course.isChaptered === true);
 
     return ctx.send({
       source: 'tarh_elahi',

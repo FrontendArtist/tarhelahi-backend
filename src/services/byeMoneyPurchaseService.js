@@ -106,6 +106,21 @@ function isUniqueConstraintError(err) {
 async function confirmPurchase(payload, { strapiInstance } = {}) {
   const strapiObj = strapiInstance || global.strapi;
 
+  if (['course_chapter', 'CourseChapter'].includes(payload?.item?.type)) {
+    return require('./chapterPurchase').confirmChapter(strapiObj, payload);
+  }
+  if (payload?.item?.type != null && !['course', 'Course'].includes(payload.item.type)) {
+    return {
+      httpStatus: 400,
+      response: {
+        success: false,
+        purchaseId: payload.purchaseId || payload.dealId || '',
+        status: 'error',
+        message: 'نوع قلم خرید معتبر نیست.',
+      },
+    };
+  }
+
   // 1. Validate payload
   const validation = validatePayload(payload);
   if (!validation.isValid) {
@@ -135,7 +150,8 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
 
   if (existingLog) {
     // Idempotent replay check: exact same user and course
-    if (existingLog.strapiUserId === strapiUserId && existingLog.courseId === courseId) {
+    if (existingLog.strapiUserId === strapiUserId && existingLog.courseId === courseId &&
+        (!existingLog.itemType || existingLog.itemType === 'course')) {
       return {
         httpStatus: 200,
         response: {
@@ -263,6 +279,9 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
         purchaseId,
         strapiUserId,
         courseId,
+        itemType: 'course',
+        chapterExternalId: null,
+        parentExternalId: null,
         status: 'processed',
       },
     });
@@ -280,7 +299,8 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
 
     if (raceCheck) {
       // Idempotent race: winning concurrent request had the exact same user and course
-      if (raceCheck.strapiUserId === strapiUserId && raceCheck.courseId === courseId) {
+      if (raceCheck.strapiUserId === strapiUserId && raceCheck.courseId === courseId &&
+          (!raceCheck.itemType || raceCheck.itemType === 'course')) {
         return {
           httpStatus: 200,
           response: {

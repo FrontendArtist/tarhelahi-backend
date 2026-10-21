@@ -631,16 +631,20 @@ export interface ApiByemoneyPurchaseLogByemoneyPurchaseLog
     draftAndPublish: false;
   };
   attributes: {
+    chapterExternalId: Schema.Attribute.String;
     courseId: Schema.Attribute.String & Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    itemType: Schema.Attribute.Enumeration<['course', 'course_chapter']> &
+      Schema.Attribute.DefaultTo<'course'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::byemoney-purchase-log.byemoney-purchase-log'
     > &
       Schema.Attribute.Private;
+    parentExternalId: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     purchaseId: Schema.Attribute.String &
       Schema.Attribute.Required &

@@ -20,6 +20,7 @@ test('رزرو و تحویل سبد روی PostgreSQL مستقل', { skip: proce
   const names = { 'api::byemoney-cart.byemoney-cart': 'carts', 'api::course.course': 'courses',
     'plugin::users-permissions.user': 'users', 'api::byemoney-purchase-log.byemoney-purchase-log': 'logs' };
   const match = (item, where) => Object.entries(where).every(([key, value]) =>
+    key === 'chapters' ? (item.chapters || []).some(chapter => chapter.integrationId === value.integrationId) :
     value && typeof value === 'object' && '$notNull' in value ? item[key] != null : item[key] === value);
   let couponService;
   const strapi = {
@@ -41,6 +42,8 @@ test('رزرو و تحویل سبد روی PostgreSQL مستقل', { skip: proce
         })),
         update: ({ where, data }) => table('coupons').where(where).update({ used_count: data.usedCount }),
       } : {
+        findMany: async ({ where }) => (await table(names[uid]).select())
+          .map(row => ({ ...row.payload, id: row.id })).filter(row => match(row, where)),
         findOne: async ({ where, populate }) => {
           const result = (await table(names[uid]).select()).map(row => ({ ...row.payload, id: row.id })).find(row => match(row, where));
           if (result && uid === 'plugin::users-permissions.user' && populate?.includes('courses')) {
@@ -174,6 +177,54 @@ test('رزرو و تحویل سبد روی PostgreSQL مستقل', { skip: proce
         { ...request, purchaseIds: [randomUUID(), randomUUID()] }, 'commit')));
       for (const course of await table('courses').select()) assert.equal(course.payload.users_permissions_users.length, 2);
       for (const user of await table('users').select()) assert.equal(user.payload.courses.length, 2);
+    });
+    const chapterFixture = async () => {
+      await reset();
+      const chapters = [randomUUID(), randomUUID()];
+      await table('courses').whereRaw("payload->>'documentId' = 'course-a'").update({
+        payload: knex.raw('payload || ?::jsonb', [JSON.stringify({ isChaptered: true,
+          chapters: chapters.map((integrationId, index) => ({ id: 101 + index, integrationId,
+            title: `فصل ${index + 1}`, price: 105 })) })]),
+      });
+      return chapters;
+    };
+    await t.test('تحویل هم‌زمان دو فصل به یک خریدار آرایهٔ دسترسی را از دست نمی‌دهد', async () => {
+      const chapters = await chapterFixture();
+      const requests = chapters.map(externalId => ({ ...input(), couponCode: null, externalCourseIds: [externalId] }));
+      await Promise.all(requests.map(request => service.prepare(strapi, request)));
+      await Promise.all(requests.map(request => service.transition(strapi,
+        { ...request, purchaseIds: [randomUUID()] }, 'commit')));
+      const buyer = await table('users').whereRaw("payload->>'documentId' = 'user-a'").first();
+      assert.deepEqual(buyer.payload.enrolledChapters.sort(), [101, 102]);
+      assert.deepEqual(buyer.payload.courses, []);
+      assert.equal((await table('logs').select()).length, 2);
+    });
+    await t.test('رقابت و تکرار commit فصل تنها یک سابقه و یک دسترسی می‌سازد', async () => {
+      const chapters = await chapterFixture();
+      const request = { ...input(), couponCode: null, externalCourseIds: [chapters[0]] };
+      await service.prepare(strapi, request);
+      const commit = { ...request, purchaseIds: [randomUUID()] };
+      await Promise.all(Array.from({ length: 4 }, () => service.transition(strapi, commit, 'commit')));
+      const buyer = await table('users').whereRaw("payload->>'documentId' = 'user-a'").first();
+      assert.deepEqual(buyer.payload.enrolledChapters, [101]);
+      assert.deepEqual(buyer.payload.courses, []);
+      assert.equal((await table('logs').select()).length, 1);
+    });
+    await t.test('خطای فصل دوم، دسترسی و سابقهٔ فصل اول را هم rollback می‌کند', async () => {
+      const chapters = await chapterFixture();
+      const request = { ...input(), couponCode: null, externalCourseIds: chapters };
+      await service.prepare(strapi, request);
+      const course = await table('courses').whereRaw("payload->>'documentId' = 'course-a'").first();
+      await table('courses').where({ id: course.id }).update({ payload: {
+        ...course.payload, chapters: course.payload.chapters.filter(chapter => chapter.integrationId === [...chapters].sort()[0]),
+      } });
+      await assert.rejects(service.transition(strapi,
+        { ...request, purchaseIds: [randomUUID(), randomUUID()] }, 'commit'));
+      const buyer = await table('users').whereRaw("payload->>'documentId' = 'user-a'").first();
+      assert.deepEqual(buyer.payload.courses, []);
+      assert.equal(buyer.payload.enrolledChapters, undefined);
+      assert.equal((await table('logs').select()).length, 0);
+      assert.equal((await table('carts').first()).payload.state, 'reserved');
     });
   } finally {
     await knex.raw('DROP SCHEMA ?? CASCADE', [schema]); await knex.destroy();

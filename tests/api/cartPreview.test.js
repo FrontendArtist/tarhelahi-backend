@@ -16,6 +16,7 @@ function fixture(overrides = {}) {
       findMany: async () => uid === 'api::coupon.coupon' ? [coupon] : courses,
     }),
     db: { transaction: writes, query: uid => {
+      if (uid === 'api::course.course') return { findOne: async () => null };
       if (uid !== 'plugin::users-permissions.user') throw new Error('پیش‌نمایش نباید جدول رزرو را بخواند.');
       return { findOne: async () => ({ documentId: 'buyer', confirmed: true, blocked: false, courses: [] }), create: writes, update: writes };
     } },

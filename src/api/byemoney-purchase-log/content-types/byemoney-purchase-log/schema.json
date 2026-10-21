@@ -25,6 +25,17 @@
       "type": "string",
       "required": true
     },
+    "itemType": {
+      "type": "enumeration",
+      "enum": ["course", "course_chapter"],
+      "default": "course"
+    },
+    "chapterExternalId": {
+      "type": "string"
+    },
+    "parentExternalId": {
+      "type": "string"
+    },
     "status": {
       "type": "enumeration",
       "enum": [

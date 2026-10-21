@@ -172,6 +172,9 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
           purchaseId: 'bm_pur_100',
           strapiUserId: 'usr_doc_10',
           courseId: 'crs_doc_20',
+          itemType: 'course',
+          chapterExternalId: null,
+          parentExternalId: null,
           status: 'processed',
         },
       });
@@ -822,6 +825,9 @@ describe('ByeMoney Purchase Confirmation Webhook', () => {
           purchaseId: 'deal_pur_alias_100',
           strapiUserId: 'usr_doc_buyer_99',
           courseId: 'crs_doc_item_88',
+          itemType: 'course',
+          chapterExternalId: null,
+          parentExternalId: null,
           status: 'processed',
         },
       });
