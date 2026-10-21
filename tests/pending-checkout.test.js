@@ -6,6 +6,7 @@ const { matchesPendingOrder, PENDING_ORDER_TTL_MS, cancelSupersededCheckouts } =
 
 const now = Date.now();
 const data = {
+  currency: 'noor',
   user: 5, address: 'تهران', postalCode: '123', phone: '09120000000', fullName: 'خریدار', email: 'a@example.com',
   couponCode: null, totalPrice: 300, originalTotalPrice: 300, discountAmount: 0,
   items: [{ __component: 'order.course-order-item', courseId: 7, price: 100 },

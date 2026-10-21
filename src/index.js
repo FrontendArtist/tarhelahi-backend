@@ -158,6 +158,18 @@ module.exports = {
    * The register hook runs before the application is fully initialized.
    */
   register({ strapi }) {
+    // فقط سفارش تازه نور می‌گیرد؛ انتشار مجدد یا ویرایش سابقه، واحد قدیمی را تغییر نمی‌دهد.
+    strapi.documents.use(async (context, next) => {
+      if (context.uid === 'api::order.order' && ['create', 'clone'].includes(context.action)) {
+        context.params.data = {
+          ...context.params.data,
+          currency: 'noor',
+        };
+      }
+
+      return next();
+    });
+
     strapi.server.app.proxy = true;
 
     // ثبت middleware سراسری برای نگه‌داری context درخواست به صورت async-safe

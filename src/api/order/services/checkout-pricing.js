@@ -115,6 +115,7 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
     // نشانگر مالی فقط از دادهٔ محاسبه‌شده ساخته می‌شود؛ یادداشت کاربر آن را جعل نمی‌کند.
     const notes = typeof input.notes === 'string' ? input.notes.replace(/\[(?:LIGHT_AMOUNT|TOPUP_ID):[^\]]*\]/g, '').trim() : '';
     const data = {
+      currency: 'noor',
       user: input.user, fullName: input.fullName, address: input.address, postalCode: input.postalCode,
       phone: input.phone, email: input.email, notes: `📋 اقلام این سفارش:\n${summary}${notes ? `\n\n${notes}` : ''}`,
       totalPrice: finalTotal, originalTotalPrice: total, couponCode: code?.trim() || null, discountAmount: discount,

@@ -13,7 +13,8 @@ function itemSignature(items) {
 
 function matchesPendingOrder(order, data, now) {
   const createdAt = new Date(order.createdAt).getTime();
-  return order.paymentMethod === 'online' && order.paymentStatus === 'pending_payment' &&
+  return order.currency === 'noor' &&
+    order.paymentMethod === 'online' && order.paymentStatus === 'pending_payment' &&
     order.orderStatus === 'pending' && !order.refNum &&
     Number.isFinite(createdAt) && createdAt <= now && createdAt > now - PENDING_ORDER_TTL_MS &&
     ['address', 'postalCode', 'phone', 'fullName', 'email'].every(key => order[key] === data[key]) &&
