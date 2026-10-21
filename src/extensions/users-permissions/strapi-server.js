@@ -135,16 +135,12 @@ module.exports = (plugin) => {
     if (Array.isArray(user.enrolledChapters) && user.enrolledChapters.length > 0) {
       const chapterIds = user.enrolledChapters.map(Number).filter(Boolean);
       if (chapterIds.length > 0) {
-        try {
-          const rows = await strapi.db.connection('components_course_parts_chapters')
-            .whereIn('id', chapterIds)
-            .whereNotNull('integration_id')
-            .select('id', 'integration_id');
-          user.enrolledChapterIntegrationIds = rows.map((r) => r.integration_id).filter(Boolean);
-          return;
-        } catch (e) {
-          strapi.log.warn(`[Users-Permissions] Failed to map enrolledChapters to integration_id: ${e.message}`);
-        }
+        const rows = await strapi.db.connection('components_course_parts_chapters')
+          .whereIn('id', chapterIds)
+          .whereNotNull('integration_id')
+          .select('id', 'integration_id');
+        user.enrolledChapterIntegrationIds = rows.map((r) => r.integration_id).filter(Boolean);
+        return;
       }
     }
     user.enrolledChapterIntegrationIds = [];
