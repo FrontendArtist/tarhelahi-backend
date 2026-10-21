@@ -130,5 +130,41 @@ module.exports = (plugin) => {
     await originalFind.call(this, ctx);
   };
 
+  async function attachEnrolledChapterIntegrationIds(user) {
+    if (!user) return;
+    if (Array.isArray(user.enrolledChapters) && user.enrolledChapters.length > 0) {
+      const chapterIds = user.enrolledChapters.map(Number).filter(Boolean);
+      if (chapterIds.length > 0) {
+        try {
+          const rows = await strapi.db.connection('components_course_parts_chapters')
+            .whereIn('id', chapterIds)
+            .whereNotNull('integration_id')
+            .select('id', 'integration_id');
+          user.enrolledChapterIntegrationIds = rows.map((r) => r.integration_id).filter(Boolean);
+          return;
+        } catch (e) {
+          strapi.log.warn(`[Users-Permissions] Failed to map enrolledChapters to integration_id: ${e.message}`);
+        }
+      }
+    }
+    user.enrolledChapterIntegrationIds = [];
+  }
+
+  if (plugin.controllers.user?.findOne) {
+    const originalFindOne = plugin.controllers.user.findOne;
+    plugin.controllers.user.findOne = async function (ctx) {
+      await originalFindOne.call(this, ctx);
+      await attachEnrolledChapterIntegrationIds(ctx.body);
+    };
+  }
+
+  if (plugin.controllers.user?.me) {
+    const originalMe = plugin.controllers.user.me;
+    plugin.controllers.user.me = async function (ctx) {
+      await originalMe.call(this, ctx);
+      await attachEnrolledChapterIntegrationIds(ctx.body);
+    };
+  }
+
   return plugin;
 };
