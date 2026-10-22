@@ -164,109 +164,16 @@ async function syncUserPurchases(orderIdentifier) {
 }
 
 
-async function processProductStock(orderIdentifier) {
-  try {
-    if (!orderIdentifier) return;
-
-    let order = null;
-    const isNumeric =
-      typeof orderIdentifier === 'number' ||
-      (typeof orderIdentifier === 'string' && /^\d+$/.test(orderIdentifier));
-
-    if (typeof strapi.documents === 'function' && typeof orderIdentifier === 'string' && !/^\d+$/.test(orderIdentifier)) {
-      order = await strapi.documents('api::order.order').findOne({
-        documentId: orderIdentifier,
-        populate: ['items'],
-      });
-    }
-
-    if (!order && isNumeric) {
-      order = await strapi.db.query('api::order.order').findOne({
-        where: { id: Number(orderIdentifier) },
-        populate: ['items'],
-      });
-    }
-
-    if (!order) {
-      const orders = await strapi.db.query('api::order.order').findMany({
-        where: { document_id: String(orderIdentifier) },
-        populate: ['items'],
-        orderBy: { id: 'asc' },
-      });
-      order = orders?.[0] || null;
-    }
-
-    if (!order || order.stockDeducted) return;
-
-    // ویرایش سفارش لغوشده نباید موجودی آزادشده را دوباره رزرو کند؛ پرداخت معتبر دیرهنگام وضعیت را paid می‌کند.
-    if (['canceled', 'cancelled'].includes(order.orderStatus) || order.paymentStatus === 'failed') return;
-
-    const items = order.items || [];
-    let updatedProductCount = 0;
-
-    for (const item of items) {
-      const isProduct =
-        item.__component === 'order.product-order-item' ||
-        (item.productId && !item.courseId && !item.chapterId) ||
-        (!item.courseId && !item.chapterId && item.slug);
-
-      if (!isProduct) continue;
-
-      let targetProduct = null;
-
-      if (item.productId && (typeof item.productId === 'number' || /^\d+$/.test(String(item.productId)))) {
-        targetProduct = await strapi.db.query('api::product.product').findOne({
-          where: { id: Number(item.productId) },
-        });
-      }
-
-      if (!targetProduct && item.slug) {
-        targetProduct = await strapi.db.query('api::product.product').findOne({
-          where: { slug: item.slug },
-        });
-      }
-
-      if (targetProduct && targetProduct.id) {
-        const currentStock = typeof targetProduct.stock === 'number' ? targetProduct.stock : 0;
-        const quantity = Math.max(1, Number(item.quantity) || 1);
-        const newStock = Math.max(0, currentStock - quantity);
-        const isAvailable = newStock > 0;
-
-        await strapi.db.query('api::product.product').update({
-          where: { id: targetProduct.id },
-          data: {
-            stock: newStock,
-            isAvailable: isAvailable,
-          },
-        });
-
-        updatedProductCount++;
-        console.log(`[Order Lifecycle] 📦 Updated product "${targetProduct.title}" (ID: ${targetProduct.id}) stock: ${currentStock} -> ${newStock}, isAvailable: ${isAvailable}`);
-      }
-    }
-
-    await strapi.db.query('api::order.order').update({
-      where: { id: order.id },
-      data: {
-        stockDeducted: true,
-      },
-    });
-
-    console.log(`[Order Lifecycle] ✅ Stock deducted for order ${order.id} (${updatedProductCount} products updated)`);
-  } catch (error) {
-    console.error('[Order Lifecycle processProductStock Error]:', error.message || error);
-  }
-}
-
-
-
 module.exports = {
   async afterCreate(event) {
+    if (require('../../../../services/physicalStockMiddleware').managedOrder.getStore()) {
+      return;
+    }
     try {
       const { result } = event;
       const targetId = result?.id || result?.documentId;
       if (targetId) {
-        await processProductStock(targetId);
+        // موجودی فقط در سرویس رزرو و middleware تراکنشی سفارش مدیریت می‌شود.
         await syncUserPurchases(targetId);
       }
     } catch (err) {
@@ -275,11 +182,14 @@ module.exports = {
   },
 
   async afterUpdate(event) {
+    if (require('../../../../services/physicalStockMiddleware').managedOrder.getStore()) {
+      return;
+    }
     try {
       const { result } = event;
       const targetId = result?.id || result?.documentId;
       if (targetId) {
-        await processProductStock(targetId);
+        // موجودی فقط در سرویس رزرو و middleware تراکنشی سفارش مدیریت می‌شود.
         await syncUserPurchases(targetId);
       }
     } catch (err) {
@@ -287,4 +197,3 @@ module.exports = {
     }
   },
 };
-

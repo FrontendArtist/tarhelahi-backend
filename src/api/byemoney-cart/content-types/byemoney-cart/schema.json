@@ -4,6 +4,7 @@
   "info": { "singularName": "byemoney-cart", "pluralName": "byemoney-carts", "displayName": "ByeMoney Cart" },
   "options": { "draftAndPublish": false },
   "attributes": {
+    "orderDocumentId": { "type": "string" },
     "cartId": { "type": "string", "required": true, "unique": true },
     "buyerExternalUserId": { "type": "string", "required": true },
     "fingerprint": { "type": "text" },

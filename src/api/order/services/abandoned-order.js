@@ -9,22 +9,8 @@ const keyOf = item => {
 const validKey = key => typeof key === 'string' && /^(course|chapter|product):[1-9]\d*$/.test(key);
 
 async function restoreStock(strapi, trx, order) {
-  if (!order.stockDeducted) return;
-  const uid = 'api::product.product';
-  const metadata = strapi.db.metadata.get(uid);
-  for (const item of order.items || []) {
-    if (!item.productId || item.courseId || item.chapterId) continue;
-    const product = await strapi.db.query(uid).findOne({ where: { id: item.productId }, select: ['id'] });
-    if (!product) continue;
-    // افزایش اتمی موجودی، خرید هم‌زمان دیگر کاربران را بازنویسی نمی‌کند.
-    await trx(metadata.tableName).where(metadata.attributes.id.columnName, product.id)
-      .increment(metadata.attributes.stock.columnName, Math.max(1, Number(item.quantity) || 1));
-    await trx(metadata.tableName).where(metadata.attributes.id.columnName, product.id)
-      .update({ [metadata.attributes.isAvailable.columnName]: true });
-  }
-  await strapi.db.query(ORDER_UID).updateMany({ where: { id: order.id, orderStatus: 'canceled' }, data: { stockDeducted: false } });
+  await require('../../../services/physicalStockMiddleware').releaseLegacy(strapi, trx, order);
 }
-
 async function cancelAfterCartRemoval(strapi, input) {
   const { userId, removedItemKey, remainingItemKeys } = input;
   if (!Number.isSafeInteger(userId) || userId < 1 || !validKey(removedItemKey) ||

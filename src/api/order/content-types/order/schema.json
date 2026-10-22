@@ -11,6 +11,12 @@
   },
   "pluginOptions": {},
   "attributes": {
+    "inventoryReservationId": { "type": "string", "private": true },
+    "shippingAmountInNoor": { "type": "decimal" },
+    "shippingRuleLabel": { "type": "string" },
+    "addressVersion": { "type": "string" },
+    "addressSnapshot": { "type": "json", "private": true },
+    "cartSnapshot": { "type": "json", "private": true },
     "fullName": {
       "type": "string",
       "required": true

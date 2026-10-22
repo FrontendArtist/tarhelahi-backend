@@ -14,7 +14,8 @@ async function cartAction(ctx, action) {
   } catch (error) {
     if (!error.status) throw error;
     ctx.status = error.status;
-    ctx.body = { code: error.code || 'CART_INVALID', error: error.message };
+    ctx.body = { code: error.code || 'CART_INVALID', error: error.message,
+      ...(error.lineError ? { lineError: error.lineError } : {}) };
   }
 }
 module.exports = {
@@ -30,15 +31,16 @@ module.exports = {
       return;
     }
     try {
-      const { externalCourseIds, couponCode } = ctx.request.body || {};
+      const { externalCourseIds, items, couponCode } = ctx.request.body || {};
       ctx.set('Cache-Control', 'no-store');
       ctx.body = await require('../../../services/byeMoneyCartService').preview(strapi, {
-        buyerExternalUserId: claims.documentId, externalCourseIds, couponCode,
+        buyerExternalUserId: claims.documentId, externalCourseIds, items, couponCode,
       });
     } catch (error) {
       if (!error.status) throw error;
       ctx.status = error.status;
-      ctx.body = { code: error.code || 'CART_INVALID', error: error.message };
+      ctx.body = { code: error.code || 'CART_INVALID', error: error.message,
+        ...(error.lineError ? { lineError: error.lineError } : {}) };
     }
   },
   prepareCart: ctx => cartAction(ctx, 'prepare'),

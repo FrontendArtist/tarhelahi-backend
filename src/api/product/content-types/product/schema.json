@@ -11,6 +11,9 @@
   },
   "pluginOptions": {},
   "attributes": {
+    "weight": {
+      "type": "decimal"
+    },
     "title": {
       "type": "string",
       "required": true

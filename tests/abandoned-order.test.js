@@ -75,29 +75,32 @@ test('موجودی کم‌شده با لغو برمی‌گردد و تکرار �
   const row = order({ items: [{ productId: 4, quantity: 2 }], stockDeducted: true });
   let stock = 1;
   const repository = {
-    findMany: async () => row.orderStatus === 'pending' ? [{ ...row }] : [],
+    findMany: async () => row.orderStatus === 'pending' ? [row] : [],
     updateMany: async ({ where, data }) => {
       if (row.orderStatus !== where.orderStatus) return { count: 0 };
       Object.assign(row, data);
       return { count: 1 };
     },
   };
-  const query = {
-    where: () => query,
-    increment: async (column, quantity) => { assert.equal(column, 'stock'); stock += quantity; },
-    update: async value => { assert.deepEqual(value, { is_available: true }); },
+  const physicalStock = require('../src/services/physicalStockMiddleware');
+  const originalRelease = physicalStock.releaseLegacy;
+  physicalStock.releaseLegacy = async (_strapi, _trx, canceledOrder) => {
+    assert.equal(canceledOrder.stockDeducted, true);
+    stock += 2;
+    canceledOrder.stockDeducted = false;
   };
   const strapi = { db: {
-    query: uid => uid === 'api::order.order' ? repository : { findOne: async () => ({ id: 4 }) },
-    transaction: async fn => fn({ trx: () => query }),
-    metadata: { get: () => ({ tableName: 'products', attributes: {
-      id: { columnName: 'id' }, stock: { columnName: 'stock' }, isAvailable: { columnName: 'is_available' },
-    } }) },
+    query: () => repository,
+    transaction: async fn => fn({ trx: {} }),
   } };
   const removal = input({ removedItemKey: 'product:4' });
-  assert.deepEqual(await cancelAfterCartRemoval(strapi, removal), { canceledOrderIds: ['one'] });
-  assert.equal(stock, 3);
-  assert.equal(row.stockDeducted, false);
-  await cancelAfterCartRemoval(strapi, removal);
-  assert.equal(stock, 3);
+  try {
+    assert.deepEqual(await cancelAfterCartRemoval(strapi, removal), { canceledOrderIds: ['one'] });
+    assert.equal(stock, 3);
+    assert.equal(row.stockDeducted, false);
+    await cancelAfterCartRemoval(strapi, removal);
+    assert.equal(stock, 3);
+  } finally {
+    physicalStock.releaseLegacy = originalRelease;
+  }
 });

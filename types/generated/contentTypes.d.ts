@@ -607,6 +607,7 @@ export interface ApiByemoneyCartByemoneyCart
       'api::byemoney-cart.byemoney-cart'
     > &
       Schema.Attribute.Private;
+    orderDocumentId: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     purchaseIds: Schema.Attribute.JSON;
     snapshot: Schema.Attribute.JSON;
@@ -1316,7 +1317,10 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   };
   attributes: {
     address: Schema.Attribute.Text & Schema.Attribute.Required;
+    addressSnapshot: Schema.Attribute.JSON & Schema.Attribute.Private;
+    addressVersion: Schema.Attribute.String;
     cardHolderName: Schema.Attribute.String;
+    cartSnapshot: Schema.Attribute.JSON & Schema.Attribute.Private;
     couponCode: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1326,6 +1330,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
     hashedCardNumber: Schema.Attribute.String;
+    inventoryReservationId: Schema.Attribute.String & Schema.Attribute.Private;
     items: Schema.Attribute.DynamicZone<
       ['order.product-order-item', 'order.course-order-item']
     >;
@@ -1361,6 +1366,8 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       'manyToOne',
       'api::settlement.settlement'
     >;
+    shippingAmountInNoor: Schema.Attribute.Decimal;
+    shippingRuleLabel: Schema.Attribute.String;
     stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
     traceNo: Schema.Attribute.String;
@@ -1467,6 +1474,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    weight: Schema.Attribute.Decimal;
   };
 }
 
@@ -1533,6 +1541,48 @@ export interface ApiSettlementSettlement extends Struct.CollectionTypeSchema {
     settledAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     totalAmount: Schema.Attribute.BigInteger & Schema.Attribute.DefaultTo<'0'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiShippingSettingShippingSetting
+  extends Struct.SingleTypeSchema {
+  collectionName: 'shipping_settings';
+  info: {
+    displayName: '\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0627\u0631\u0633\u0627\u0644';
+    pluralName: 'shipping-settings';
+    singularName: 'shipping-setting';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    fixedAmountInNoor: Schema.Attribute.BigInteger &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    freeShippingThresholdInNoor: Schema.Attribute.BigInteger &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::shipping-setting.shipping-setting'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -2327,6 +2377,7 @@ declare module '@strapi/strapi' {
       'api::product.product': ApiProductProduct;
       'api::service.service': ApiServiceService;
       'api::settlement.settlement': ApiSettlementSettlement;
+      'api::shipping-setting.shipping-setting': ApiShippingSettingShippingSetting;
       'api::social.social': ApiSocialSocial;
       'api::surah.surah': ApiSurahSurah;
       'api::tag.tag': ApiTagTag;

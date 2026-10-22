@@ -154,23 +154,36 @@ test('superseding releases reserved product stock once and keeps bank status pen
   const order = pending({ stockDeducted: true, items: [{ productId: 8, quantity: 2 }] });
   let stock = 1;
   const repository = {
-    findMany: async () => order.orderStatus === 'pending' ? [{ ...order }] : [],
+    findMany: async () => order.orderStatus === 'pending' ? [order] : [],
     updateMany: async ({ where, data }) => {
       if (order.orderStatus !== where.orderStatus) return { count: 0 };
       Object.assign(order, data); return { count: 1 };
     },
   };
-  const query = { where: () => query, increment: async (_, quantity) => { stock += quantity; }, update: async () => {} };
-  const strapi = { db: { query: uid => uid === 'api::order.order' ? repository : { findOne: async () => ({ id: 8 }) },
-    metadata: { get: () => ({ tableName: 'products', attributes: {
-      id: { columnName: 'id' }, stock: { columnName: 'stock' }, isAvailable: { columnName: 'is_available' },
-    } }) } } };
-  await cancelSupersededCheckouts(strapi, () => query, 5);
-  assert.equal(stock, 3);
-  assert.equal(order.stockDeducted, false);
-  assert.equal(order.paymentStatus, 'pending_payment');
-  await cancelSupersededCheckouts(strapi, () => query, 5);
-  assert.equal(stock, 3);
+  const physicalStock = require('../src/services/physicalStockMiddleware');
+  const originalRelease = physicalStock.releaseLegacy;
+  physicalStock.releaseLegacy = async (_strapi, _trx, canceledOrder) => {
+    if (!canceledOrder.stockDeducted) return;
+    stock += canceledOrder.items[0].quantity;
+    canceledOrder.stockDeducted = false;
+  };
+  const query = { where: () => query, update: async () => {} };
+  const strapi = {
+    db: {
+      query: uid => uid === 'api::order.order' ? repository : { findOne: async () => ({ id: 8 }) },
+      transaction: async callback => callback({ trx: {} }),
+    },
+  };
+  try {
+    await cancelSupersededCheckouts(strapi, () => query, 5);
+    assert.equal(stock, 3);
+    assert.equal(order.stockDeducted, false);
+    assert.equal(order.paymentStatus, 'pending_payment');
+    await cancelSupersededCheckouts(strapi, () => query, 5);
+    assert.equal(stock, 3);
+  } finally {
+    physicalStock.releaseLegacy = originalRelease;
+  }
 });
 
 test('payment completed between lookup and cancellation is preserved', async () => {

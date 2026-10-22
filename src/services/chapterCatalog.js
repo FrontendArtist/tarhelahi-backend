@@ -3,10 +3,11 @@
 const COURSE_UID = 'api::course.course';
 const CHAPTER_TYPE = 'course_chapter';
 
-function unavailable(message, status = 409) {
+function unavailable(message, status = 409, reason = 'SALE_STOPPED') {
   const error = new Error(message);
   error.status = status;
   error.code = 'CART_UNAVAILABLE';
+  error.reason = reason;
   throw error;
 }
 
@@ -41,7 +42,7 @@ async function assertOwnership(strapi, buyer, resolved) {
       (item) => item.documentId === course.documentId || Number(item.id ?? item) === course.id,
     )
   ) {
-    unavailable('این دوره یا دورهٔ والد فصل قبلاً خریداری شده است.');
+    unavailable('این دوره یا دورهٔ والد فصل قبلاً خریداری شده است.', 409, 'ALREADY_OWNED');
   }
   if (!chapter) {
     return;
@@ -61,7 +62,7 @@ async function assertOwnership(strapi, buyer, resolved) {
   );
   chapterIds.add(Number(chapter.id));
   if ((buyer.enrolledChapters || []).some((id) => chapterIds.has(Number(id)))) {
-    unavailable('این فصل قبلاً خریداری شده است.');
+    unavailable('این فصل قبلاً خریداری شده است.', 409, 'ALREADY_OWNED');
   }
 }
 

@@ -1,0 +1,14 @@
+{
+  "kind": "singleType",
+  "collectionName": "shipping_settings",
+  "info": {
+    "singularName": "shipping-setting",
+    "pluralName": "shipping-settings",
+    "displayName": "تنظیمات ارسال"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "fixedAmountInNoor": { "type": "biginteger", "min": 0 },
+    "freeShippingThresholdInNoor": { "type": "biginteger", "min": 0 }
+  }
+}

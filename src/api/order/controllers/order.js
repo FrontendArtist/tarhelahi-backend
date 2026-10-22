@@ -12,6 +12,22 @@ const { cancelAfterCartRemoval } = require('../services/abandoned-order');
 const canManageOrders = ctx => ctx.state?.auth?.strategy?.name === 'api-token' ||
   ctx.state?.user?.role?.type === 'administrator';
 
+async function stockResponse(ctx, action) {
+  try {
+    return await action();
+  } catch (error) {
+    if (!error.status || !error.code?.startsWith('CART_')) {
+      throw error;
+    }
+    ctx.status = error.status;
+    return {
+      code: error.code,
+      error: error.message,
+      ...(error.lineError ? { lineError: error.lineError } : {}),
+    };
+  }
+}
+
 function getStatusRank(order) {
   const attrs = order?.attributes || order || {};
   const orderStatus = (attrs.orderStatus || '').trim().toLowerCase();
@@ -40,13 +56,13 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
   async checkout(ctx) {
     if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('ثبت سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
     try {
-      return await createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
+      return await stockResponse(ctx, () => createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
         ctx.request.body = { data };
         return this.create(ctx);
       }, async order => {
         ctx.status = 200;
         return this.transformResponse(await this.sanitizeOutput(order, ctx));
-      });
+      }));
     } catch (err) {
       console.error('[Order Checkout Error]:', err);
       if (err.name === 'ValidationError') {
@@ -58,7 +74,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
 
   async update(ctx) {
     if (!canManageOrders(ctx)) return ctx.forbidden('تغییر مستقیم سفارش برای کاربر مجاز نیست.');
-    return super.update(ctx);
+    return stockResponse(ctx, () => super.update(ctx));
   },
   /**
    * Create an order with validation:
@@ -91,7 +107,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       );
     }
 
-    return super.create(ctx);
+    return stockResponse(ctx, () => super.create(ctx));
   },
 
   /**

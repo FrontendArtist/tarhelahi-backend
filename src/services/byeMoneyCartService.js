@@ -149,6 +149,9 @@ async function quote(strapi, input) {
   return snapshot;
 }
 async function preview(strapi, input) {
+  if (input.externalCourseIds === undefined && input.items !== undefined) {
+    return require('./physicalCartService').preview(strapi, input);
+  }
   validateSelection(input);
   const snapshot = await quote(strapi, input);
   return {
@@ -161,6 +164,9 @@ async function preview(strapi, input) {
   };
 }
 async function prepare(strapi, input) {
+  if (input.externalCourseIds === undefined && input.items !== undefined) {
+    return require('./physicalCartService').prepare(strapi, input);
+  }
   identity(input);
   validateSelection(input);
   const ids = [...input.externalCourseIds].sort();
@@ -207,6 +213,9 @@ async function transition(strapi, input, action) {
     const cart = await repository.findOne({ where: { cartId: input.cartId } });
     if (cart && cart.buyerExternalUserId !== input.buyerExternalUserId) {
       fail('سبد یافت نشد.', 404);
+    }
+    if (cart?.snapshot?.contractVersion === 'physical-v1') {
+      return require('./physicalCartService').transition(strapi, trx, cart, input, action);
     }
     if (action === 'release') {
       if (cart?.state === 'committed') {
