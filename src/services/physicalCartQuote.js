@@ -50,7 +50,7 @@ async function buyerProfile(strapi, externalId) {
   return buyer;
 }
 
-function addressOf(buyer, items) {
+function addressOf(buyer, items, isPreview = false) {
   if (!items.some((item) => item.type === 'product')) {
     return { addressSnapshot: null, addressVersion: null };
   }
@@ -58,6 +58,7 @@ function addressOf(buyer, items) {
     stock.conflict('فعلاً پشتیبانی نمی‌شود');
   }
   const addressSnapshot = {};
+  let isComplete = true;
   for (const field of ['province', 'city', 'postalCode', 'fullAddress', 'recipientName', 'recipientPhone']) {
     const value = buyer.address?.[field];
     if (field === 'postalCode' && (value == null || value === '')) {
@@ -65,12 +66,17 @@ function addressOf(buyer, items) {
       continue;
     }
     if (typeof value !== 'string' || !value.trim()) {
-      invalid('آدرس پروفایل برای ارسال کالا کامل نیست.');
+      isComplete = false;
+      if (!isPreview) {
+        invalid('آدرس پروفایل برای ارسال کالا کامل نیست.');
+      }
+      addressSnapshot[field] = field === 'recipientPhone' ? '09000000000' : 'ثبت‌نشده';
+    } else {
+      addressSnapshot[field] = value.trim();
     }
-    addressSnapshot[field] = value.trim();
   }
-  const addressVersion = createHash('sha256').update(JSON.stringify(addressSnapshot)).digest('hex');
-  return { addressSnapshot, addressVersion };
+  const addressVersion = isComplete ? createHash('sha256').update(JSON.stringify(addressSnapshot)).digest('hex') : null;
+  return { addressSnapshot, addressVersion, isAddressComplete: isComplete };
 }
 
 function money(value) {
@@ -183,6 +189,7 @@ async function quote(strapi, input, items, buyer, address) {
     buyerExternalUserId: buyer.documentId,
     couponCode,
     items: quotedItems,
+    courses: quotedItems.filter(i => i.type === 'course' || i.type === 'course_chapter'),
     originalTotalInNoor,
     itemDiscountInNoor,
     couponDiscountInNoor,

@@ -32,7 +32,7 @@ async function preview(strapi, input) {
   validate(input, false);
   const items = pricing.selection(input);
   const buyer = await pricing.buyerProfile(strapi, input.buyerExternalUserId);
-  const address = pricing.addressOf(buyer, items);
+  const address = pricing.addressOf(buyer, items, true);
   const snapshot = await pricing.quote(strapi, input, items, buyer, address);
   const { cartId, reservationId, buyerExternalUserId, ...response } = snapshot;
   return response;
@@ -44,7 +44,7 @@ async function prepare(strapi, input) {
   return strapi.db.transaction(async ({ trx }) => {
     await stock.lock(trx, CART_LOCK, input.cartId);
     const buyer = await pricing.buyerProfile(strapi, input.buyerExternalUserId);
-    const address = pricing.addressOf(buyer, items);
+    const address = pricing.addressOf(buyer, items, false);
     const code = input.couponCode?.trim().toUpperCase() || null;
     const fingerprint = JSON.stringify([input.buyerExternalUserId, items, code, address.addressVersion]);
     const repository = strapi.db.query(UID);

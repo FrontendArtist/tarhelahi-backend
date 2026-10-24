@@ -98,10 +98,22 @@ async function mirror(strapi, trx, externalId, quantity) {
 }
 
 async function assertPublished(strapi, item) {
-  const product = await strapi.documents(PRODUCT_UID).findOne({
+  let product = await strapi.documents(PRODUCT_UID).findOne({
     documentId: item.externalId,
     status: 'published',
   });
+  if (!product && (/^\d+$/.test(String(item.externalId)))) {
+    const raw = await strapi.db.query(PRODUCT_UID).findOne({
+      where: { id: Number(item.externalId), publishedAt: { $notNull: true } },
+    });
+    if (raw?.documentId) {
+      item.externalId = raw.documentId;
+      product = await strapi.documents(PRODUCT_UID).findOne({
+        documentId: raw.documentId,
+        status: 'published',
+      });
+    }
+  }
   if (!product || product.isAvailable === false) {
     lineFailure(item, 'SALE_STOPPED');
   }
