@@ -130,7 +130,7 @@ async function createOrder(strapi, cart) {
       address: address?.fullAddress || 'بدون ارسال',
       postalCode: address?.postalCode || '-',
       phone: address?.recipientPhone || buyer.phoneNumber || '-',
-      email: buyer.email,
+      email: buyer.email || `${(buyer.phoneNumber || buyer.username || buyer.documentId || 'customer').replace(/[^a-zA-Z0-9]/g, '')}@tarhelahi.com`,
       currency: 'noor',
       purchaseId: cart.cartId,
       inventoryReservationId: cart.cartId,
