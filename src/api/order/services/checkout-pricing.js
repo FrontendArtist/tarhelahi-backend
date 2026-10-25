@@ -94,6 +94,42 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
       await lockPendingCheckout(trx, userId);
     }
     const { items, total } = await priceCart(strapi, input.cartItems, input.pricingContext);
+
+    // بررسی مالکیت پیشین دوره یا فصل برای کاربر جاری در مرحلهٔ checkout
+    if (input.user) {
+      const userRepo = strapi.db?.query?.('plugin::users-permissions.user');
+      const buyer = (userRepo && typeof userRepo.findOne === 'function')
+        ? await userRepo.findOne({
+            where: /^\d+$/.test(String(input.user))
+              ? { id: Number(input.user) }
+              : { documentId: String(input.user) },
+            populate: ['courses'],
+          })
+        : null;
+      if (buyer) {
+        const { assertOwnership } = require('../../../services/chapterCatalog');
+        for (const item of items) {
+          if (item.type === 'course') {
+            await assertOwnership(strapi, buyer, {
+              course: { id: item.courseId, documentId: item.documentId, slug: item.slug },
+              chapter: null,
+              type: 'course',
+              parentExternalId: null,
+            });
+          } else if (item.type === 'chapter') {
+            const courseRecord = await publishedItem(strapi, 'api::course.course', item.documentId, ['chapters']);
+            const ch = courseRecord?.chapters?.find((c) => c.id === item.chapterId);
+            await assertOwnership(strapi, buyer, {
+              course: courseRecord,
+              chapter: ch || { id: item.chapterId },
+              type: 'course_chapter',
+              parentExternalId: courseRecord.documentId,
+            });
+          }
+        }
+      }
+    }
+
     const code = input.couponCode == null ? null : input.couponCode;
     if (code !== null && (typeof code !== 'string' || !code.trim())) invalid('کد تخفیف معتبر نیست.');
     let finalTotal = total, discount = 0;
