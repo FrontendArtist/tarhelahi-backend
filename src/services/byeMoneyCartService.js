@@ -135,7 +135,8 @@ async function quote(strapi, input) {
       fail(coupon.message, 400);
     }
     for (const [index, item] of items.entries()) {
-      const discount = coupon.itemDiscounts.find((row) => row.id === item.id)?.discountAmount || 0;
+      const discountRow = coupon.itemDiscounts.find((row) => (row.index !== undefined ? row.index === index : row.id === item.id));
+      const discount = discountRow ? Number(discountRow.discountAmount) || 0 : 0;
       baseItems[index].couponDiscountInNoor = discount;
       baseItems[index].priceInNoor -= discount;
     }

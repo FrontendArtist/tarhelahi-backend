@@ -163,15 +163,21 @@ async function quote(strapi, input, items, buyer, address) {
     couponDiscountInNoor = money(Number(result.discountAmount));
     if (Array.isArray(result.itemDiscounts)) {
       for (const entry of result.itemDiscounts) {
-        couponItemDiscounts.set(entry.id, Number(entry.discountAmount) || 0);
+        if (entry.index !== undefined) {
+          couponItemDiscounts.set(entry.index, Number(entry.discountAmount) || 0);
+        } else if (entry.id !== undefined) {
+          couponItemDiscounts.set(entry.id, Number(entry.discountAmount) || 0);
+        }
       }
     }
   }
   const delivery = await shipping.calculate(strapi, rows, address.addressSnapshot);
   const priceInNoor = money(originalTotalInNoor - itemDiscountInNoor - couponDiscountInNoor + delivery.shippingAmountInNoor);
-  const quotedItems = rows.map((row) => {
+  const quotedItems = rows.map((row, index) => {
     const rowCatalogDiscount = (row.unitPriceInNoor - row.discountedUnitPriceInNoor) * row.quantity;
-    const rowCouponDiscount = couponItemDiscounts.get(`${row.type}:${row.externalId}`) || 0;
+    const rowCouponDiscount = couponItemDiscounts.has(index)
+      ? couponItemDiscounts.get(index)
+      : (couponItemDiscounts.get(`${row.type}:${row.externalId}`) || 0);
     const rowPriceInNoor = money(row.lineTotalInNoor - rowCatalogDiscount - rowCouponDiscount);
     const { discountedUnitPriceInNoor, ...cleanRow } = row;
     return {

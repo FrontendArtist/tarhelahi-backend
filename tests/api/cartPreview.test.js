@@ -132,3 +132,33 @@ test('مسیر پیش‌نمایش هویت کاربری می‌خواهد و ت
   expect(ctx.status).toBe(401);
   delete global.strapi;
 });
+
+
+test('اقلام با شناسه یکسان اما ایندکس متفاوت تخفیف مجزا و دقیق می‌گیرند', async () => {
+  const { strapi } = fixture();
+  const sharedCourses = [
+    { id: 1, documentId: 'one', title: 'اول', price: 100 },
+    { id: 1, documentId: 'two', title: 'دوم', price: 200 },
+  ];
+  strapi.documents = (uid) => ({
+    findOne: async ({ documentId }) => sharedCourses.find((c) => c.documentId === documentId),
+    findMany: async () => (uid === 'api::coupon.coupon' ? [{
+      documentId: 'coupon',
+      code: 'ALL10',
+      isActive: true,
+      discountType: 'percentage',
+      discountValue: 10,
+      appliesToAllCourses: true,
+    }] : sharedCourses),
+  });
+  const data = await service.preview(strapi, {
+    buyerExternalUserId: 'buyer',
+    externalCourseIds: ['one', 'two'],
+    couponCode: 'ALL10',
+  });
+  expect(data.couponDiscountInNoor).toBe(30);
+  const courseOne = data.courses.find((c) => c.externalCourseId === 'one');
+  const courseTwo = data.courses.find((c) => c.externalCourseId === 'two');
+  expect(courseOne.couponDiscountInNoor).toBe(10);
+  expect(courseTwo.couponDiscountInNoor).toBe(20);
+});

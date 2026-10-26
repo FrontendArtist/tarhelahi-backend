@@ -89,6 +89,7 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
     let calculatedCartTotal = 0;
     let eligibleSubtotal = 0;
     const eligibleItemIds = [];
+    const eligibleRows = [];
 
     // استخراج تمام شناسه‌ها، documentIdها و اسلاگ‌های دوره‌ها و محصولات مشخص‌شده در کد تخفیف
     const couponProductIds = [];
@@ -115,7 +116,8 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       }
     }
 
-    for (const item of cartItems) {
+    for (let index = 0; index < cartItems.length; index++) {
+      const item = cartItems[index];
       const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
       const itemPrice = Number(item.price) || 0;
       const itemTotal = itemPrice * itemQty;
@@ -186,6 +188,11 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       if (isItemEligible) {
         eligibleSubtotal += itemTotal;
         eligibleItemIds.push(item.id);
+        eligibleRows.push({
+          index,
+          item,
+          total: itemTotal,
+        });
       }
     }
 
@@ -216,30 +223,30 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
         (coupon.discountType === 'percentage' && discountVal > 100)) {
       return { valid: false, message: 'مقدار تخفیف معتبر نیست.' };
     }
-    const eligibleRows = cartItems.filter(item => eligibleItemIds.includes(item.id))
-      .map(item => ({ id: item.id, total: Number(item.price) * (Number(item.quantity) > 0 ? Number(item.quantity) : 1) }));
+
     const general = coupon.appliesToAllCourses === true || coupon.appliesToAllProducts === true;
-    let itemDiscounts;
+    let itemDiscountsByIndex;
     if (coupon.discountType === 'percentage' && !general) {
-      itemDiscounts = new Map(eligibleRows.map(row => [row.id, Math.floor(row.total * discountVal / 100)]));
+      itemDiscountsByIndex = new Map(eligibleRows.map(row => [row.index, Math.floor(row.total * discountVal / 100)]));
     } else {
       const amount = coupon.discountType === 'percentage' ? eligibleSubtotal * discountVal / 100 : discountVal;
-      itemDiscounts = allocateDiscount(eligibleRows, amount);
+      itemDiscountsByIndex = allocateDiscount(eligibleRows.map(row => ({ id: row.index, total: row.total })), amount);
     }
-    const calculatedDiscount = [...itemDiscounts.values()].reduce((sum, value) => sum + value, 0);
+    const calculatedDiscount = [...itemDiscountsByIndex.values()].reduce((sum, value) => sum + value, 0);
     if (Number(coupon.maxDiscountAmount) > 0 && calculatedDiscount > Number(coupon.maxDiscountAmount)) {
-      itemDiscounts = allocateDiscount(eligibleRows.map(row => ({ ...row, total: itemDiscounts.get(row.id) || 0 })), Number(coupon.maxDiscountAmount));
+      itemDiscountsByIndex = allocateDiscount(eligibleRows.map(row => ({ id: row.index, total: itemDiscountsByIndex.get(row.index) || 0 })), Number(coupon.maxDiscountAmount));
     }
     // قیمت نهایی هر ردیف از کم‌کردن تخفیف ردیف از قیمت پایه به دست می‌آید؛
     // جمع سبد فقط جمع قیمت نهایی ردیف‌هاست و دوباره گرد نمی‌شود.
     let finalPayable = 0;
     let totalDiscountAmount = 0;
 
-    for (const item of cartItems) {
+    for (let index = 0; index < cartItems.length; index++) {
+      const item = cartItems[index];
       const itemQty = Number(item.quantity) > 0 ? Number(item.quantity) : 1;
       const itemPrice = Number(item.price) || 0;
       const itemTotal = itemPrice * itemQty;
-      const rowDiscount = itemDiscounts.get(item.id) || 0;
+      const rowDiscount = itemDiscountsByIndex.get(index) || 0;
       const rowFinalPrice = Math.max(0, itemTotal - rowDiscount);
 
       finalPayable += rowFinalPrice;
@@ -257,7 +264,11 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
       originalTotalPrice: calculatedCartTotal,
       finalTotalPrice: finalPayable,
       eligibleItemIds,
-      itemDiscounts: [...itemDiscounts].map(([id, discountAmount]) => ({ id, discountAmount })),
+      itemDiscounts: eligibleRows.map(row => ({
+        id: row.item.id,
+        index: row.index,
+        discountAmount: itemDiscountsByIndex.get(row.index) || 0,
+      })),
       message: 'کد تخفیف با موفقیت اعمال گردید.',
     };
   },

@@ -20,7 +20,7 @@ test('کوپن اختصاصی فقط دورهٔ انتخاب‌شده را کا�
   const result = await service({ appliesToAllCourses: false, courses: [{ documentId: 'course-a' }] }).validateAndCalculate('CART', items);
   expect(result.discountAmount).toBe(10);
   expect(result.finalTotalPrice).toBe(200);
-  expect(result.itemDiscounts).toEqual([{ id: 1, discountAmount: 10 }]);
+  expect(result.itemDiscounts).toEqual([{ id: 1, index: 0, discountAmount: 10 }]);
 });
 test('کوپن اختصاصی چند دوره همچنان ردیفی گرد می‌شود', async () => {
   const result = await service({ appliesToAllCourses: false, courses: [{ documentId: 'course-a' }, { documentId: 'course-b' }] }).validateAndCalculate('CART', items);
@@ -52,4 +52,57 @@ test('تخصیص تخفیف از قیمت ردیف تجاوز نمی‌کند و
     expect(shares.get(1)).toBeLessThanOrEqual(first);
     expect(shares.get(2)).toBeLessThanOrEqual(second);
   }
+});
+
+
+test('سبد مختلط با شناسه یکسان ۱ برای دوره و محصول: تخفیف فقط روی قلم واجد شرایط اعمال و مانع رونویسی می‌شود', async () => {
+  const mixedItems = [
+    { id: 1, documentId: 'course-1', type: 'course', price: 100, quantity: 1 },
+    { id: 1, documentId: 'product-1', type: 'product', price: 200, quantity: 1 },
+  ];
+
+  // کوپن اختصاصی دوره ۱
+  const courseCouponResult = await service({
+    appliesToAllCourses: false,
+    appliesToAllProducts: false,
+    courses: [{ documentId: 'course-1' }],
+    discountType: 'percentage',
+    discountValue: 20,
+  }).validateAndCalculate('CART', mixedItems);
+
+  expect(courseCouponResult.valid).toBe(true);
+  expect(courseCouponResult.discountAmount).toBe(20);
+  expect(courseCouponResult.finalTotalPrice).toBe(280);
+  expect(courseCouponResult.itemDiscounts).toEqual([{ id: 1, index: 0, discountAmount: 20 }]);
+
+  // کوپن اختصاصی محصول ۱
+  const productCouponResult = await service({
+    appliesToAllCourses: false,
+    appliesToAllProducts: false,
+    products: [{ documentId: 'product-1' }],
+    discountType: 'percentage',
+    discountValue: 15,
+  }).validateAndCalculate('CART', mixedItems);
+
+  expect(productCouponResult.valid).toBe(true);
+  expect(productCouponResult.discountAmount).toBe(30);
+  expect(productCouponResult.finalTotalPrice).toBe(270);
+  expect(productCouponResult.itemDiscounts).toEqual([{ id: 1, index: 1, discountAmount: 30 }]);
+
+  // کوپن عمومی برای هر دو: عدم رونویسی و تخصیص دقیق به هر دو ردیف
+  const generalResult = await service({
+    appliesToAllCourses: true,
+    appliesToAllProducts: true,
+    discountType: 'percentage',
+    discountValue: 10,
+  }).validateAndCalculate('CART', mixedItems);
+
+  expect(generalResult.valid).toBe(true);
+  expect(generalResult.discountAmount).toBe(30);
+  expect(generalResult.finalTotalPrice).toBe(270);
+  expect(generalResult.itemDiscounts).toEqual([
+    { id: 1, index: 0, discountAmount: 10 },
+    { id: 1, index: 1, discountAmount: 20 },
+  ]);
+  expect(generalResult.itemDiscounts.reduce((s, row) => s + row.discountAmount, 0)).toBe(30);
 });
