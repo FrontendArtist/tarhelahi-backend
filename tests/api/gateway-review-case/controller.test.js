@@ -96,6 +96,37 @@ describe('financial review API authorization and translation', () => {
     });
     expect(workflow.money).not.toHaveBeenCalled();
   });
+  test('پرونده با شناسه و وضعیت باز در فهرست ادمین نمایش داده می‌شود', async () => {
+    const rows = [{
+      id: 101,
+      caseId: '550e8400-e29b-41d4-a716-446655440000',
+      clientReferenceCode: 'TR-OPEN-1',
+      topUpRequestId: 'topup-open-1',
+      reasonCode: 'VERIFY_UNKNOWN',
+      status: 'open',
+      openedAtUtc: '2026-10-27T10:00:00.000Z',
+    }];
+    const cases = { findMany: jest.fn().mockResolvedValue(rows), count: jest.fn().mockResolvedValue(1) };
+    const events = { findMany: jest.fn().mockResolvedValue([
+      { resNum: 'TR-OPEN-1', bankResultCode: '-2', stage: 'verify' },
+    ]) };
+    const strapi = { db: { query: uid => uid.includes('gateway-payment-event') ? events : cases } };
+    const ctx = context(); ctx.query = { status: 'open' };
+
+    await factory({ strapi }).find(ctx);
+
+    expect(ctx.body.data).toHaveLength(1);
+    expect(ctx.body.data[0]).toMatchObject({
+      id: 101,
+      caseId: '550e8400-e29b-41d4-a716-446655440000',
+      clientReferenceCode: 'TR-OPEN-1',
+      status: 'open',
+      reasonCode: 'VERIFY_UNKNOWN',
+      bankResultCode: '-2',
+      bankResultDescription: 'تراکنش یافت نشد.',
+      bankResultStage: 'verify',
+    });
+  });
   test('فهرست خالی رویدادهای پرداخت را نمی‌خواند', async () => {
     const cases = { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) };
     const strapi = { db: { query: jest.fn(() => cases) } };

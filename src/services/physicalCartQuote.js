@@ -139,10 +139,13 @@ async function quote(strapi, input, items, buyer, address) {
       quantity: item.quantity,
       price,
     });
+    const chapterTitle = resolved?.chapter && resolved?.course
+      ? `${resolved.course.title} (${resolved.chapter.title})`
+      : record.title;
     rows.push({
       ...item,
       parentExternalId: resolved?.parentExternalId || null,
-      title: record.title,
+      title: chapterTitle,
       unitPriceInNoor: basePrice,
       lineTotalInNoor,
       // قیمت واحد پس از تخفیف کاتالوگ فقط ورودی سرویس ارسال است؛ تخفیف سفارش تقسیم نمی‌شود.

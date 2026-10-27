@@ -5,6 +5,7 @@ const { createHash } = require('node:crypto');
 const EVENT_UID = 'api::gateway-payment-event.gateway-payment-event';
 const ATTEMPT_UID = 'api::gateway-payment-attempt.gateway-payment-attempt';
 const { getOrCreateCase, appendEvidence, addHistory } = require('../../../services/gatewayReviewCases');
+const { sendPendingReviewOpens } = require('../../../services/gatewayReviewRecovery');
 
 function ignoreClientTokenTimes(ctx) {
   const data = ctx.request?.body?.data || ctx.request?.body;
@@ -32,6 +33,11 @@ async function recordConflictEvidence(strapi, attempt, input) {
   const { reviewCase } = await getOrCreateCase(strapi, attempt, 'BANK_CONFLICT', { eventId: input.eventId, stage: input.stage });
   const eventId = `conflict:${createHash('sha256').update(JSON.stringify(input)).digest('hex')}`;
   await appendEvidence(strapi, attempt, { ...input, eventId, occurredAtUtc: new Date().toISOString() }, 'event_conflict', reviewCase);
+  try {
+    await sendPendingReviewOpens(strapi);
+  } catch (err) {
+    strapi.log?.error?.(`Failed to send review case to ByeMoney immediately: ${err.message}`);
+  }
 }
 
 module.exports = createCoreController('api::gateway-payment-attempt.gateway-payment-attempt', ({ strapi }) => ({
@@ -109,10 +115,19 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
         }
       }
     }
-    const reasonCode = stage === 'verify' && kind === 'Unknown' ? 'VERIFY_UNKNOWN' :
-      stage === 'reverse' && ['Unknown', 'ReverseFailed'].includes(kind) ? 'REVERSE_UNKNOWN' : null;
+    const isAmbiguousVerify = stage === 'verify' && (kind === 'Unknown' || String(input.bankResultCode) === '-2' || Number(input.bankResultCode) === -2);
+    const isAmbiguousReverse = stage === 'reverse' && ['Unknown', 'ReverseFailed'].includes(kind);
+    const reasonCode = isAmbiguousVerify ? 'VERIFY_UNKNOWN' :
+      isAmbiguousReverse ? 'REVERSE_UNKNOWN' : null;
     if (reasonCode) await getOrCreateCase(strapi, attempt, reasonCode, { eventId, stage, kind });
     await appendEvidence(strapi, attempt, event);
+    if (reasonCode) {
+      try {
+        await sendPendingReviewOpens(strapi);
+      } catch (err) {
+        strapi.log?.error?.(`Failed to send review case to ByeMoney immediately: ${err.message}`);
+      }
+    }
     ctx.body = { eventId, deliveryStatus: event.deliveryStatus, result: resultBody(event),
       expectedAmountRial: Number(attempt.amountRial) };
   },

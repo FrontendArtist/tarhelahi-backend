@@ -6,7 +6,7 @@ const { getBankResults } = require('../../../services/gatewayReviewBankResults')
 
 function publicCase(row) {
   return {
-    caseId: row.caseId, clientReferenceCode: row.clientReferenceCode, topUpRequestId: row.topUpRequestId,
+    id: row.id || row.caseId, caseId: row.caseId, clientReferenceCode: row.clientReferenceCode, topUpRequestId: row.topUpRequestId,
     reasonCode: row.reasonCode, status: row.status, revision: row.revision || 1,
     openedAtUtc: row.openedAtUtc, resolvedAtUtc: row.resolvedAtUtc || null,
     outcomeCode: row.outcomeCode || null, resolutionFinancialReferenceId: row.resolutionFinancialReferenceId || null,
@@ -80,7 +80,7 @@ module.exports = require('@strapi/strapi').factories.createCoreController(CASE, 
       const bankResults = await getBankResults(strapi, currentRows.map(row => row.clientReferenceCode));
       ctx.body = { data: currentRows.map(row => ({
         ...publicCase(row),
-        ...(bankResults.get(row.clientReferenceCode) || { bankResultCode: null, bankResultDescription: null }),
+        ...(bankResults.get(row.clientReferenceCode) || { bankResultCode: null, bankResultDescription: null, bankResultStage: null }),
       })), pagination: { page, pageSize, total } };
     }),
     findOne: action(async (ctx) => { ctx.body = { data: await detail(strapi, await findCase(ctx), ctx) }; }),

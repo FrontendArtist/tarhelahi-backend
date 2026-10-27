@@ -7,6 +7,7 @@ const EVENT = 'api::gateway-payment-event.gateway-payment-event';
 const VERIFY_URL = process.env.SEP_VERIFY_URL || 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction';
 const REVERSE_URL = 'https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction';
 const { getOrCreateCase, appendEvidence } = require('./gatewayReviewCases');
+const { sendPendingReviewOpens } = require('./gatewayReviewRecovery');
 
 function byeMoneyBody(event) {
   return {
@@ -32,10 +33,19 @@ async function recordEvent(strapi, attempt, data) {
     occurredAtUtc: new Date().toISOString(),
     deliveryStatus: data.stage === 'reverse_intent' ? 'delivered' : 'pending',
   } });
-  const reasonCode = data.stage === 'verify' && data.kind === 'Unknown' ? 'VERIFY_UNKNOWN' :
-    data.stage === 'reverse' && ['ReverseFailed', 'Unknown'].includes(data.kind) ? 'REVERSE_UNKNOWN' : null;
+  const isAmbiguousVerify = data.stage === 'verify' && (data.kind === 'Unknown' || String(data.bankResultCode) === '-2' || Number(data.bankResultCode) === -2);
+  const isAmbiguousReverse = data.stage === 'reverse' && ['ReverseFailed', 'Unknown'].includes(data.kind);
+  const reasonCode = isAmbiguousVerify ? 'VERIFY_UNKNOWN' :
+    isAmbiguousReverse ? 'REVERSE_UNKNOWN' : null;
   if (reasonCode) await getOrCreateCase(strapi, attempt, reasonCode, { eventId: event.eventId, stage: event.stage });
   await appendEvidence(strapi, attempt, event);
+  if (reasonCode) {
+    try {
+      await sendPendingReviewOpens(strapi);
+    } catch (err) {
+      strapi.log?.error?.(`Failed to send review case to ByeMoney immediately: ${err.message}`);
+    }
+  }
   return event;
 }
 
@@ -64,6 +74,11 @@ async function sendPendingEvents(strapi) {
             response.status === 409 ? 'BANK_CONFLICT' : 'DELIVERY_UNKNOWN',
             { eventId: event.eventId, httpStatus: response.status, responseCode: body.code || null });
           await appendEvidence(strapi, attempt, event, 'delivery_unknown');
+          try {
+            await sendPendingReviewOpens(strapi);
+          } catch (err) {
+            strapi.log?.error?.(`Failed to send review case to ByeMoney immediately: ${err.message}`);
+          }
           const existingFailure = await strapi.db.query('api::gateway-review-case-history.gateway-review-case-history').findOne({
             where: { caseId: reviewCase.caseId, eventType: 'delivery_failed', eventId: event.eventId },
           });
@@ -104,6 +119,11 @@ async function sendPendingEvents(strapi) {
       if (attempt) {
         const { reviewCase } = await getOrCreateCase(strapi, attempt, 'DELIVERY_UNKNOWN', { eventId: event.eventId });
         await appendEvidence(strapi, attempt, event, 'delivery_unknown');
+        try {
+          await sendPendingReviewOpens(strapi);
+        } catch (err) {
+          strapi.log?.error?.(`Failed to send review case to ByeMoney immediately: ${err.message}`);
+        }
         const existingFailure = await strapi.db.query('api::gateway-review-case-history.gateway-review-case-history').findOne({
           where: { caseId: reviewCase.caseId, eventType: 'delivery_failed', eventId: event.eventId },
         });

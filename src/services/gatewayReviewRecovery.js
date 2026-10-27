@@ -1,6 +1,9 @@
 'use strict';
 
-const { ATTEMPT, CASE, getOrCreateCase, openRequest } = require('./gatewayReviewCases');
+const reviewCases = require('./gatewayReviewCases');
+const ATTEMPT = reviewCases.ATTEMPT || 'api::gateway-payment-attempt.gateway-payment-attempt';
+const CASE = reviewCases.CASE || 'api::gateway-review-case.gateway-review-case';
+const { getOrCreateCase, openRequest } = reviewCases;
 
 const SETTING_STORE = { type: 'plugin', name: 'gateway-review' };
 const THRESHOLD_KEY = 'noCallbackMinutes';
@@ -82,11 +85,14 @@ async function scanNoCallbackAttempts(strapi, now = new Date()) {
 async function sendPendingReviewOpens(strapi, limit = 100) {
   const key = process.env.STRAPI_TO_BYEMONEY_SERVICE_KEY;
   const base = process.env.BYEMONEY_API_URL;
-  const pending = await strapi.db.query(CASE).findMany({
+  const caseQuery = strapi.db?.query(CASE);
+  if (!caseQuery?.findMany || !base || !key || Buffer.byteLength(key, 'utf8') < 32)
+    return { sent: 0, pending: 0 };
+  const pending = await caseQuery.findMany({
     where: { status: 'open', notificationStatus: 'pending' }, orderBy: { createdAt: 'asc' }, limit,
   });
-  if (!pending.length || !base || !key || Buffer.byteLength(key, 'utf8') < 32)
-    return { sent: 0, pending: pending.length };
+  if (!pending?.length)
+    return { sent: 0, pending: 0 };
 
   let sent = 0;
   for (const reviewCase of pending) {
