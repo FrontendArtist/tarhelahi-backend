@@ -7,25 +7,47 @@
     "displayName": "Notification"
   },
   "options": {
-    "draftAndPublish": true
+    "draftAndPublish": false
   },
   "pluginOptions": {},
   "attributes": {
+    "title": {
+      "type": "string"
+    },
     "type": {
       "type": "enumeration",
       "enum": [
-        "new_message ",
+        "confirmed",
+        "payment_failed",
+        "pending_verification",
+        "rejected",
+        "mentor_reply",
+        "support_reply",
+        "system_alert",
         "order_status",
-        "system_alert"
-      ]
+        "new_message "
+      ],
+      "default": "system_alert"
     },
     "notifMessage": {
       "type": "text",
       "required": true
     },
+    "hint": {
+      "type": "text"
+    },
+    "link": {
+      "type": "string"
+    },
     "isRead": {
       "type": "boolean",
       "default": false
+    },
+    "eventKey": {
+      "type": "string"
+    },
+    "rawId": {
+      "type": "string"
     },
     "users_permissions_user": {
       "type": "relation",

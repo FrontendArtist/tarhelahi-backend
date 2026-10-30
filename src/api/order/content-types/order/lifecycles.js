@@ -348,6 +348,7 @@ module.exports = {
       if (targetId) {
         await processProductStock(targetId);
         await syncUserPurchases(targetId);
+        await strapi.service('api::notification.notification')?.syncOrderNotification(targetId);
       }
     } catch (err) {
       console.error('[afterCreate Error]:', err.message || err);
@@ -361,6 +362,7 @@ module.exports = {
       if (targetId) {
         await processProductStock(targetId);
         await syncUserPurchases(targetId);
+        await strapi.service('api::notification.notification')?.syncOrderNotification(targetId);
       }
     } catch (err) {
       console.error('[afterUpdate Error]:', err.message || err);
