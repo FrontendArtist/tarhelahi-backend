@@ -137,4 +137,57 @@ describe('financial review API authorization and translation', () => {
     expect(ctx.body.data).toEqual([]);
     expect(strapi.db.query).not.toHaveBeenCalledWith('api::gateway-payment-event.gateway-payment-event');
   });
+
+  const openCase = () => ({ caseId: 'case-1', clientReferenceCode: 'TR-1', status: 'open', revision: 1,
+    outcomeCode: 'CONFIRMED_EXCEPTIONAL', notificationStatus: 'delivered' });
+  const renderDetail = async (financial) => {
+    workflow.money.mockResolvedValue(financial);
+    const query = { findOne: jest.fn().mockResolvedValue(openCase()), findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0) };
+    const ctx = context();
+    await factory({ strapi: { db: { query: () => query } } }).findOne(ctx);
+    return ctx.body.data;
+  };
+
+  test('فهرست برچسب فارسی نتیجهٔ استثنایی را برمی‌گرداند', async () => {
+    const rows = [{ caseId: 'case-1', clientReferenceCode: 'TR-1', status: 'resolved',
+      outcomeCode: 'CONFIRMED_EXCEPTIONAL', resolutionTopUpStatus: 'Confirmed' }];
+    const cases = { findMany: jest.fn().mockResolvedValue(rows), count: jest.fn().mockResolvedValue(1) };
+    const events = { findMany: jest.fn().mockResolvedValue([]) };
+    const strapi = { db: { query: uid => uid.includes('gateway-payment-event') ? events : cases } };
+    const ctx = context(); ctx.query = {};
+
+    await factory({ strapi }).find(ctx);
+
+    expect(ctx.body.data[0].outcomeDescription).toBe('تأیید استثنایی و شارژ نور');
+  });
+
+  test('جزئیات پرونده امکان تأیید استثنایی را فقط بدون سابقهٔ بازپرداخت یا برگشت می‌دهد', async () => {
+    const verified = { topUpStatus: 'Rejected', gatewayResultKind: 'Verified', refNum: 'EXT-1',
+      rrn: 'RRN-1', amountRial: 100000, review: { audit: [], manualRefundReference: null } };
+
+    const current = await renderDetail(verified);
+
+    expect(current).toMatchObject({ outcomeDescription: 'تأیید استثنایی و شارژ نور', canCloseExceptional: true });
+    const blocked = [{ audit: [{ outcomeCode: 'MANUAL_REFUND' }] },
+      { audit: [], manualRefundReference: 'refund-1' },
+      { audit: [{ eventType: 'ReverseSucceeded' }] }];
+    for (const review of blocked)
+      await expect(renderDetail({ ...verified, review })).resolves.toMatchObject({ canCloseExceptional: false });
+    await expect(renderDetail({ ...verified, topUpStatus: 'Pending' })).resolves.toMatchObject({ canCloseExceptional: false });
+  });
+
+  test('خطای ۴۰۹ یا ۴۲۲ سرویس مالی با همان وضعیت به پنل برمی‌گردد', async () => {
+    const row = { caseId: 'case-1', clientReferenceCode: 'TR-1' };
+    const strapi = { db: { query: () => ({ findOne: async () => row }) } };
+    const controller = factory({ strapi });
+    for (const failure of [{ status: 409, code: 'REVIEW_STATE_MISMATCH' },
+      { status: 422, code: 'TOPUP_AMOUNT_MISMATCH' }]) {
+      const ctx = context();
+      workflow.resolveReview.mockRejectedValueOnce(Object.assign(new Error(failure.code), failure));
+      await controller.resolve(ctx);
+      expect(ctx.status).toBe(failure.status);
+      expect(ctx.body).toEqual({ code: failure.code });
+    }
+  });
 });

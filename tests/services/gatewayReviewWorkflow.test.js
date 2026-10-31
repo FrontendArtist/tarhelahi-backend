@@ -156,4 +156,35 @@ describe('manual gateway review workflow', () => {
   test.each([null, {}, { matchingDepositFound: false }, { checkedReportDate: '2026-02-30', matchingDepositFound: false }])('incomplete report cannot close: %p', evidence => {
     expect(() => normalizeResolution({ ...payload(), evidence })).toThrow();
   });
+
+  const exceptional = () => {
+    const request = payload();
+    request.outcomeCode = 'CONFIRMED_EXCEPTIONAL';
+    request.resolutionFinancialReferenceId = 'BANK-RRN-1';
+    Object.assign(request.evidence, { matchingDepositFound: true, depositReference: 'DEP-1',
+      depositDate: '2026-09-29', depositAmountRial: 100000 });
+    return request;
+  };
+
+  test('exceptional confirmation requires a matching deposit, a financial reference and no manual refund', () => {
+    expect(normalizeResolution(exceptional())).toMatchObject({ outcomeCode: 'CONFIRMED_EXCEPTIONAL',
+      resolutionFinancialReferenceId: 'BANK-RRN-1' });
+    const base = exceptional();
+    expect(() => normalizeResolution({ ...base, resolutionFinancialReferenceId: null })).toThrow();
+    expect(() => normalizeResolution({ ...base, evidence: { ...base.evidence, matchingDepositFound: false } })).toThrow();
+    expect(() => normalizeResolution({ ...base, evidence: { ...base.evidence, manualRefundReference: 'refund-1' } })).toThrow();
+  });
+
+  test.each([['REVIEW_STATE_MISMATCH', 409], ['TOPUP_AMOUNT_MISMATCH', 422]])(
+    'financial rejection %s keeps the Strapi case open', async (code, status) => {
+      const original = global.fetch;
+      global.fetch = jest.fn(async (url, options) => url.endsWith('/resolve')
+        ? { ok: false, status, json: async () => ({ code }) }
+        : original(url, options));
+      await expect(resolveReview(strapi, strapi.rows[CASE][0], exceptional(), 'jwt', 'actor'))
+        .rejects.toMatchObject({ status, code });
+      expect(strapi.rows[OPERATION][0]).toMatchObject({ status: 'rejected', errorCode: code, errorStatus: status });
+      expect(strapi.rows[CASE][0]).toMatchObject({ status: 'open', resolvedAtUtc: null, resolutionOperationId: null });
+      expect(state.audit).toHaveLength(0);
+    });
 });

@@ -4,12 +4,53 @@ const { CASE, HISTORY, OPERATION, money, failure, syncReview, resolveReview } = 
 const { getThresholdMinutes, setThresholdMinutes } = require('../../../services/gatewayReviewRecovery');
 const { getBankResults } = require('../../../services/gatewayReviewBankResults');
 
+const OUTCOME_DESCRIPTIONS = new Map([
+  ['PAID_AND_CONFIRMED', 'پرداخت شده و نور شارژ شده'],
+  ['CONFIRMED_EXCEPTIONAL', 'تأیید استثنایی و شارژ نور'],
+  ['NO_MATCHING_DEPOSIT', 'واریز منطبق پیدا نشد'],
+  ['REVERSED_REJECTED', 'برگشت‌خورده'],
+  ['MANUAL_REFUND', 'وجه خارج از سامانه به کاربر برگشت داده شد'],
+  ['UNPAID_REJECTED', 'پرداخت‌نشده و رد شارژ'],
+]);
+
+function outcomeDescription(outcomeCode) {
+  return outcomeCode ? OUTCOME_DESCRIPTIONS.get(outcomeCode) || null : null;
+}
+
+function reviewAudit(financial) {
+  return Array.isArray(financial?.review?.audit) ? financial.review.audit : [];
+}
+
+// سابقهٔ بازپرداخت دستی امکان تأیید استثنایی را برای همیشه می‌بندد.
+function hasManualRefundHistory(financial) {
+  return Boolean(financial?.review?.manualRefundReference) ||
+    reviewAudit(financial).some(entry => entry.outcomeCode === 'MANUAL_REFUND');
+}
+
+// برگشت موفق بانکی هم در نتیجهٔ جاری درگاه و هم در ممیزی قابل تشخیص است.
+function hasReverseSucceededHistory(financial) {
+  if (financial?.gatewayResultKind === 'ReverseSucceeded') return true;
+  return reviewAudit(financial).some(entry =>
+    entry.eventType === 'ReverseSucceeded' ||
+    (typeof entry.note === 'string' && entry.note.toLowerCase().includes('reversesucceeded')));
+}
+
+// نشانگر پیشنهاد پنل است؛ داوری نهایی پیش‌شرط‌ها با پاسخ ۴۰۹ بای‌مانی است.
+function isExceptionalCloseable(financial) {
+  return financial.topUpStatus === 'Rejected' &&
+    financial.gatewayResultKind === 'Verified' &&
+    Boolean(financial.refNum) && Boolean(financial.rrn) &&
+    !hasManualRefundHistory(financial) &&
+    !hasReverseSucceededHistory(financial);
+}
+
 function publicCase(row) {
   return {
     id: row.id || row.caseId, caseId: row.caseId, clientReferenceCode: row.clientReferenceCode, topUpRequestId: row.topUpRequestId,
     reasonCode: row.reasonCode, status: row.status, revision: row.revision || 1,
     openedAtUtc: row.openedAtUtc, resolvedAtUtc: row.resolvedAtUtc || null,
-    outcomeCode: row.outcomeCode || null, resolutionFinancialReferenceId: row.resolutionFinancialReferenceId || null,
+    outcomeCode: row.outcomeCode || null, outcomeDescription: outcomeDescription(row.outcomeCode),
+    resolutionFinancialReferenceId: row.resolutionFinancialReferenceId || null,
     topUpStatus: row.resolutionTopUpStatus || row.topUpStatusAtOpen || null,
     deliveryStatus: row.notificationStatus, deliveryError: row.notificationError || null,
     audit: row.resolutionAudit || [], manualRefundReference: row.manualRefundReference || null,
@@ -35,6 +76,7 @@ async function detail(strapi, row, ctx) {
     refNum: financial.refNum, rrn: financial.rrn, gatewayResultKind: financial.gatewayResultKind,
     canClosePaid: financial.topUpStatus === 'Confirmed' && financial.gatewayResultKind === 'Verified',
     canCloseReversed: financial.topUpStatus === 'Rejected' && financial.gatewayResultKind === 'ReverseSucceeded',
+    canCloseExceptional: isExceptionalCloseable(financial),
     pendingOperation: operation?.status === 'pending' ? {
       operationId: operation.operationId, canRetry: operation.actorDocumentId === ctx.state.user.documentId,
       payload: operation.actorDocumentId === ctx.state.user.documentId ? operation.payload : null,

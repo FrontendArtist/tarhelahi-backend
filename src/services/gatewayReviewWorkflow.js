@@ -5,7 +5,7 @@ const CASE = 'api::gateway-review-case.gateway-review-case';
 const HISTORY = 'api::gateway-review-case-history.gateway-review-case-history';
 const OPERATION = 'api::gateway-review-operation.gateway-review-operation';
 const ATTEMPT = 'api::gateway-payment-attempt.gateway-payment-attempt';
-const OUTCOMES = ['PAID_AND_CONFIRMED', 'NO_MATCHING_DEPOSIT', 'REVERSED_REJECTED', 'MANUAL_REFUND'];
+const OUTCOMES = ['PAID_AND_CONFIRMED', 'CONFIRMED_EXCEPTIONAL', 'NO_MATCHING_DEPOSIT', 'REVERSED_REJECTED', 'MANUAL_REFUND'];
 
 function failure(status, code) { return Object.assign(new Error(code), { status, code }); }
 
@@ -60,6 +60,10 @@ function normalizeResolution(input) {
       outcomeCode === 'PAID_AND_CONFIRMED' && (!evidence.matchingDepositFound || !reference) ||
       outcomeCode === 'REVERSED_REJECTED' && !reference ||
       outcomeCode === 'MANUAL_REFUND' && (!evidence.manualRefundReference || reference))
+    throw failure(400, 'REVIEW_INVALID_RESOLUTION');
+  // تأیید استثنایی فقط با واریز منطبق، مرجع مالی و بدون بازپرداخت دستی معنا دارد.
+  if (outcomeCode === 'CONFIRMED_EXCEPTIONAL' &&
+      (!evidence.matchingDepositFound || !reference || evidence.manualRefundReference))
     throw failure(400, 'REVIEW_INVALID_RESOLUTION');
   return { outcomeCode, resolutionFinancialReferenceId: reference, evidence };
 }
