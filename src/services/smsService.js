@@ -12,7 +12,7 @@ const { Smsir } = require('smsir-js');
 // ─────────────────────────────────────────────────────────────────────────────
 const apiKey = process.env.SMSIR_API_KEY;
 const templateId = Number(process.env.SMSIR_TEMPLATE_ID) || 852164;
-const lineNumber = process.env.SMSIR_LINE_NUMBER ? Number(process.env.SMSIR_LINE_NUMBER) : null;
+const lineNumber = process.env.SMSIR_LINE_NUMBER ? Number(process.env.SMSIR_LINE_NUMBER) : 30002108033951;
 
 /**
  * ایجاد کلاینت SMS.ir
@@ -121,7 +121,76 @@ async function sendDirectSms(receptor, message) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// sendCourseTelegramLinkSms (ارسال پیامک لینک تلگرام پس از ثبت نام در دوره)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * ارسال پیامک به کاربر پس از ثبت نام در دوره دارای لینک تلگرام
+ *
+ * در صورت تعریف SMSIR_COURSE_TEMPLATE_ID در env، پیامک با قالب Verify از خط خدماتی ۵۰۰۰۳۳۰۰۳ ارسال می‌شود.
+ * در غیر این صورت، پیامک مستقیم متنی از خط اختصاصی ۳۰۰۰۲۱۰۸۰۳۳۹۵۱ ارسال می‌گردد.
+ *
+ * @param {string} receptor - شماره موبایل گیرنده
+ * @param {object} courseInfo
+ * @param {string} courseInfo.courseTitle - عنوان دوره
+ * @param {string} courseInfo.courseSlug - اسلاگ دوره
+ * @param {string} [courseInfo.telegramLink] - لینک مستقیم گروه تلگرام دوره
+ * @returns {Promise<{success: boolean, mocked?: boolean, result?: any}>}
+ */
+async function sendCourseTelegramLinkSms(receptor, { courseTitle, courseSlug, telegramLink } = {}) {
+  if (!receptor) {
+    throw new Error('شماره گیرنده جهت ارسال پیامک تلگرام دوره الزامی است.');
+  }
+
+  const rawLink = String(telegramLink || '').trim();
+  const cleanTelegramLink = rawLink.startsWith('http://') || rawLink.startsWith('https://')
+    ? rawLink
+    : (rawLink.startsWith('@') ? `https://t.me/${rawLink.slice(1)}` : `https://t.me/${rawLink}`);
+
+  const title = (courseTitle || 'مورد نظر').trim();
+
+  // ۱. بررسی امکان ارسال از طریق قالب Verify (خط ۵۰۰۰۳۳۰۰۳ مشابه پیامک رمز)
+  const courseTemplateId = process.env.SMSIR_COURSE_TEMPLATE_ID
+    ? Number(process.env.SMSIR_COURSE_TEMPLATE_ID)
+    : null;
+  const paramName = process.env.SMSIR_COURSE_PARAM_NAME || 'LINK';
+
+  if (courseTemplateId && smsirClient) {
+    try {
+      const parameters = [
+        {
+          name: paramName,
+          value: cleanTelegramLink,
+        },
+      ];
+
+      const response = await smsirClient.SendVerifyCode(receptor, courseTemplateId, parameters);
+      if (response && response.data && (response.data.status === 1 || response.status === 200)) {
+        return { success: true, result: response.data, viaTemplate: true };
+      }
+    } catch (err) {
+      const errDetails = err.response ? JSON.stringify(err.response.data) : err.message;
+      const logFn = (typeof strapi !== 'undefined' && strapi.log)
+        ? strapi.log.warn.bind(strapi.log)
+        : console.warn;
+      logFn(`[SMS Service] SendVerifyCode for course failed: ${errDetails}. Falling back to direct SMS.`);
+    }
+  }
+
+  // ۲. ارسال پیام مستقیم (با ذکر نام دوره و لینک مستقیم گروه تلگرام)
+  const message = `ثبت نام شما در دوره ${title} موفقیت آمیز بود.\nلینک گروه تلگرام:\n${cleanTelegramLink}`;
+
+  const logFn = (typeof strapi !== 'undefined' && strapi.log)
+    ? strapi.log.info.bind(strapi.log)
+    : console.log;
+
+  logFn(`[SMS Service] Sending Telegram group link SMS to ${receptor} for course "${title}"...`);
+
+  return await sendDirectSms(receptor, message);
+}
+
 module.exports = {
   sendOtp,
   sendDirectSms,
+  sendCourseTelegramLinkSms,
 };

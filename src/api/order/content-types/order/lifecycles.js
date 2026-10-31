@@ -4,7 +4,11 @@
  * Order Lifecycle Hooks for Strapi v5
  * Automatically connects courses & enrolledChapters to the User when order status becomes paid.
  * Updates relations from the Course (Owner) side to ensure they display in the Strapi Admin UI.
+ * Sends SMS via SMS.ir if any purchased course has a telegramLink.
  */
+
+const smsService = require('../../../../services/smsService');
+const phoneUtils = require('../../../../utils/phoneUtils');
 
 async function syncUserPurchases(orderIdentifier) {
   try {
@@ -55,13 +59,25 @@ async function syncUserPurchases(orderIdentifier) {
 
     const courseIdsToConnect = new Set();
     const chapterIdsToConnect = new Set();
+    const coursesToCheck = new Map();
 
     for (const item of items) {
       // اسلاگ یک محصول نباید به‌اشتباه دسترسی دورهٔ هم‌نام را ایجاد کند.
       if (item.__component !== 'order.course-order-item') continue;
+
       // Chapter purchase
       if (item.chapterId) {
         chapterIdsToConnect.add(Number(item.chapterId));
+
+        if (item.courseId) {
+          const cId = Number(item.courseId);
+          if (cId && !coursesToCheck.has(cId)) {
+            const parentCourse = await strapi.db.query('api::course.course').findOne({
+              where: { id: cId },
+            });
+            if (parentCourse) coursesToCheck.set(cId, parentCourse);
+          }
+        }
       } else if (item.courseId || item.slug) {
         // Full course purchase
         let targetCourse = null;
@@ -105,6 +121,7 @@ async function syncUserPurchases(orderIdentifier) {
 
         if (targetCourse && targetCourse.id) {
           courseIdsToConnect.add(targetCourse.id);
+          coursesToCheck.set(targetCourse.id, targetCourse);
         }
       }
     }
@@ -158,11 +175,76 @@ async function syncUserPurchases(orderIdentifier) {
     }
 
     console.log(`[Order Lifecycle] ✅ Synced user ${userId} purchases successfully`);
+
+    // 6. Send Telegram link SMS for enrolled courses that have telegramLink
+    if (coursesToCheck.size > 0) {
+      await sendTelegramSmsForEnrolledCourses(order, user, coursesToCheck);
+    }
   } catch (error) {
     console.error('[Order Lifecycle Error]:', error.message || error);
   }
 }
 
+/**
+ * بررسی و ارسال پیامک اطلاع‌رسانی لینک تلگرام به کاربر
+ */
+async function sendTelegramSmsForEnrolledCourses(order, user, coursesMap) {
+  try {
+    const rawPhone = order.phone || user?.phoneNumber || (order.user && order.user.phoneNumber);
+    const cleanPhone = phoneUtils.standardizePhoneNumber(rawPhone);
+
+    if (!cleanPhone) {
+      console.warn(`[Order Lifecycle] ⚠️ Cannot send Telegram SMS for order ${order.id}: no valid phone number found.`);
+      return;
+    }
+
+    if (phoneUtils.isTestPhoneNumber(rawPhone)) {
+      console.log(`[Order Lifecycle] ℹ️ Test phone number detected (${rawPhone}), skipping real SMS.`);
+      return;
+    }
+
+    let notesUpdated = false;
+    let currentNotes = order.notes || '';
+
+    for (const [courseId, course] of coursesMap.entries()) {
+      const telegramLink = (course.telegramLink || course.telegram_link || '').trim();
+      if (!telegramLink) {
+        continue;
+      }
+
+      const sentTag = `[TELEGRAM_SMS_SENT:${courseId}]`;
+      if (currentNotes.includes(sentTag)) {
+        console.log(`[Order Lifecycle] Telegram SMS already sent for course ${courseId} on order ${order.id}. Skipping.`);
+        continue;
+      }
+
+      try {
+        console.log(`[Order Lifecycle] 🚀 Sending Telegram group SMS to ${cleanPhone} for course "${course.title}" (${course.slug})...`);
+        await smsService.sendCourseTelegramLinkSms(cleanPhone, {
+          courseTitle: course.title,
+          courseSlug: course.slug,
+          telegramLink: telegramLink,
+        });
+
+        currentNotes = currentNotes ? `${currentNotes}\n${sentTag}` : sentTag;
+        notesUpdated = true;
+        console.log(`[Order Lifecycle] ✅ Telegram group SMS sent successfully to ${cleanPhone} for course ${courseId}`);
+      } catch (smsError) {
+        console.error(`[Order Lifecycle] ❌ Failed to send Telegram SMS for course ${courseId}:`, smsError.message);
+      }
+    }
+
+    if (notesUpdated) {
+      order.notes = currentNotes;
+      await strapi.db.query('api::order.order').update({
+        where: { id: order.id },
+        data: { notes: currentNotes },
+      });
+    }
+  } catch (error) {
+    console.error('[Order Lifecycle sendTelegramSmsForEnrolledCourses Error]:', error.message || error);
+  }
+}
 
 module.exports = {
   async afterCreate(event) {
@@ -175,6 +257,7 @@ module.exports = {
       if (targetId) {
         // موجودی فقط در سرویس رزرو و middleware تراکنشی سفارش مدیریت می‌شود.
         await syncUserPurchases(targetId);
+        await strapi.service('api::notification.notification')?.syncOrderNotification(targetId);
       }
     } catch (err) {
       console.error('[afterCreate Error]:', err.message || err);
@@ -191,6 +274,7 @@ module.exports = {
       if (targetId) {
         // موجودی فقط در سرویس رزرو و middleware تراکنشی سفارش مدیریت می‌شود.
         await syncUserPurchases(targetId);
+        await strapi.service('api::notification.notification')?.syncOrderNotification(targetId);
       }
     } catch (err) {
       console.error('[afterUpdate Error]:', err.message || err);

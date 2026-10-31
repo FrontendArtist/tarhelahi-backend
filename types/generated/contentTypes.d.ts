@@ -1277,13 +1277,16 @@ export interface ApiNotificationNotification
     singularName: 'notification';
   };
   options: {
-    draftAndPublish: true;
+    draftAndPublish: false;
   };
   attributes: {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    eventKey: Schema.Attribute.String;
+    hint: Schema.Attribute.Text;
     isRead: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    link: Schema.Attribute.String;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -1292,9 +1295,22 @@ export interface ApiNotificationNotification
       Schema.Attribute.Private;
     notifMessage: Schema.Attribute.Text & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    rawId: Schema.Attribute.String;
+    title: Schema.Attribute.String;
     type: Schema.Attribute.Enumeration<
-      ['new_message ', 'order_status', 'system_alert']
-    >;
+      [
+        'confirmed',
+        'payment_failed',
+        'pending_verification',
+        'rejected',
+        'mentor_reply',
+        'support_reply',
+        'system_alert',
+        'order_status',
+        'new_message ',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'system_alert'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
