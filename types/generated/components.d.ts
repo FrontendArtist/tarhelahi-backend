@@ -94,6 +94,10 @@ export interface QuranAyahTafsir extends Struct.ComponentSchema {
   attributes: {
     ayeAudio: Schema.Attribute.Media<'audios'>;
     ayeText: Schema.Attribute.Text;
+    subjects: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::quran-subject.quran-subject'
+    >;
     tafsirAudio: Schema.Attribute.Media<'audios' | 'files'>;
     tafsirText: Schema.Attribute.Text;
     translationAudio: Schema.Attribute.Media<'audios'>;

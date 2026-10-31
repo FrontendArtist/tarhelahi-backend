@@ -1,0 +1,28 @@
+{
+  "kind": "collectionType",
+  "collectionName": "quran_subjects",
+  "info": {
+    "singularName": "quran-subject",
+    "pluralName": "quran-subjects",
+    "displayName": "QuranSubject",
+    "description": "موضوعات و مفاهیم قرآنی برای تفسیر موضوعی"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    }
+  }
+}

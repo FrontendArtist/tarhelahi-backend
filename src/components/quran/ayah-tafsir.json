@@ -42,6 +42,11 @@
         "audios",
         "files"
       ]
+    },
+    "subjects": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::quran-subject.quran-subject"
     }
   }
 }

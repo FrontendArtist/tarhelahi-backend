@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [2026-10-31]
+
+- پیاده‌سازی زیرساخت دیتابیس و API تفسیر موضوعی قرآن کریم (Quran Subjects) در استراپی ۵:
+  - **ایجاد Content-Type موضوعات قرآنی (`quran-subject`)**:
+    - ایجاد کالکشن `quran-subject` شامل فیلدهای عنوان موضوع (`title`)، اسلاگ یکتا (`slug`) و توضیحات موضوع (`description`).
+    - تنظیم روت‌های عمومی بدون نیاز به احراز هویت (`auth: false`) در کنترلر و روت‌های `quran-subject`.
+  - **اتصال موضوعات به کامپوننت آیات (`quran.ayah-tafsir`)**:
+    - افزودن رابطه چندتایی `subjects` (`type: relation`, `relation: oneToMany`) به کامپوننت `ayah-tafsir` زیر فیلد `tafsirAudio` جهت امکان انتخاب چند موضوع مستقل برای هر آیه در پنل استراپی.
+  - **بازنویسی کنترلرهای Strapi 5 برای رفع محدودیت Sanitize فیلدهای Relation در کامپوننت‌ها**:
+    - بازنویسی متدهای `find` و `findOne` در کنترلر سوره (`src/api/surah/controllers/surah.js`) با استفاده مستقیم از Document Service استراپی ۵ (`strapi.documents`) و اعمال populate صریح بر روی `subjects`، `tafsirAudio`، `ayeAudio` و `translationAudio` در کامپوننت `ayeha`.
+    - تنظیم متدهای `find` و `findOne` در کنترلر موضوعات (`src/api/quran-subject/controllers/quran-subject.js`) جهت بازگرداندن کامل موضوعات به فرانت‌اند بدون مسدودسازی فیلدها در روت‌های عمومی.
+
 ## [2026-09-24]
 
 - بهینه‌سازی جامع درخواست‌های کلاینت و حذف کامل پولینگ‌های پس‌زمینه در فرانت‌اند (Zero Idle Background Requests):
