@@ -2,9 +2,7 @@
 
 const stock = require('./stockReservation');
 const pricing = require('./physicalCartQuote');
-const { resolveItem } = require('./chapterCatalog');
 const { confirmPurchase } = require('./byeMoneyPurchaseService');
-const { managedOrder } = require('./physicalStockMiddleware');
 const UID = 'api::byemoney-cart.byemoney-cart';
 const CART_LOCK = 1869767795;
 const BUYER_LOCK = 1869767796;
@@ -99,59 +97,6 @@ async function releaseCoupon(strapi, trx, code) {
   });
 }
 
-async function createOrder(strapi, cart) {
-  const snapshot = cart.snapshot;
-  const buyer = await pricing.buyerProfile(strapi, snapshot.buyerExternalUserId);
-  const components = [];
-  for (const item of snapshot.items) {
-    const common = { title: item.title, price: item.unitPriceInNoor };
-    if (item.type === 'product') {
-      const versions = await strapi.db.query(stock.PRODUCT_UID).findMany({
-        where: { documentId: item.externalId }, orderBy: { id: 'asc' },
-      });
-      const product = versions.find((version) => version.publishedAt) || versions[0];
-      if (!product) {
-        stock.lineFailure(item, 'SALE_STOPPED');
-      }
-      components.push({ ...common, __component: 'order.product-order-item', productId: product.id,
-        quantity: item.quantity, slug: product.slug });
-    } else {
-      const resolved = await resolveItem(strapi, item.externalId);
-      components.push({ ...common, __component: 'order.course-order-item', courseId: resolved.course.id,
-        ...(resolved.chapter ? { chapterId: resolved.chapter.id } : {}), slug: resolved.course.slug });
-    }
-  }
-  const address = snapshot.addressSnapshot;
-  return managedOrder.run(true, () => strapi.documents('api::order.order').create({
-    status: 'published',
-    data: {
-      user: buyer.id,
-      fullName: address?.recipientName || [buyer.firstName, buyer.lastName].filter(Boolean).join(' ') || buyer.username,
-      address: address?.fullAddress || 'بدون ارسال',
-      postalCode: address?.postalCode || '-',
-      phone: address?.recipientPhone || buyer.phoneNumber || '-',
-      email: buyer.email || `${(buyer.phoneNumber || buyer.username || buyer.documentId || 'customer').replace(/[^a-zA-Z0-9]/g, '')}@tarhelahi.com`,
-      currency: 'noor',
-      purchaseId: cart.cartId,
-      inventoryReservationId: cart.cartId,
-      stockDeducted: true,
-      paymentMethod: snapshot.priceInNoor === 0 ? 'free' : 'online',
-      paymentStatus: 'paid',
-      orderStatus: 'paid',
-      totalPrice: snapshot.priceInNoor,
-      originalTotalPrice: snapshot.originalTotalInNoor,
-      discountAmount: snapshot.itemDiscountInNoor + snapshot.couponDiscountInNoor,
-      couponCode: snapshot.couponCode,
-      shippingAmountInNoor: snapshot.shippingAmountInNoor,
-      shippingRuleLabel: snapshot.shippingRuleLabel,
-      addressVersion: snapshot.addressVersion,
-      addressSnapshot: address,
-      cartSnapshot: snapshot,
-      items: components,
-    },
-  }));
-}
-
 // فراخوانی فقط زیر قفل سبد و در تراکنش سرویس اصلی انجام می‌شود.
 async function transition(strapi, trx, cart, input, action) {
   const repository = strapi.db.query(UID);
@@ -187,7 +132,8 @@ async function transition(strapi, trx, cart, input, action) {
     if (JSON.stringify(cart.purchaseIds) !== JSON.stringify(input.purchaseIds)) {
       stock.conflict('شناسه‌های خرید با ثبت قبلی متفاوت‌اند.');
     }
-    return { success: true, orderDocumentId: cart.orderDocumentId };
+    // سبدهای commit‌شدهٔ قبل از بستن مسیر Legacy شناسهٔ سفارش دارند؛ تکرار commit همان پاسخ را می‌دهد.
+    return { success: true, ...(cart.orderDocumentId ? { orderDocumentId: cart.orderDocumentId } : {}) };
   }
   await stock.lock(trx, BUYER_LOCK, input.buyerExternalUserId);
   const digitalItems = cart.snapshot.items.filter((item) => item.type !== 'product');
@@ -195,7 +141,7 @@ async function transition(strapi, trx, cart, input, action) {
   for (const parentId of parentIds) {
     await stock.lock(trx, COURSE_LOCK, parentId);
   }
-  // تثبیت موجودی، دسترسی دیجیتال و یک سفارش در همان تراکنش‌اند.
+  // تثبیت موجودی و دسترسی دیجیتال در همان تراکنش‌اند؛ رکورد order موازی ساخته نمی‌شود (D08).
   await stock.transition(strapi, trx, cart.cartId, 'commit');
   for (const [index, item] of cart.snapshot.items.entries()) {
     if (item.type === 'product') {
@@ -212,12 +158,11 @@ async function transition(strapi, trx, cart, input, action) {
       throw error;
     }
   }
-  const order = await createOrder(strapi, cart);
   await repository.update({
     where: { id: cart.id },
-    data: { state: 'committed', purchaseIds: input.purchaseIds, orderDocumentId: order.documentId },
+    data: { state: 'committed', purchaseIds: input.purchaseIds },
   });
-  return { success: true, orderDocumentId: order.documentId };
+  return { success: true };
 }
 
 module.exports = { preview, prepare, transition };
