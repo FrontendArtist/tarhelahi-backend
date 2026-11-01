@@ -1494,6 +1494,38 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiQuranSubjectQuranSubject
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'quran_subjects';
+  info: {
+    description: '\u0645\u0648\u0636\u0648\u0639\u0627\u062A \u0648 \u0645\u0641\u0627\u0647\u06CC\u0645 \u0642\u0631\u0622\u0646\u06CC \u0628\u0631\u0627\u06CC \u062A\u0641\u0633\u06CC\u0631 \u0645\u0648\u0636\u0648\u0639\u06CC';
+    displayName: 'QuranSubject';
+    pluralName: 'quran-subjects';
+    singularName: 'quran-subject';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::quran-subject.quran-subject'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiServiceService extends Struct.CollectionTypeSchema {
   collectionName: 'services';
   info: {
@@ -2391,6 +2423,7 @@ declare module '@strapi/strapi' {
       'api::order.order': ApiOrderOrder;
       'api::popup-message.popup-message': ApiPopupMessagePopupMessage;
       'api::product.product': ApiProductProduct;
+      'api::quran-subject.quran-subject': ApiQuranSubjectQuranSubject;
       'api::service.service': ApiServiceService;
       'api::settlement.settlement': ApiSettlementSettlement;
       'api::shipping-setting.shipping-setting': ApiShippingSettingShippingSetting;
