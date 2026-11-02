@@ -12,7 +12,10 @@
     "start": "strapi start",
     "strapi": "strapi",
     "export:excel": "node scripts/export_orders_excel.js",
-    "test": "jest",
+    "test": "jest && npm run test:node",
+    "test:jest": "jest",
+    "test:node": "node --test tests/abandoned-order.test.js tests/notification-lifecycle.test.js tests/order-price-hotfix.test.js tests/pending-checkout.test.js",
+    "test:pg": "node --test tests/order-price-hotfix.pg.test.js tests/pending-checkout.pg.test.js",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
   },
@@ -45,6 +48,9 @@
   "strapi": {
     "uuid": "0a42bebf-ea33-4386-8d3d-8d3b1574113f",
     "installId": "024532a4be5e4cd722972caa28a5a2ea274467db7016a80744efb62de43ced2e"
+  },
+  "jest": {
+    "testPathIgnorePatterns": ["/node_modules/", "/tests/(abandoned-order|notification-lifecycle|order-price-hotfix|pending-checkout)([.]pg)?[.]test[.]js$"]
   },
   "devDependencies": {
     "baseline-browser-mapping": "^2.10.38",

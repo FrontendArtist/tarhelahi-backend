@@ -3,9 +3,9 @@
 const UID = 'api::byemoney-cart.byemoney-cart';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// مسیر scope خالی دارد؛ پس توکن سفارشی/فقط‌خواندنی نباید فقط به‌خاطر نبودن scope عبور کند.
+// scope مسیر در خود Strapi بررسی می‌شود؛ توکن custom فقط با مجوز همین action و full-access عبور می‌کند.
 const canReadAddress = (ctx) => (
-  (ctx.state?.auth?.strategy?.name === 'api-token' && ctx.state.auth.credentials?.type === 'full-access') ||
+  (ctx.state?.auth?.strategy?.name === 'api-token' && ['full-access', 'custom'].includes(ctx.state.auth.credentials?.type)) ||
   ctx.state?.user?.role?.type === 'administrator'
 );
 

@@ -145,7 +145,7 @@ describe('GET آدرس رزرو برای ادمین', () => {
     expect(global.strapi.db.transaction).not.toHaveBeenCalled();
   });
 
-  test('غیرادمین و توکن غیرکامل 403 می‌گیرند', async () => {
+  test('غیرادمین و توکن read-only 403 می‌گیرند', async () => {
     for (const state of [{ user: { role: { type: 'authenticated' } } }, {},
       { auth: { strategy: { name: 'api-token' }, credentials: { type: 'read-only' } } }]) {
       const { ctx, query } = context({ state, cart: { cartId: CART, snapshot } });
@@ -153,6 +153,12 @@ describe('GET آدرس رزرو برای ادمین', () => {
       expect(ctx.status).toBe(403);
       expect(query.findOne).not.toHaveBeenCalled();
     }
+  });
+
+  test('توکن custom با مجوز action آدرس را می‌گیرد', async () => {
+    const { ctx } = context({ state: { auth: { strategy: { name: 'api-token' }, credentials: { type: 'custom' } } }, cart: { cartId: CART, snapshot } });
+    await controller.address(ctx);
+    expect(ctx.body.addressSnapshot).toEqual(snapshot.addressSnapshot);
   });
 
   test('cartId ناموجود، نامعتبر یا سبد بدون آدرس پاسخ مناسب می‌گیرد', async () => {
