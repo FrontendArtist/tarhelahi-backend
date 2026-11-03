@@ -24,6 +24,15 @@ async function productItems(strapi, items) {
   return [...quantities].map(([externalId, quantity]) => ({ externalId, quantity }));
 }
 
+const LATE_PAYMENT_REASON = 'پرداخت دیرهنگام پس از آزادسازی موجودی؛ نیازمند بررسی دستی/بازگشت وجه';
+const PAID_ORDER_STATUSES = ['paid', 'shipped', 'delivered'];
+
+function isLateSuccess(previous, data) {
+  const released = ['canceled', 'cancelled'].includes(previous.orderStatus) || previous.paymentStatus === 'failed';
+  return released && !previous.stockDeducted && previous.paymentStatus !== 'paid' &&
+    (data.paymentStatus === 'paid' || PAID_ORDER_STATUSES.includes(data.orderStatus));
+}
+
 function reservationId(order) {
   return order.inventoryReservationId || `legacy:${order.documentId}`;
 }
@@ -147,6 +156,16 @@ function documentMiddleware(strapi) {
       }
       if (context.action === 'delete' && previous?.stockDeducted) {
         stock.conflict('سفارش دارای سابقهٔ موجودی از این مسیر قابل حذف نیست.');
+      }
+      if (previous && context.params.data && isLateSuccess(previous, context.params.data) &&
+        (await productItems(strapi, previous.items)).length > 0) {
+        // موجودی پیش‌تر آزاد شده و ممکن است به خریدار دیگر رسیده باشد؛ paid نوشته نمی‌شود
+        // و ثبت بررسی دستی (بدون خطا) همراه تراکنش commit می‌شود. تکرار callback همین نتیجه را دارد.
+        Object.assign(context.params.data, {
+          orderStatus: 'canceled',
+          paymentStatus: 'pending_verification',
+          rejectionReason: LATE_PAYMENT_REASON,
+        });
       }
       const result = await next();
       const targetId = context.action === 'clone' ? result?.documentId : documentId || result?.documentId;
