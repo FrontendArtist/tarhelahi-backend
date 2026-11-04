@@ -4,7 +4,7 @@
   "info": {
     "singularName": "top-banner",
     "pluralName": "top-banners",
-    "displayName": "نوار اعلان بالای سایت (Top Banner)",
+    "displayName": "Top Banner",
     "description": "نوار اعلان و تخفیف بالای هدر سایت با قابلیت استایل‌دهی متن و دکمه لینک"
   },
   "options": {
@@ -14,8 +14,8 @@
   "attributes": {
     "isActive": {
       "type": "boolean",
-      "default": true,
-      "required": true
+      "required": true,
+      "default": true
     },
     "text": {
       "type": "text",
@@ -32,14 +32,14 @@
     },
     "theme": {
       "type": "enumeration",
+      "default": "gold",
       "enum": [
         "gold",
         "emerald",
         "sunset",
         "purple",
         "dark"
-      ],
-      "default": "gold"
+      ]
     },
     "canDismiss": {
       "type": "boolean",

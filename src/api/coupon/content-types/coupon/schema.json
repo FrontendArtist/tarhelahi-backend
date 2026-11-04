@@ -4,7 +4,7 @@
   "info": {
     "singularName": "coupon",
     "pluralName": "coupons",
-    "displayName": "کدهای تخفیف (Coupons)",
+    "displayName": "Coupons",
     "description": "مدیریت کدهای تخفیف دوره‌ها و محصولات"
   },
   "options": {
@@ -22,12 +22,12 @@
     },
     "discountType": {
       "type": "enumeration",
+      "required": true,
+      "default": "percentage",
       "enum": [
         "percentage",
         "fixed"
-      ],
-      "default": "percentage",
-      "required": true
+      ]
     },
     "discountValue": {
       "type": "decimal",

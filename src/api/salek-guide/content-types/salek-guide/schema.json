@@ -4,7 +4,7 @@
   "info": {
     "singularName": "salek-guide",
     "pluralName": "salek-guides",
-    "displayName": "راهنمای سالک (مسکات تعاملی)",
+    "displayName": "راهنمای سالک",
     "description": "تنظیمات کاراکتر تعاملی گوشه صفحه و پیام دعوت به نقشه راه یا سایر صفحات"
   },
   "options": {
@@ -14,13 +14,13 @@
   "attributes": {
     "isActive": {
       "type": "boolean",
-      "default": true,
-      "required": true
+      "required": true,
+      "default": true
     },
     "message": {
       "type": "text",
-      "required": true,
-      "default": "آیا نقشه راه سالک رو دیدی؟"
+      "default": "آیا نقشه راه سالک رو دیدی؟",
+      "required": true
     },
     "subText": {
       "type": "string",
