@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2026-11-04]
+
+- ایجاد Content-Type اختصاصی راهنمای سالک (`salek-guide` Single Type) در استراپی ۵:
+  - تعریف Single Type با کالکشن `salek_guides` جهت تنظیمات داینامیک مسکات تعاملی گوشه صفحه.
+  - فیلدها: فعال/غیرفعال (`isActive` - Boolean)، متن پیام (`message` - Text)، متن کمکی (`subText` - String)، متن دکمه (`buttonText` - String)، لینک دکمه (`buttonLink` - String).
+  - پیکربندی روت بدون نیاز به احراز هویت (`auth: false`) در کنترلر و روت‌های `salek-guide` برای دسترسی کلاینت عمومی.
+
 ## [2026-10-31]
 
 - پیاده‌سازی زیرساخت دیتابیس و API تفسیر موضوعی قرآن کریم (Quran Subjects) در استراپی ۵:
