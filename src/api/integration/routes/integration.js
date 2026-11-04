@@ -17,6 +17,7 @@ module.exports = {
       ['/carts/:cartId/check', 'checkCart'],
       ['/carts/:cartId/commit', 'commitCart'],
       ['/carts/:cartId/release', 'releaseCart'],
+      ['/carts/:cartId/restock', 'restockPhysical'],
     ].map(([path, action]) => ({ method: 'POST', path: `/integrations/byemoney/v1${path}`,
       handler: `integration.${action}`, config: { auth: false, policies: ['global::is-service-authenticated'] } })),
     {

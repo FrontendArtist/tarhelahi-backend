@@ -47,6 +47,16 @@ module.exports = {
   checkCart: ctx => cartAction(ctx, 'check'),
   commitCart: ctx => cartAction(ctx, 'commit'),
   releaseCart: ctx => cartAction(ctx, 'release'),
+  async restockPhysical(ctx) {
+    try {
+      const service = require('../../../services/physicalCartService');
+      ctx.body = await service.restock(strapi, { ...ctx.request.body, cartId: ctx.params.cartId });
+    } catch (error) {
+      if (!error.status) throw error;
+      ctx.status = error.status;
+      ctx.body = { code: error.code || 'CART_INVALID', error: error.message };
+    }
+  },
   /**
    * GET /api/integrations/byemoney/v1/users/:externalUserId
    * Read authoritative user details for ByeMoney integration.

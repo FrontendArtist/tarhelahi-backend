@@ -3,6 +3,7 @@
 const PRODUCT_UID = 'api::product.product';
 const INVENTORY_TABLE = 'physical_product_inventory';
 const RESERVATION_TABLE = 'physical_stock_reservations';
+const RETURN_TABLE = 'physical_stock_returns';
 // قفل شناسهٔ رزرو حتی پیش از INSERT و قفل documentId مستقل از نسخهٔ انتشار لازم‌اند.
 // Query Engine قفل تراکنشی PostgreSQL ندارد؛ SQL فقط برای همین قفل پارامتری است.
 const RESERVATION_LOCK = 1869767800;
@@ -204,6 +205,51 @@ async function transition(strapi, trx, reservationId, action) {
   return { ...reservation, state };
 }
 
+// برگشت موجودی پس از لغو مجاز بای‌مانی؛ هر خط شامل purchaseId، externalId، quantity و سقف maxQuantity است.
+// همان operationId با همان محتوا بدون اثر تکرار می‌شود و با محتوای دیگر تعارض دارد.
+async function restock(strapi, trx, { operationId, cartId, lines }) {
+  await lock(trx, RESERVATION_LOCK, `return:${operationId}`);
+  const sorted = [...lines].sort((left, right) => left.purchaseId < right.purchaseId ? -1 : 1);
+  const previous = await trx(RETURN_TABLE).where({ operation_id: operationId }).orderBy('purchase_id');
+  if (previous.length > 0) {
+    const same = previous.length === sorted.length && previous.every((row, index) =>
+      row.purchase_id === sorted[index].purchaseId && row.document_id === sorted[index].externalId &&
+      row.quantity === sorted[index].quantity && row.cart_id === cartId);
+    if (!same) {
+      conflict('شناسهٔ لغو با درخواست قبلی سازگار نیست.');
+    }
+    return { restocked: false };
+  }
+  const byProduct = new Map();
+  for (const line of sorted) {
+    byProduct.set(line.externalId, (byProduct.get(line.externalId) || 0) + line.quantity);
+  }
+  const products = [...byProduct.keys()].sort();
+  await lockProducts(trx, products.map((externalId) => ({ externalId })));
+  for (const line of sorted) {
+    const [{ total }] = await trx(RETURN_TABLE).where({ cart_id: cartId, purchase_id: line.purchaseId })
+      .sum({ total: 'quantity' });
+    if (Number(total || 0) + line.quantity > line.maxQuantity) {
+      conflict('تعداد برگشت موجودی بیش از تعداد خریداری‌شده است.');
+    }
+  }
+  const now = new Date();
+  await trx(RETURN_TABLE).insert(sorted.map((line) => ({
+    operation_id: operationId, purchase_id: line.purchaseId, cart_id: cartId,
+    document_id: line.externalId, quantity: line.quantity, created_at: now,
+  })));
+  for (const externalId of products) {
+    const row = await inventory(strapi, trx, externalId);
+    const quantity = row.available_quantity + byProduct.get(externalId);
+    if (!Number.isSafeInteger(quantity)) {
+      conflict('موجودی کالا از محدودهٔ مجاز خارج می‌شود.');
+    }
+    await trx(INVENTORY_TABLE).where({ document_id: externalId }).update({ available_quantity: quantity });
+    await mirror(strapi, trx, externalId, quantity);
+  }
+  return { restocked: true };
+}
+
 async function available(strapi, externalId) {
   const row = await strapi.db.connection(INVENTORY_TABLE).where({ document_id: externalId }).first();
   if (row) {
@@ -215,6 +261,6 @@ async function available(strapi, externalId) {
 
 module.exports = {
   PRODUCT_UID, INVENTORY_TABLE, RESERVATION_TABLE, PRODUCT_LOCK, RESERVATION_LOCK,
-  RESERVATION_TTL_MS, reserve, transition, available, inventory, mirror,
+  RESERVATION_TTL_MS, RETURN_TABLE, reserve, transition, restock, available, inventory, mirror,
   lock, lockProducts, assertPublished, lineFailure, conflict,
 };

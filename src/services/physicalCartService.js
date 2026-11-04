@@ -165,4 +165,31 @@ async function transition(strapi, trx, cart, input, action) {
   return { success: true };
 }
 
-module.exports = { preview, prepare, transition };
+// فراخوانی از بای‌مانی پس از لغو مجاز؛ آیتم‌ها با purchaseId همان commit سبد تطبیق داده می‌شوند.
+async function restock(strapi, input) {
+  const items = input.items;
+  if (!UUID.test(input.cartId) || !UUID.test(input.operationId) || !Array.isArray(items) || items.length === 0 ||
+    items.some((item) => !UUID.test(item?.purchaseId) || !Number.isSafeInteger(item.quantity) || item.quantity < 1) ||
+    new Set(items.map((item) => item.purchaseId)).size !== items.length) {
+    pricing.invalid('شناسه یا تعداد برگشت موجودی معتبر نیست.');
+  }
+  return strapi.db.transaction(async ({ trx }) => {
+    await stock.lock(trx, CART_LOCK, input.cartId);
+    const cart = await strapi.db.query(UID).findOne({ where: { cartId: input.cartId } });
+    if (!cart || cart.state !== 'committed' || !Array.isArray(cart.purchaseIds)) {
+      stock.conflict('سبد پرداخت‌شده برای برگشت موجودی یافت نشد.');
+    }
+    const lines = items.map((item) => {
+      const index = cart.purchaseIds.indexOf(item.purchaseId);
+      const line = cart.snapshot.items[index];
+      if (index < 0 || line?.type !== 'product') {
+        stock.conflict('قلم کالای فیزیکی این سبد یافت نشد.');
+      }
+      return { purchaseId: item.purchaseId, externalId: line.externalId, quantity: item.quantity, maxQuantity: line.quantity };
+    });
+    const result = await stock.restock(strapi, trx, { operationId: input.operationId, cartId: input.cartId, lines });
+    return { success: true, ...result };
+  });
+}
+
+module.exports = { preview, prepare, transition, restock };
