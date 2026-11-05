@@ -1,0 +1,38 @@
+{
+  "kind": "singleType",
+  "collectionName": "salek_guides",
+  "info": {
+    "singularName": "salek-guide",
+    "pluralName": "salek-guides",
+    "displayName": "راهنمای سالک",
+    "description": "تنظیمات کاراکتر تعاملی گوشه صفحه و پیام دعوت به نقشه راه یا سایر صفحات"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "isActive": {
+      "type": "boolean",
+      "required": true,
+      "default": true
+    },
+    "message": {
+      "type": "text",
+      "default": "آیا نقشه راه سالک رو دیدی؟",
+      "required": true
+    },
+    "subText": {
+      "type": "string",
+      "default": "مسیر گام‌به‌گام دوره‌ها و خودشناسی در طرح الهی"
+    },
+    "buttonText": {
+      "type": "string",
+      "default": "مشاهده نقشه راه"
+    },
+    "buttonLink": {
+      "type": "string",
+      "default": "/roadmap"
+    }
+  }
+}

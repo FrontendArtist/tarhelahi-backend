@@ -801,7 +801,7 @@ export interface ApiCouponCoupon extends Struct.CollectionTypeSchema {
   collectionName: 'coupons';
   info: {
     description: '\u0645\u062F\u06CC\u0631\u06CC\u062A \u06A9\u062F\u0647\u0627\u06CC \u062A\u062E\u0641\u06CC\u0641 \u062F\u0648\u0631\u0647\u200C\u0647\u0627 \u0648 \u0645\u062D\u0635\u0648\u0644\u0627\u062A';
-    displayName: '\u06A9\u062F\u0647\u0627\u06CC \u062A\u062E\u0641\u06CC\u0641 (Coupons)';
+    displayName: 'Coupons';
     pluralName: 'coupons';
     singularName: 'coupon';
   };
@@ -1526,6 +1526,46 @@ export interface ApiQuranSubjectQuranSubject
   };
 }
 
+export interface ApiSalekGuideSalekGuide extends Struct.SingleTypeSchema {
+  collectionName: 'salek_guides';
+  info: {
+    description: '\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u06A9\u0627\u0631\u0627\u06A9\u062A\u0631 \u062A\u0639\u0627\u0645\u0644\u06CC \u06AF\u0648\u0634\u0647 \u0635\u0641\u062D\u0647 \u0648 \u067E\u06CC\u0627\u0645 \u062F\u0639\u0648\u062A \u0628\u0647 \u0646\u0642\u0634\u0647 \u0631\u0627\u0647 \u06CC\u0627 \u0633\u0627\u06CC\u0631 \u0635\u0641\u062D\u0627\u062A';
+    displayName: '\u0631\u0627\u0647\u0646\u0645\u0627\u06CC \u0633\u0627\u0644\u06A9';
+    pluralName: 'salek-guides';
+    singularName: 'salek-guide';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    buttonLink: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'/roadmap'>;
+    buttonText: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'\u0645\u0634\u0627\u0647\u062F\u0647 \u0646\u0642\u0634\u0647 \u0631\u0627\u0647'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isActive: Schema.Attribute.Boolean &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::salek-guide.salek-guide'
+    > &
+      Schema.Attribute.Private;
+    message: Schema.Attribute.Text &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'\u0622\u06CC\u0627 \u0646\u0642\u0634\u0647 \u0631\u0627\u0647 \u0633\u0627\u0644\u06A9 \u0631\u0648 \u062F\u06CC\u062F\u06CC\u061F'>;
+    publishedAt: Schema.Attribute.DateTime;
+    subText: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'\u0645\u0633\u06CC\u0631 \u06AF\u0627\u0645\u200C\u0628\u0647\u200C\u06AF\u0627\u0645 \u062F\u0648\u0631\u0647\u200C\u0647\u0627 \u0648 \u062E\u0648\u062F\u0634\u0646\u0627\u0633\u06CC \u062F\u0631 \u0637\u0631\u062D \u0627\u0644\u0647\u06CC'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiServiceService extends Struct.CollectionTypeSchema {
   collectionName: 'services';
   info: {
@@ -1564,7 +1604,7 @@ export interface ApiSettlementSettlement extends Struct.CollectionTypeSchema {
   collectionName: 'settlements';
   info: {
     description: '\u062B\u0628\u062A \u0648 \u0622\u0631\u0634\u06CC\u0648 \u062F\u0648\u0631\u0647\u200C\u0647\u0627\u06CC \u062A\u0633\u0648\u06CC\u0647 \u0645\u0627\u0644\u06CC \u0648 \u062E\u0631\u06CC\u062F\u0647\u0627\u06CC \u0641\u0631\u0648\u0634\u0646\u062F\u06AF\u0627\u0646';
-    displayName: '\u062F\u0648\u0631\u0647\u200C\u0647\u0627\u06CC \u062A\u0633\u0648\u06CC\u0647 (Settlements)';
+    displayName: 'Settlements';
     pluralName: 'settlements';
     singularName: 'settlement';
   };
@@ -1763,7 +1803,7 @@ export interface ApiTopBannerTopBanner extends Struct.SingleTypeSchema {
   collectionName: 'top_banners';
   info: {
     description: '\u0646\u0648\u0627\u0631 \u0627\u0639\u0644\u0627\u0646 \u0648 \u062A\u062E\u0641\u06CC\u0641 \u0628\u0627\u0644\u0627\u06CC \u0647\u062F\u0631 \u0633\u0627\u06CC\u062A \u0628\u0627 \u0642\u0627\u0628\u0644\u06CC\u062A \u0627\u0633\u062A\u0627\u06CC\u0644\u200C\u062F\u0647\u06CC \u0645\u062A\u0646 \u0648 \u062F\u06A9\u0645\u0647 \u0644\u06CC\u0646\u06A9';
-    displayName: '\u0646\u0648\u0627\u0631 \u0627\u0639\u0644\u0627\u0646 \u0628\u0627\u0644\u0627\u06CC \u0633\u0627\u06CC\u062A (Top Banner)';
+    displayName: 'Top Banner';
     pluralName: 'top-banners';
     singularName: 'top-banner';
   };
@@ -2424,6 +2464,7 @@ declare module '@strapi/strapi' {
       'api::popup-message.popup-message': ApiPopupMessagePopupMessage;
       'api::product.product': ApiProductProduct;
       'api::quran-subject.quran-subject': ApiQuranSubjectQuranSubject;
+      'api::salek-guide.salek-guide': ApiSalekGuideSalekGuide;
       'api::service.service': ApiServiceService;
       'api::settlement.settlement': ApiSettlementSettlement;
       'api::shipping-setting.shipping-setting': ApiShippingSettingShippingSetting;

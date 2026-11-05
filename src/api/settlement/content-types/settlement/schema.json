@@ -4,7 +4,7 @@
   "info": {
     "singularName": "settlement",
     "pluralName": "settlements",
-    "displayName": "دوره‌های تسویه (Settlements)",
+    "displayName": "Settlements",
     "description": "ثبت و آرشیو دوره‌های تسویه مالی و خریدهای فروشندگان"
   },
   "options": {
