@@ -158,6 +158,9 @@ module.exports = {
    * The register hook runs before the application is fully initialized.
    */
   register({ strapi }) {
+    strapi.documents.use(require('./services/chapterIdentity').documentMiddleware(strapi));
+    strapi.documents.use(require('./services/chapterDeletionGuard').documentMiddleware(strapi));
+
     strapi.server.app.proxy = true;
 
     // ثبت middleware سراسری برای نگه‌داری context درخواست به صورت async-safe

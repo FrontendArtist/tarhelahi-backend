@@ -1985,6 +1985,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    enrolledChapterIntegrationIds: Schema.Attribute.JSON;
     enrolledChapters: Schema.Attribute.JSON;
     firstName: Schema.Attribute.String;
     is_foreigner: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;

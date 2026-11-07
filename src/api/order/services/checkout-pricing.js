@@ -60,7 +60,8 @@ async function priceCart(strapi, cartItems, context = {}) {
       if (!chapter) invalid('فصل متعلق به دورهٔ انتخاب‌شده نیست.');
       key = `chapter:${course.documentId}:${chapter.id}`;
       priced = { id: `chapter-${chapter.id}`, documentId: course.documentId, type: 'chapter', courseId: course.id,
-        chapterId: chapter.id, title: `${course.title} - ${chapter.title}`, slug: `${course.slug}-chapter-${chapter.id}`,
+        chapterId: chapter.id, chapterIntegrationId: chapter.integrationId || null, courseDocumentId: course.documentId,
+        title: `${course.title} - ${chapter.title}`, slug: `${course.slug}-chapter-${chapter.id}`,
         itemUrl: `/courses/${course.slug}`, price: validPrice(chapter.price) };
     } else if (item.type === 'product') {
       const product = await publishedItem(strapi, 'api::product.product', item.documentId || item.id);
@@ -123,8 +124,14 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
       items: items.map(item => ({
         __component: item.type === 'course' || item.type === 'chapter' ? 'order.course-order-item' : 'order.product-order-item',
         title: item.title, slug: item.slug, price: item.price, itemUrl: item.itemUrl,
-        ...(item.type === 'course' || item.type === 'chapter' ? { courseId: item.courseId,
-          ...(item.type === 'chapter' ? { chapterId: item.chapterId } : {}) } : { productId: item.productId, quantity: item.quantity }),
+        ...(item.type === 'course' || item.type === 'chapter' ? {
+          courseId: item.courseId,
+          courseDocumentId: item.courseDocumentId || item.documentId || null,
+          ...(item.type === 'chapter' ? {
+            chapterId: item.chapterId,
+            chapterIntegrationId: item.chapterIntegrationId || null,
+          } : {})
+        } : { productId: item.productId, quantity: item.quantity }),
       })),
     };
     if (reusable && !isFree) {

@@ -19,6 +19,10 @@
       "type": "string",
       "default": "00:00"
     },
+    "integrationId": {
+      "type": "string",
+      "configurable": false
+    },
     "lessons": {
       "type": "component",
       "component": "course-parts.lesson",
