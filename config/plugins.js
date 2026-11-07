@@ -6,14 +6,24 @@ module.exports = ({ env }) => {
   const uploadProvider = env('UPLOAD_PROVIDER', isProduction ? 'aws-s3' : 'local');
   const hasLiaraCredentials = !!env('LIARA_ACCESS_KEY_ID') && !!env('LIARA_ACCESS_SECRET');
 
+  // تنظیم مشترک ورود کاربران (هر دو حالت لوکال و لیارا).
+  // issuer و audience به همهٔ توکن‌ها اضافه می‌شوند تا ByeMoney بتواند آن‌ها را اعتبارسنجی کند.
+  // expiresIn همان مقدار فعلی (۳۰ روز) است و صریح نوشته شده تا تغییر نکند (کوتاه‌کردن: BND-08).
+  const usersPermissions = {
+    config: {
+      jwtSecret: env('JWT_SECRET'),
+      jwt: {
+        expiresIn: '30d',
+        issuer: env('JWT_ISSUER', 'tarhelahi-strapi'),
+        audience: env('JWT_AUDIENCE', 'byemoney'),
+      },
+    },
+  };
+
   if (uploadProvider !== 'aws-s3' || !hasLiaraCredentials) {
     // حالت لوکال: ذخیره عکس‌ها در پوشه public/uploads دیسک محلی
     return {
-      'users-permissions': {
-        config: {
-          jwtSecret: env('JWT_SECRET'),
-        },
-      },
+      'users-permissions': usersPermissions,
     };
   }
 
@@ -50,10 +60,6 @@ module.exports = ({ env }) => {
         },
       },
     },
-    'users-permissions': {
-      config: {
-        jwtSecret: env('JWT_SECRET'),
-      },
-    },
+    'users-permissions': usersPermissions,
   };
 };
