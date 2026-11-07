@@ -15,7 +15,7 @@
     "test": "jest && npm run test:node",
     "test:jest": "jest",
     "test:node": "node --test tests/abandoned-order.test.js tests/notification-lifecycle.test.js tests/order-price-hotfix.test.js tests/pending-checkout.test.js",
-    "test:pg": "node --test tests/order-price-hotfix.pg.test.js tests/pending-checkout.pg.test.js",
+    "test:pg": "node --test tests/order-price-hotfix.pg.test.js tests/pending-checkout.pg.test.js tests/physicalStock.pg.cjs tests/lateSuccessPayment.pg.cjs",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
   },
