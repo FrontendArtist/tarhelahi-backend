@@ -99,6 +99,8 @@ module.exports = require('@strapi/strapi').factories.createCoreController(CASE, 
     return row;
   };
   return {
+    // نسخهٔ کاربر عادی: عمداً فقط یک عدد؛ هیچ فیلد دیگری به این پاسخ اضافه نشود.
+    getThreshold: action(async (ctx) => { ctx.body = { noCallbackMinutes: await getThresholdMinutes(strapi) }; }),
     getSettings: action(async (ctx) => { ctx.body = { noCallbackMinutes: await getThresholdMinutes(strapi) }; }),
     updateSettings: action(async (ctx) => {
       try { ctx.body = { noCallbackMinutes: await setThresholdMinutes(strapi, ctx.request.body?.noCallbackMinutes) }; }
