@@ -307,10 +307,11 @@ async function main() {
         // به‌روزرسانی enrolledChapterIntegrationIds برای کاربران بر اساس خریدهای پرداخت‌شده
         console.log('[Backfill] 👤 در حال به‌روزرسانی لیست دسترسی کاربران (enrolledChapterIntegrationIds)...');
         
-        // پیدا کردن سفارش‌های موفق
+        // پیدا کردن سفارش‌های موفق (جدول پیوند کامپوننت‌ها در استراپی ۵: orders_cmps)
+        const cmpTable = (await trx.schema.hasTable('orders_cmps')) ? 'orders_cmps' : 'orders_components';
         const paidOrders = await trx('orders')
           .join('orders_user_lnk as user_link', 'user_link.order_id', 'orders.id')
-          .join('orders_components as cmp', 'cmp.entity_id', 'orders.id')
+          .join(`${cmpTable} as cmp`, 'cmp.entity_id', 'orders.id')
           .join('components_order_course_order_items as item', 'item.id', 'cmp.cmp_id')
           .where('cmp.component_type', 'order.course-order-item')
           .whereNotNull('item.chapter_integration_id')
@@ -325,6 +326,15 @@ async function main() {
             userUuidsMap.set(row.userId, new Set());
           }
           userUuidsMap.get(row.userId).add(String(row.integrationId).toLowerCase());
+        }
+
+        // اطمینان از وجود ستون enrolled_chapter_integration_ids در جدول up_users
+        const hasUserUuidCol = await trx.schema.hasColumn('up_users', 'enrolled_chapter_integration_ids');
+        if (!hasUserUuidCol) {
+          console.log('[Backfill] ℹ️ ایجاد ستون enrolled_chapter_integration_ids در جدول up_users...');
+          await trx.schema.alterTable('up_users', (t) => {
+            t.jsonb('enrolled_chapter_integration_ids').nullable();
+          });
         }
 
         for (const [userId, uuidSet] of userUuidsMap.entries()) {
