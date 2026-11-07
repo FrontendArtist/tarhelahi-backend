@@ -14,14 +14,19 @@ describe('users-permissions JWT config (BND-02)', () => {
     },
   };
 
-  test.each(Object.keys(modes))('%s: tokens carry issuer, audience and 30d expiry', (mode) => {
+  test.each(Object.keys(modes))('%s: tokens carry issuer, audience and 1h expiry (BND-08)', (mode) => {
     const vars = { ...modes[mode], JWT_ISSUER: 'tarhelahi-strapi', JWT_AUDIENCE: 'byemoney' };
     const { jwtSecret, jwt: jwtOptions } = pluginsConfig({ env: makeEnv(vars) })['users-permissions'].config;
     const decoded = jwt.verify(jwt.sign({ id: 1 }, jwtSecret, jwtOptions), jwtSecret, {
       issuer: 'tarhelahi-strapi',
       audience: 'byemoney',
     });
-    expect(decoded.exp - decoded.iat).toBe(30 * 24 * 60 * 60);
+    expect(decoded.exp - decoded.iat).toBe(60 * 60);
+  });
+
+  test('expiry comes from JWT_EXPIRES_IN', () => {
+    const cfg = pluginsConfig({ env: makeEnv({ JWT_SECRET: 's', JWT_EXPIRES_IN: '2h' }) });
+    expect(cfg['users-permissions'].config.jwt.expiresIn).toBe('2h');
   });
 
   test('issuer/audience come from env', () => {

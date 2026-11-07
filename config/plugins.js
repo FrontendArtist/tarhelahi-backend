@@ -8,12 +8,13 @@ module.exports = ({ env }) => {
 
   // تنظیم مشترک ورود کاربران (هر دو حالت لوکال و لیارا).
   // issuer و audience به همهٔ توکن‌ها اضافه می‌شوند تا ByeMoney بتواند آن‌ها را اعتبارسنجی کند.
-  // expiresIn همان مقدار فعلی (۳۰ روز) است و صریح نوشته شده تا تغییر نکند (کوتاه‌کردن: BND-08).
+  // عمر کوتاه توکن (BND-08): توکن در مرورگر هست، پس توکن دزدیده‌شده فقط تا پایان همین عمر کار می‌کند.
+  // کاربر فعال از طریق سرور Next با POST /api/auth/token/refresh توکن تازه می‌گیرد.
   const usersPermissions = {
     config: {
       jwtSecret: env('JWT_SECRET'),
       jwt: {
-        expiresIn: '30d',
+        expiresIn: env('JWT_EXPIRES_IN', '1h'),
         issuer: env('JWT_ISSUER', 'tarhelahi-strapi'),
         audience: env('JWT_AUDIENCE', 'byemoney'),
       },
