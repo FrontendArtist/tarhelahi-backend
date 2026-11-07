@@ -36,7 +36,7 @@ async function setCors() {
   } catch (err) {
     console.error('Error setting CORS name:', err.name);
     console.error('Error message:', err.message);
-    console.error('Raw response:', err..statusCode, err..body?.toString?.());
+    console.error('Raw response:', err.$metadata?.httpStatusCode, err.$response?.body?.toString?.());
     console.error('Error full:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
     process.exit(1);
   }
