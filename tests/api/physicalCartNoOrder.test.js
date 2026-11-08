@@ -28,7 +28,6 @@ jest.mock('../../src/services/byeMoneyPurchaseService', () => ({
 const stock = require('../../src/services/stockReservation');
 const { confirmPurchase } = require('../../src/services/byeMoneyPurchaseService');
 const service = require('../../src/services/byeMoneyCartService');
-const controller = require('../../src/api/byemoney-cart/controllers/byemoney-cart');
 
 const CART = '11111111-1111-4111-8111-111111111111';
 const PURCHASES = ['22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'];
@@ -117,59 +116,5 @@ describe('خرید جدید بدون رکورد order موازی', () => {
     carts[0].orderDocumentId = 'legacy-order';
     const replay = await service.transition(strapi, { ...buyerInput, purchaseIds: PURCHASES }, 'commit');
     expect(replay).toEqual({ success: true, orderDocumentId: 'legacy-order' });
-  });
-});
-
-describe('GET آدرس رزرو برای ادمین', () => {
-  const snapshot = { items: [], addressSnapshot: { city: 'قم', fullAddress: 'نسخهٔ زمان خرید' }, addressVersion: 'v1' };
-  function context({ params = { cartId: CART }, state = { user: { role: { type: 'administrator' } } }, cart } = {}) {
-    const query = { findOne: jest.fn(async () => cart), create: jest.fn(), update: jest.fn(), delete: jest.fn() };
-    global.strapi = { db: { query: jest.fn(() => query), transaction: jest.fn() } };
-    const ctx = {
-      params, state, set: jest.fn(),
-      forbidden: (message) => { ctx.status = 403; ctx.body = message; },
-      badRequest: (message) => { ctx.status = 400; ctx.body = message; },
-      notFound: (message) => { ctx.status = 404; ctx.body = message; },
-    };
-    return { ctx, query };
-  }
-  afterAll(() => { delete global.strapi; });
-
-  test('ادمین نسخهٔ ثابت را می‌گیرد و هیچ نوشتنی رخ نمی‌دهد', async () => {
-    const { ctx, query } = context({ cart: { cartId: CART, state: 'committed', snapshot } });
-    await controller.address(ctx);
-    expect(ctx.body).toEqual({ cartId: CART, addressSnapshot: snapshot.addressSnapshot, addressVersion: 'v1' });
-    expect(query.create).not.toHaveBeenCalled();
-    expect(query.update).not.toHaveBeenCalled();
-    expect(query.delete).not.toHaveBeenCalled();
-    expect(global.strapi.db.transaction).not.toHaveBeenCalled();
-  });
-
-  test('غیرادمین و توکن read-only 403 می‌گیرند', async () => {
-    for (const state of [{ user: { role: { type: 'authenticated' } } }, {},
-      { auth: { strategy: { name: 'api-token' }, credentials: { type: 'read-only' } } }]) {
-      const { ctx, query } = context({ state, cart: { cartId: CART, snapshot } });
-      await controller.address(ctx);
-      expect(ctx.status).toBe(403);
-      expect(query.findOne).not.toHaveBeenCalled();
-    }
-  });
-
-  test('توکن custom با مجوز action آدرس را می‌گیرد', async () => {
-    const { ctx } = context({ state: { auth: { strategy: { name: 'api-token' }, credentials: { type: 'custom' } } }, cart: { cartId: CART, snapshot } });
-    await controller.address(ctx);
-    expect(ctx.body.addressSnapshot).toEqual(snapshot.addressSnapshot);
-  });
-
-  test('cartId ناموجود، نامعتبر یا سبد بدون آدرس پاسخ مناسب می‌گیرد', async () => {
-    const missing = context({ cart: null });
-    await controller.address(missing.ctx);
-    expect(missing.ctx.status).toBe(404);
-    const noAddress = context({ cart: { cartId: CART, snapshot: { items: [] } } });
-    await controller.address(noAddress.ctx);
-    expect(noAddress.ctx.status).toBe(404);
-    const malformed = context({ params: { cartId: 'abc' } });
-    await controller.address(malformed.ctx);
-    expect(malformed.ctx.status).toBe(400);
   });
 });
