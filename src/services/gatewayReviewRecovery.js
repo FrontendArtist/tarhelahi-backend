@@ -7,7 +7,7 @@ const { getOrCreateCase, openRequest } = reviewCases;
 
 const SETTING_STORE = { type: 'plugin', name: 'gateway-review' };
 const THRESHOLD_KEY = 'noCallbackMinutes';
-const DEFAULT_THRESHOLD_MINUTES = 30;
+const DEFAULT_THRESHOLD_MINUTES = 15;
 const CANDIDATE_STATUSES = ['created', 'token_issued', 'verifying', 'verified', 'review', 'financial_review', 'reverse_required', 'pending_sync'];
 const OUTCOME_URL = '/api/integrations/topups/v1/gateway-reviews/open';
 

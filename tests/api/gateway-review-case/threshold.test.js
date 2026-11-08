@@ -24,13 +24,13 @@ describe('user-facing no-callback threshold', () => {
   };
 
   test('returns the default 30 when admin never set it', async () => {
-    expect(await read(undefined)).toEqual({ noCallbackMinutes: 30 });
+    expect(await read(undefined)).toEqual({ noCallbackMinutes: 15 });
   });
   test('returns the admin-changed value and nothing else', async () => {
     expect(await read(45)).toEqual({ noCallbackMinutes: 45 });
   });
   test('falls back to the default for an invalid stored value', async () => {
-    expect(await read(0)).toEqual({ noCallbackMinutes: 30 });
+    expect(await read(0)).toEqual({ noCallbackMinutes: 15 });
   });
 
   describe('route', () => {
@@ -47,7 +47,7 @@ describe('user-facing no-callback threshold', () => {
       };
       const auth = createAuthentication();
       auth.register('content-api', strategy);
-      const controller = { getThreshold: jest.fn(async ctx => { ctx.body = { noCallbackMinutes: 30 }; }) };
+      const controller = { getThreshold: jest.fn(async ctx => { ctx.body = { noCallbackMinutes: 15 }; }) };
       const api = { routes: { threshold: routeFactory } };
       const strapi = {
         admin: { routes: {} }, plugins: {}, apis: { 'gateway-review-case': api }, api: () => api,
@@ -88,7 +88,7 @@ describe('user-facing no-callback threshold', () => {
     test('a logged-in user without any Strapi role permission reaches the controller', async () => {
       const { strapi, controller, route } = setup();
       const ctx = await call(strapi, route, 'Bearer user-jwt');
-      expect(ctx.body).toEqual({ noCallbackMinutes: 30 });
+      expect(ctx.body).toEqual({ noCallbackMinutes: 15 });
       expect(controller.getThreshold).toHaveBeenCalledTimes(1);
     });
     test('a missing or invalid JWT never reaches the controller', async () => {

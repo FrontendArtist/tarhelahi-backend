@@ -38,7 +38,7 @@ describe('gatewayReviewRecovery', () => {
 
   afterEach(() => { process.env = originalEnv; jest.restoreAllMocks(); });
 
-  it('sets the persistent default to 30 minutes and reruns without duplicate case creation or status changes', async () => {
+  it('sets the persistent default to 15 minutes and reruns without duplicate case creation or status changes', async () => {
     const old = new Date(Date.now() - 31 * 60_000).toISOString();
     const attempt = { id: 7, resNum: 'TR-00000001', topUpRequestId: 'topup-1', tokenIssuedAtUtc: old };
     attemptQuery.findMany.mockResolvedValue([attempt]);
@@ -49,11 +49,11 @@ describe('gatewayReviewRecovery', () => {
     const first = await recovery.scanNoCallbackAttempts(strapi);
     const second = await recovery.scanNoCallbackAttempts(strapi);
 
-    expect(first.thresholdMinutes).toBe(30);
+    expect(first.thresholdMinutes).toBe(15);
     expect(second.opened).toBe(0);
     expect(reviewCases.getOrCreateCase).toHaveBeenCalledTimes(2);
     expect(reviewCases.getOrCreateCase).toHaveBeenCalledWith(strapi, attempt, 'NO_CALLBACK', {
-      thresholdMinutes: 30, timestampSource: 'tokenIssuedAtUtc',
+      thresholdMinutes: 15, timestampSource: 'tokenIssuedAtUtc',
     });
     expect(attemptQuery.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { reviewScanLeaseUntilUtc: null } });
     expect(attemptQuery.update).not.toHaveBeenCalledWith(expect.objectContaining({ data: { status: expect.anything() } }));
@@ -70,13 +70,13 @@ describe('gatewayReviewRecovery', () => {
 
     const result = await recovery.scanNoCallbackAttempts(strapi);
 
-    expect(result).toEqual({ examined: 1, opened: 1, fallbackCount: 1, thresholdMinutes: 30 });
+    expect(result).toEqual({ examined: 1, opened: 1, fallbackCount: 1, thresholdMinutes: 15 });
     expect(attemptQuery.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
       $or: [{ tokenIssuedAtUtc: { $lte: expect.any(String) } },
         { tokenIssuedAtUtc: null, createdAt: { $lte: expect.any(String) } }],
     }) }));
     expect(reviewCases.getOrCreateCase).toHaveBeenCalledWith(strapi, attempt, 'NO_CALLBACK', {
-      thresholdMinutes: 30, timestampSource: 'createdAt',
+      thresholdMinutes: 15, timestampSource: 'createdAt',
     });
     expect(strapi.log.warn).toHaveBeenCalledWith(expect.stringContaining('1 attempts'));
   });
