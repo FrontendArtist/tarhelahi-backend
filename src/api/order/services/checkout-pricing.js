@@ -48,10 +48,40 @@ async function priceCart(strapi, cartItems, context = {}) {
     let priced, key;
     if (item.type === 'course') {
       if (item.chapterId != null) invalid('شناسهٔ فصل با نوع دوره سازگار نیست.');
-      const course = await publishedItem(strapi, 'api::course.course', item.documentId || item.id);
+      const course = await publishedItem(strapi, 'api::course.course', item.documentId || item.id, ['chapters']);
       key = `course:${course.documentId}`;
+      let finalCoursePrice = discountedPrice(course, context.isForeign === true);
+
+      // اگر کاربر فصل‌هایی از این دوره را قبلاً خریده باشد، هزینه آن فصل‌ها از قیمت کل کسر می‌شود
+      if (context.userId && course.isChaptered && Array.isArray(course.chapters) && course.chapters.length > 0) {
+        try {
+          const userRepo = strapi.db?.query?.('plugin::users-permissions.user');
+          const buyer = userRepo ? await userRepo.findOne({
+            where: { id: Number(context.userId) },
+          }) : null;
+          if (buyer) {
+            const userChapterIds = new Set((buyer.enrolledChapters || []).map(Number));
+            const userUuids = new Set((buyer.enrolledChapterIntegrationIds || []).map(u => String(u).toLowerCase()));
+
+            let previouslyPaidChaptersTotal = 0;
+            for (const ch of course.chapters) {
+              const chId = Number(ch.id);
+              const chUuid = ch.integrationId ? String(ch.integrationId).toLowerCase() : null;
+              if ((chId && userChapterIds.has(chId)) || (chUuid && userUuids.has(chUuid))) {
+                previouslyPaidChaptersTotal += Number(ch.price || 0);
+              }
+            }
+            if (previouslyPaidChaptersTotal > 0) {
+              finalCoursePrice = Math.max(0, finalCoursePrice - previouslyPaidChaptersTotal);
+            }
+          }
+        } catch (err) {
+          console.error('[checkout-pricing] Error calculating previously paid chapters deduction:', err.message);
+        }
+      }
+
       priced = { id: course.id, documentId: course.documentId, type: 'course', courseId: course.id,
-        title: course.title, slug: course.slug, itemUrl: `/courses/${course.slug}`, price: discountedPrice(course, context.isForeign === true) };
+        title: course.title, slug: course.slug, itemUrl: `/courses/${course.slug}`, price: finalCoursePrice };
     } else if (item.type === 'chapter') {
       const course = await publishedItem(strapi, 'api::course.course', item.courseId, ['chapters']);
       const chapterId = Number(item.chapterId ?? String(item.id || '').replace(/^chapter-/, ''));
@@ -94,7 +124,11 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
       if (!Number.isSafeInteger(userId) || userId <= 0 || userId > 2147483647) invalid('شناسهٔ کاربر معتبر نیست.');
       await lockPendingCheckout(trx, userId);
     }
-    const { items, total } = await priceCart(strapi, input.cartItems, input.pricingContext);
+    const pricingCtx = {
+      ...(input.pricingContext || {}),
+      userId: input.user ? Number(input.user) : null,
+    };
+    const { items, total } = await priceCart(strapi, input.cartItems, pricingCtx);
     const code = input.couponCode == null ? null : input.couponCode;
     if (code !== null && (typeof code !== 'string' || !code.trim())) invalid('کد تخفیف معتبر نیست.');
     let finalTotal = total, discount = 0;

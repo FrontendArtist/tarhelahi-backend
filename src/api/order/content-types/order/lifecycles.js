@@ -128,6 +128,22 @@ async function syncUserPurchases(orderIdentifier) {
         if (targetCourse && targetCourse.id) {
           courseIdsToConnect.add(targetCourse.id);
           coursesToCheck.set(targetCourse.id, targetCourse);
+
+          // در صورت خرید کل دوره، تمامی فصل‌های آن نیز به دسترسی‌های کاربر متصل می‌شوند
+          try {
+            const courseWithChapters = await strapi.db.query('api::course.course').findOne({
+              where: { id: targetCourse.id },
+              populate: ['chapters'],
+            });
+            if (Array.isArray(courseWithChapters?.chapters)) {
+              for (const ch of courseWithChapters.chapters) {
+                if (ch.id) chapterIdsToConnect.add(Number(ch.id));
+                if (ch.integrationId) chapterIntegrationIdsToConnect.add(String(ch.integrationId).toLowerCase());
+              }
+            }
+          } catch (err) {
+            console.error('[Order Lifecycle] Error populating course chapters for bulk purchase:', err.message);
+          }
         }
       }
     }
