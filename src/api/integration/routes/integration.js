@@ -12,6 +12,11 @@ module.exports = {
       handler: ctx => strapi.controller('api::integration.integration').previewCart(ctx),
       config: { auth: { scope: [] } },
     },
+    {
+      method: 'POST', path: '/course-carts/admin-preview',
+      handler: ctx => strapi.controller('api::integration.integration').previewAdminCart(ctx),
+      config: { auth: { scope: [] } },
+    },
     ...[
       ['/carts/prepare', 'prepareCart'],
       ['/carts/:cartId/check', 'checkCart'],

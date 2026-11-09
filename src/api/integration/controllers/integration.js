@@ -18,18 +18,59 @@ async function cartAction(ctx, action) {
       ...(error.lineError ? { lineError: error.lineError } : {}) };
   }
 }
+// هویت فقط از JWT کاربر خوانده می‌شود؛ در نبود نشست معتبر پاسخ ۴۰۱ نوشته و null برمی‌گردد.
+async function sessionClaims(ctx) {
+  let claims;
+  if (ctx.state.user?.documentId) {
+    try { claims = await strapi.plugin('users-permissions').service('jwt').getToken(ctx); }
+    catch { /* توکن غیرکاربری یا نامعتبر، هویت خریدار نیست. */ }
+  }
+  if (!claims?.documentId || claims.documentId !== ctx.state.user?.documentId) {
+    ctx.status = 401;
+    ctx.body = { code: 'CART_UNAUTHORIZED', error: 'نشست شما معتبر نیست.' };
+    return null;
+  }
+  return claims;
+}
+const ADMIN_ROLES = ['admin', 'administrator'];
 module.exports = {
-  async previewCart(ctx) {
-    let claims;
-    if (ctx.state.user?.documentId) {
-      try { claims = await strapi.plugin('users-permissions').service('jwt').getToken(ctx); }
-      catch { /* توکن غیرکاربری یا نامعتبر، هویت خریدار نیست. */ }
+  /** POST /api/course-carts/admin-preview — پیش‌نمایش قیمت دوره/فصل به‌نام ذینفع؛ بدون رزرو و اثر مالی (I11-AO). */
+  async previewAdminCart(ctx) {
+    const claims = await sessionClaims(ctx);
+    if (!claims) return;
+    const admin = await strapi.db.query('plugin::users-permissions.user').findOne({
+      where: { documentId: claims.documentId }, populate: ['role'],
+    });
+    if (!ADMIN_ROLES.includes(admin?.role?.type)) {
+      return ctx.forbidden('دسترسی ادمین لازم است.');
     }
-    if (!claims?.documentId || claims.documentId !== ctx.state.user?.documentId) {
-      ctx.status = 401;
-      ctx.body = { code: 'CART_UNAUTHORIZED', error: 'نشست شما معتبر نیست.' };
+    const { beneficiaryExternalUserId, items } = ctx.request.body || {};
+    if (typeof beneficiaryExternalUserId !== 'string' || !beneficiaryExternalUserId.trim() ||
+      beneficiaryExternalUserId.length > 100 || !Array.isArray(items) ||
+      items.some((item) => !['course', 'course_chapter'].includes(item?.type))) {
+      ctx.status = 400;
+      ctx.body = { code: 'CART_INVALID', error: 'ذینفع یا اقلام پیش‌نمایش معتبر نیست.' };
       return;
     }
+    const beneficiary = await strapi.db.query('plugin::users-permissions.user').findOne({
+      where: { documentId: beneficiaryExternalUserId }, select: ['documentId'],
+    });
+    if (!beneficiary) return ctx.notFound('User not found');
+    try {
+      ctx.set('Cache-Control', 'no-store');
+      ctx.body = await require('../../../services/byeMoneyCartService').preview(strapi, {
+        buyerExternalUserId: beneficiary.documentId, items,
+      });
+    } catch (error) {
+      if (!error.status) throw error;
+      ctx.status = error.status;
+      ctx.body = { code: error.code || 'CART_INVALID', error: error.message,
+        ...(error.lineError ? { lineError: error.lineError } : {}) };
+    }
+  },
+  async previewCart(ctx) {
+    const claims = await sessionClaims(ctx);
+    if (!claims) return;
     try {
       const { externalCourseIds, items, couponCode } = ctx.request.body || {};
       ctx.set('Cache-Control', 'no-store');
