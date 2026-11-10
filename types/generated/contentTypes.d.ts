@@ -580,86 +580,6 @@ export interface ApiBankSettingBankSetting extends Struct.SingleTypeSchema {
   };
 }
 
-export interface ApiByemoneyCartByemoneyCart
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'byemoney_carts';
-  info: {
-    displayName: 'ByeMoney Cart';
-    pluralName: 'byemoney-carts';
-    singularName: 'byemoney-cart';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    buyerExternalUserId: Schema.Attribute.String & Schema.Attribute.Required;
-    cartId: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    couponCode: Schema.Attribute.String;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    fingerprint: Schema.Attribute.Text;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::byemoney-cart.byemoney-cart'
-    > &
-      Schema.Attribute.Private;
-    orderDocumentId: Schema.Attribute.String;
-    publishedAt: Schema.Attribute.DateTime;
-    purchaseIds: Schema.Attribute.JSON;
-    snapshot: Schema.Attribute.JSON;
-    state: Schema.Attribute.Enumeration<['reserved', 'committed', 'released']> &
-      Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiByemoneyPurchaseLogByemoneyPurchaseLog
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'byemoney_purchase_logs';
-  info: {
-    description: 'Idempotency and audit log for ByeMoney purchase confirmations';
-    displayName: 'ByeMoney Purchase Log';
-    pluralName: 'byemoney-purchase-logs';
-    singularName: 'byemoney-purchase-log';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    chapterExternalId: Schema.Attribute.String;
-    courseId: Schema.Attribute.String & Schema.Attribute.Required;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    itemType: Schema.Attribute.Enumeration<['course', 'course_chapter']> &
-      Schema.Attribute.DefaultTo<'course'>;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::byemoney-purchase-log.byemoney-purchase-log'
-    > &
-      Schema.Attribute.Private;
-    parentExternalId: Schema.Attribute.String;
-    publishedAt: Schema.Attribute.DateTime;
-    purchaseId: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    status: Schema.Attribute.Enumeration<['processed']> &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'processed'>;
-    strapiUserId: Schema.Attribute.String & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
 export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   collectionName: 'categories';
   info: {
@@ -931,270 +851,6 @@ export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'gateway_payment_attempts';
-  info: {
-    displayName: 'Gateway Payment Attempt';
-    pluralName: 'gateway-payment-attempts';
-    singularName: 'gateway-payment-attempt';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    affectiveAmountRial: Schema.Attribute.Decimal;
-    amountRial: Schema.Attribute.Decimal & Schema.Attribute.Required;
-    bankTransactionDateRaw: Schema.Attribute.String;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    gateway: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'SEP'>;
-    lastAttemptAtUtc: Schema.Attribute.DateTime;
-    lastError: Schema.Attribute.Text;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::gateway-payment-attempt.gateway-payment-attempt'
-    > &
-      Schema.Attribute.Private;
-    originalAmountRial: Schema.Attribute.Decimal;
-    publishedAt: Schema.Attribute.DateTime;
-    recoveryLeaseUntilUtc: Schema.Attribute.DateTime;
-    refNum: Schema.Attribute.String & Schema.Attribute.Unique;
-    resNum: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    retryCount: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
-    reverseIntentAtUtc: Schema.Attribute.DateTime;
-    reverseRetryUntilUtc: Schema.Attribute.DateTime;
-    reviewScanLeaseUntilUtc: Schema.Attribute.DateTime;
-    rrn: Schema.Attribute.String;
-    status: Schema.Attribute.Enumeration<
-      [
-        'created',
-        'token_issued',
-        'verifying',
-        'verified',
-        'confirmed',
-        'review',
-        'financial_review',
-        'reverse_required',
-        'reversed',
-        'failed',
-        'cancelled',
-        'pending_sync',
-      ]
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'created'>;
-    tokenExpiresAtUtc: Schema.Attribute.DateTime;
-    tokenIssuedAtUtc: Schema.Attribute.DateTime;
-    topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    verifiedAtUtc: Schema.Attribute.DateTime;
-  };
-}
-
-export interface ApiGatewayPaymentEventGatewayPaymentEvent
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'gateway_payment_events';
-  info: {
-    displayName: 'Gateway Payment Event';
-    pluralName: 'gateway-payment-events';
-    singularName: 'gateway-payment-event';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    affectiveAmountRial: Schema.Attribute.Decimal;
-    bankDateRaw: Schema.Attribute.String;
-    bankReferenceNumber: Schema.Attribute.String;
-    bankResultCode: Schema.Attribute.String;
-    bankTransactionId: Schema.Attribute.String;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    deliveryError: Schema.Attribute.Text;
-    deliveryStatus: Schema.Attribute.Enumeration<
-      ['pending', 'delivered', 'review']
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'pending'>;
-    eventId: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    kind: Schema.Attribute.Enumeration<
-      ['Unpaid', 'Verified', 'ReverseSucceeded', 'ReverseFailed', 'Unknown']
-    > &
-      Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::gateway-payment-event.gateway-payment-event'
-    > &
-      Schema.Attribute.Private;
-    occurredAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
-    originalAmountRial: Schema.Attribute.Decimal;
-    publishedAt: Schema.Attribute.DateTime;
-    rawPayload: Schema.Attribute.JSON;
-    resNum: Schema.Attribute.String & Schema.Attribute.Required;
-    stage: Schema.Attribute.Enumeration<
-      ['callback', 'verify', 'reverse', 'reverse_intent']
-    > &
-      Schema.Attribute.Required;
-    topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'gateway_review_case_histories';
-  info: {
-    displayName: 'Gateway Review Case History';
-    pluralName: 'gateway-review-case-histories';
-    singularName: 'gateway-review-case-history';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    caseId: Schema.Attribute.String & Schema.Attribute.Required;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    dedupKey: Schema.Attribute.String & Schema.Attribute.Unique;
-    details: Schema.Attribute.JSON;
-    eventId: Schema.Attribute.String;
-    eventType: Schema.Attribute.String & Schema.Attribute.Required;
-    evidenceKind: Schema.Attribute.String;
-    evidenceStage: Schema.Attribute.String;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::gateway-review-case-history.gateway-review-case-history'
-    > &
-      Schema.Attribute.Private;
-    occurredAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
-    publishedAt: Schema.Attribute.DateTime;
-    syncStatus: Schema.Attribute.Enumeration<['pending', 'delivered']>;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiGatewayReviewCaseGatewayReviewCase
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'gateway_review_cases';
-  info: {
-    displayName: 'Gateway Review Case';
-    pluralName: 'gateway-review-cases';
-    singularName: 'gateway-review-case';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    caseId: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    clientReferenceCode: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::gateway-review-case.gateway-review-case'
-    > &
-      Schema.Attribute.Private;
-    manualRefundReference: Schema.Attribute.String;
-    notificationError: Schema.Attribute.String;
-    notificationStatus: Schema.Attribute.Enumeration<
-      ['pending', 'delivered', 'conflict']
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'pending'>;
-    openedAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
-    outcomeCode: Schema.Attribute.String;
-    publishedAt: Schema.Attribute.DateTime;
-    reasonCode: Schema.Attribute.Enumeration<
-      [
-        'NO_CALLBACK',
-        'VERIFY_UNKNOWN',
-        'REVERSE_UNKNOWN',
-        'DELIVERY_UNKNOWN',
-        'BANK_CONFLICT',
-      ]
-    > &
-      Schema.Attribute.Required;
-    resolutionAudit: Schema.Attribute.JSON;
-    resolutionFinancialReferenceId: Schema.Attribute.String;
-    resolutionOperationId: Schema.Attribute.String;
-    resolutionTopUpStatus: Schema.Attribute.String;
-    resolvedAtUtc: Schema.Attribute.DateTime;
-    revision: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<1>;
-    status: Schema.Attribute.Enumeration<['open', 'resolved']> &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'open'>;
-    topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
-    topUpStatusAtOpen: Schema.Attribute.String;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiGatewayReviewOperationGatewayReviewOperation
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'gateway_review_operations';
-  info: {
-    displayName: 'Gateway Review Operation';
-    pluralName: 'gateway-review-operations';
-    singularName: 'gateway-review-operation';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    actorDocumentId: Schema.Attribute.String & Schema.Attribute.Required;
-    caseId: Schema.Attribute.String & Schema.Attribute.Required;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    errorCode: Schema.Attribute.String;
-    errorStatus: Schema.Attribute.Integer;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::gateway-review-operation.gateway-review-operation'
-    > &
-      Schema.Attribute.Private;
-    operationId: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    payload: Schema.Attribute.JSON & Schema.Attribute.Required;
-    publishedAt: Schema.Attribute.DateTime;
-    result: Schema.Attribute.JSON;
-    status: Schema.Attribute.Enumeration<['pending', 'applied', 'rejected']> &
-      Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
 export interface ApiMentorFormSettingMentorFormSetting
   extends Struct.SingleTypeSchema {
   collectionName: 'mentor_form_settings';
@@ -1333,20 +989,15 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   };
   attributes: {
     address: Schema.Attribute.Text & Schema.Attribute.Required;
-    addressSnapshot: Schema.Attribute.JSON & Schema.Attribute.Private;
-    addressVersion: Schema.Attribute.String;
     cardHolderName: Schema.Attribute.String;
-    cartSnapshot: Schema.Attribute.JSON & Schema.Attribute.Private;
     couponCode: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    currency: Schema.Attribute.Enumeration<['toman', 'noor']>;
     discountAmount: Schema.Attribute.Decimal;
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
     hashedCardNumber: Schema.Attribute.String;
-    inventoryReservationId: Schema.Attribute.String & Schema.Attribute.Private;
     items: Schema.Attribute.DynamicZone<
       ['order.product-order-item', 'order.course-order-item']
     >;
@@ -1371,7 +1022,6 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     phone: Schema.Attribute.String & Schema.Attribute.Required;
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
-    purchaseId: Schema.Attribute.String;
     receiptImage: Schema.Attribute.Media<'images'>;
     refNum: Schema.Attribute.String;
     rejectionReason: Schema.Attribute.Text;
@@ -1382,8 +1032,6 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       'manyToOne',
       'api::settlement.settlement'
     >;
-    shippingAmountInNoor: Schema.Attribute.Decimal;
-    shippingRuleLabel: Schema.Attribute.String;
     stockDeducted: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     totalPrice: Schema.Attribute.Decimal;
     traceNo: Schema.Attribute.String;
@@ -1480,7 +1128,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     price: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
-    purchasePrice: Schema.Attribute.Decimal;
     shortDescription: Schema.Attribute.Text;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     specifications: Schema.Attribute.JSON;
@@ -1490,7 +1137,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    weight: Schema.Attribute.Decimal;
   };
 }
 
@@ -1629,48 +1275,6 @@ export interface ApiSettlementSettlement extends Struct.CollectionTypeSchema {
     settledAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     totalAmount: Schema.Attribute.BigInteger & Schema.Attribute.DefaultTo<'0'>;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiShippingSettingShippingSetting
-  extends Struct.SingleTypeSchema {
-  collectionName: 'shipping_settings';
-  info: {
-    displayName: '\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0627\u0631\u0633\u0627\u0644';
-    pluralName: 'shipping-settings';
-    singularName: 'shipping-setting';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    fixedAmountInNoor: Schema.Attribute.BigInteger &
-      Schema.Attribute.SetMinMax<
-        {
-          min: 0;
-        },
-        number
-      >;
-    freeShippingThresholdInNoor: Schema.Attribute.BigInteger &
-      Schema.Attribute.SetMinMax<
-        {
-          min: 0;
-        },
-        number
-      >;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::shipping-setting.shipping-setting'
-    > &
-      Schema.Attribute.Private;
-    publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -2381,6 +1985,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    enrolledChapterIntegrationIds: Schema.Attribute.JSON;
     enrolledChapters: Schema.Attribute.JSON;
     firstName: Schema.Attribute.String;
     is_foreigner: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
@@ -2390,6 +1995,7 @@ export interface PluginUsersPermissionsUser
       ['order.product-order-item', 'order.course-order-item']
     >;
     lastName: Schema.Attribute.String;
+    light: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -2444,19 +2050,12 @@ declare module '@strapi/strapi' {
       'api::article.article': ApiArticleArticle;
       'api::articles-category.articles-category': ApiArticlesCategoryArticlesCategory;
       'api::bank-setting.bank-setting': ApiBankSettingBankSetting;
-      'api::byemoney-cart.byemoney-cart': ApiByemoneyCartByemoneyCart;
-      'api::byemoney-purchase-log.byemoney-purchase-log': ApiByemoneyPurchaseLogByemoneyPurchaseLog;
       'api::category.category': ApiCategoryCategory;
       'api::comment.comment': ApiCommentComment;
       'api::contact-message.contact-message': ApiContactMessageContactMessage;
       'api::coupon.coupon': ApiCouponCoupon;
       'api::course.course': ApiCourseCourse;
       'api::faq.faq': ApiFaqFaq;
-      'api::gateway-payment-attempt.gateway-payment-attempt': ApiGatewayPaymentAttemptGatewayPaymentAttempt;
-      'api::gateway-payment-event.gateway-payment-event': ApiGatewayPaymentEventGatewayPaymentEvent;
-      'api::gateway-review-case-history.gateway-review-case-history': ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory;
-      'api::gateway-review-case.gateway-review-case': ApiGatewayReviewCaseGatewayReviewCase;
-      'api::gateway-review-operation.gateway-review-operation': ApiGatewayReviewOperationGatewayReviewOperation;
       'api::mentor-form-setting.mentor-form-setting': ApiMentorFormSettingMentorFormSetting;
       'api::message.message': ApiMessageMessage;
       'api::notification.notification': ApiNotificationNotification;
@@ -2467,7 +2066,6 @@ declare module '@strapi/strapi' {
       'api::salek-guide.salek-guide': ApiSalekGuideSalekGuide;
       'api::service.service': ApiServiceService;
       'api::settlement.settlement': ApiSettlementSettlement;
-      'api::shipping-setting.shipping-setting': ApiShippingSettingShippingSetting;
       'api::social.social': ApiSocialSocial;
       'api::surah.surah': ApiSurahSurah;
       'api::tag.tag': ApiTagTag;
