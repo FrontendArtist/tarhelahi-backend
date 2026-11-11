@@ -159,7 +159,6 @@ module.exports = {
    */
   register({ strapi }) {
     strapi.documents.use(require('./services/chapterIdentity').documentMiddleware(strapi));
-    strapi.documents.use(require('./services/chapterDeletionGuard').documentMiddleware(strapi));
 
     strapi.server.app.proxy = true;
 
