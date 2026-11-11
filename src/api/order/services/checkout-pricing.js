@@ -3,6 +3,7 @@
 const { errors: { ValidationError } } = require('@strapi/utils');
 const invalid = message => { throw new ValidationError(message); };
 const { lockPendingCheckout, findPendingCheckout, cancelSupersededCheckouts } = require('./pending-checkout');
+const { calculateChapteredCoursePrice, createAlreadyOwnedError } = require('../../../services/chapteredCoursePricing');
 
 function validPrice(value) {
   if (value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0) {
@@ -52,31 +53,28 @@ async function priceCart(strapi, cartItems, context = {}) {
       key = `course:${course.documentId}`;
       let finalCoursePrice = discountedPrice(course, context.isForeign === true);
 
-      // اگر کاربر فصل‌هایی از این دوره را قبلاً خریده باشد، هزینه آن فصل‌ها از قیمت کل کسر می‌شود
+      // محاسبه قیمت هوشمند دوره فصلی بر اساس فصل‌های باقیمانده کاربر
       if (context.userId && course.isChaptered && Array.isArray(course.chapters) && course.chapters.length > 0) {
-        try {
-          const userRepo = strapi.db?.query?.('plugin::users-permissions.user');
-          const buyer = userRepo ? await userRepo.findOne({
-            where: { id: Number(context.userId) },
-          }) : null;
-          if (buyer) {
-            const userChapterIds = new Set((buyer.enrolledChapters || []).map(Number));
-            const userUuids = new Set((buyer.enrolledChapterIntegrationIds || []).map(u => String(u).toLowerCase()));
+        const userRepo = strapi.db?.query?.('plugin::users-permissions.user');
+        const buyer = userRepo ? await userRepo.findOne({
+          where: /^\d+$/.test(String(context.userId))
+            ? { id: Number(context.userId) }
+            : { documentId: String(context.userId) },
+        }) : null;
 
-            let previouslyPaidChaptersTotal = 0;
-            for (const ch of course.chapters) {
-              const chId = Number(ch.id);
-              const chUuid = ch.integrationId ? String(ch.integrationId).toLowerCase() : null;
-              if ((chId && userChapterIds.has(chId)) || (chUuid && userUuids.has(chUuid))) {
-                previouslyPaidChaptersTotal += Number(ch.price || 0);
-              }
-            }
-            if (previouslyPaidChaptersTotal > 0) {
-              finalCoursePrice = Math.max(0, finalCoursePrice - previouslyPaidChaptersTotal);
-            }
+        if (buyer) {
+          const pricingResult = calculateChapteredCoursePrice({
+            course,
+            userEnrolledChapterIds: buyer.enrolledChapters || [],
+            userEnrolledChapterUuids: buyer.enrolledChapterIntegrationIds || [],
+            isForeign: context.isForeign === true,
+          });
+
+          if (pricingResult.isFullyOwned) {
+            throw createAlreadyOwnedError('شما قبلاً تمام فصل‌های این دوره را خریداری کرده‌اید.');
           }
-        } catch (err) {
-          console.error('[checkout-pricing] Error calculating previously paid chapters deduction:', err.message);
+
+          finalCoursePrice = pricingResult.price;
         }
       }
 
@@ -126,7 +124,7 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
     }
     const pricingCtx = {
       ...(input.pricingContext || {}),
-      userId: input.user ? Number(input.user) : null,
+      userId: input.user || null,
     };
     const { items, total } = await priceCart(strapi, input.cartItems, pricingCtx);
     const code = input.couponCode == null ? null : input.couponCode;
