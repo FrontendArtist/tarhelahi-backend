@@ -181,9 +181,9 @@ for (const [name, items] of [
 test('قیمت نامعتبر کاتالوگ رد می‌شود', async () => {
   await assert.rejects(priceCart(fixture({ price: null }), [{ type: 'course', id: 7 }]));
 });
-test('کاربر عادی ایجاد یا ویرایش مستقیم سفارش و checkout سرویس را انجام نمی‌دهد', async () => {
+test('کاربر عادی ایجاد یا ویرایش مستقیم سفارش را انجام نمی‌دهد', async () => {
   const controller = controllerFactory({ strapi: fixture() });
-  for (const action of ['create', 'update', 'checkout']) {
+  for (const action of ['create', 'update']) {
     const result = await controller[action]({ state: { user: { id: 5, role: { type: 'authenticated' } } },
       forbidden: message => ({ status: 403, message }) });
     assert.equal(result.status, 403);
@@ -206,29 +206,18 @@ test('توکن سرویس و مدیر همچنان ایجاد و ویرایش س
   }
 });
 
-test('checkout سرور نیز محافظ کارت‌به‌کارت شارژ نور را حفظ می‌کند', async () => {
+test('POST /orders/checkout بسته است (۴۱۰) و سفارشی ذخیره نمی‌کند', async () => {
   const controller = controllerFactory({ strapi: fixture() });
   let saved = false;
   Object.setPrototypeOf(controller, { create: async () => { saved = true; } });
-  const result = await controller.checkout({
-    state: { auth: { strategy: { name: 'api-token' } } },
-    request: { body: { data: input({ paymentMethod: 'card_to_card',
-      cartItems: [{ type: 'light_topup', lightAmount: 3 }], pricingContext: { lightToTomanRate: 1000 } }) } },
-    badRequest: message => ({ status: 400, message }),
-  });
-  assert.equal(result.status, 400);
-  assert.equal(saved, false);
-});
-
-test('checkout مجاز قیمت معتبر سرور را از مسیر ایجاد سفارش ذخیره می‌کند', async () => {
-  const controller = controllerFactory({ strapi: fixture() });
-  Object.setPrototypeOf(controller, { create: async ctx => ctx.request.body.data });
-  const order = await controller.checkout({
+  const ctx = {
     state: { auth: { strategy: { name: 'api-token' } } },
     request: { body: { data: input() } },
-  });
-  assert.equal(order.totalPrice, 99);
-  assert.equal(order.paymentStatus, 'pending_payment');
+  };
+  const result = await controller.checkout(ctx);
+  assert.equal(ctx.status, 410);
+  assert.equal(result.code, 'ORDER_CHECKOUT_CLOSED');
+  assert.equal(saved, false);
 });
 test('خرید کالا با اسلاگ مشابه دوره، دسترسی دوره نمی‌دهد؛ خرید فصل معتبر دسترسی می‌دهد', async () => {
   const excel = require('../src/api/order/services/excel-export');

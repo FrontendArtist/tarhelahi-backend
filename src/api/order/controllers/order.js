@@ -6,7 +6,6 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 const excelService = require('../services/excel-export');
-const { createCheckout } = require('../services/checkout-pricing');
 const { cancelAfterCartRemoval } = require('../services/abandoned-order');
 
 const canManageOrders = ctx => ctx.state?.auth?.strategy?.name === 'api-token' ||
@@ -53,23 +52,13 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
     if (result.error) return ctx.badRequest(result.error);
     return result;
   },
+  // Closed: new purchases go through the ByeMoney cart; Strapi no longer creates pending orders.
   async checkout(ctx) {
-    if (ctx.state?.auth?.strategy?.name !== 'api-token') return ctx.forbidden('ثبت سفارش از این مسیر فقط برای سرویس سایت مجاز است.');
-    try {
-      return await stockResponse(ctx, () => createCheckout(strapi, ctx.request?.body?.data || {}, async data => {
-        ctx.request.body = { data };
-        return this.create(ctx);
-      }, async order => {
-        ctx.status = 200;
-        return this.transformResponse(await this.sanitizeOutput(order, ctx));
-      }));
-    } catch (err) {
-      console.error('[Order Checkout Error]:', err);
-      if (err.name === 'ValidationError') {
-        return ctx.badRequest(err.message);
-      }
-      throw err;
-    }
+    ctx.status = 410;
+    return {
+      code: 'ORDER_CHECKOUT_CLOSED',
+      error: 'ثبت سفارش جدید در این مسیر بسته شده است؛ خرید از سبد انجام می‌شود.',
+    };
   },
 
   async update(ctx) {

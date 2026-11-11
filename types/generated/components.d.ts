@@ -61,8 +61,6 @@ export interface OrderCourseOrderItem extends Struct.ComponentSchema {
   };
   attributes: {
     chapterId: Schema.Attribute.Integer;
-    chapterIntegrationId: Schema.Attribute.String;
-    courseDocumentId: Schema.Attribute.String;
     courseId: Schema.Attribute.Integer;
     itemUrl: Schema.Attribute.String;
     price: Schema.Attribute.Decimal;
