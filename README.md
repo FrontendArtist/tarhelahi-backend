@@ -34,7 +34,7 @@ npm run dev
 فایل‌های این مخزن دو اجراکننده دارند؛ اجرای همه با Jest نتیجهٔ معتبر یکپارچه نیست:
 
 ```powershell
-npm test -- --runInBand tests/api tests/services tests/config
+npm run test:jest -- --runInBand tests/api tests/services tests/config
 node --test tests/order-price-hotfix.test.js tests/pending-checkout.test.js tests/abandoned-order.test.js
 ```
 
