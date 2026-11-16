@@ -177,7 +177,8 @@ async function quote(strapi, input, items, buyer, address) {
       }
     }
   }
-  const origin = shippingOrigins.resolveCartOrigin(productRecords);
+  const defaultOrigin = await shippingOrigins.loadDefaultOrigin(strapi);
+  const origin = shippingOrigins.resolveCartOrigin(productRecords, defaultOrigin);
   const delivery = await shipping.calculate(
     strapi,
     rows,

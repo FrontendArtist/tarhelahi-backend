@@ -99,7 +99,7 @@ async function mirror(strapi, trx, externalId, quantity) {
 }
 
 async function assertPublished(strapi, item) {
-  const populateOrigin = { shippingOrigin: true };
+  const populateOrigin = { shippingOrigin: { populate: ['city'] } };
   let product = await strapi.documents(PRODUCT_UID).findOne({
     documentId: item.externalId,
     status: 'published',

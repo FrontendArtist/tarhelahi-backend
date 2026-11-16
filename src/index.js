@@ -188,11 +188,15 @@ module.exports = {
     await getThresholdMinutes(strapi);
 
     try {
+      const postexLocality = require('./services/postexLocalitySync');
       const { ensureDefaultOrigin } = require('./services/shippingOrigins');
+      const { ensureShippingCmLabels } = require('./services/shippingCmLabels');
+      await postexLocality.ensureLocalityBootstrap(strapi);
       await ensureDefaultOrigin(strapi);
+      await ensureShippingCmLabels(strapi);
     } catch (error) {
       strapi.log.warn(
-        `[ShippingOrigin] ensureDefaultOrigin skipped: ${error instanceof Error ? error.message : error}`,
+        `[ShippingOrigin] locality/origin bootstrap skipped: ${error instanceof Error ? error.message : error}`,
       );
     }
 

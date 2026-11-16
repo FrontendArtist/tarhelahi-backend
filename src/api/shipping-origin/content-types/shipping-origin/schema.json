@@ -22,20 +22,11 @@
       "type": "string",
       "required": true
     },
-    "cityId": {
-      "type": "integer",
-      "required": true,
-      "min": 1
-    },
-    "cityName": {
-      "type": "string",
-      "required": true
-    },
-    "products": {
+    "city": {
       "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::product.product",
-      "mappedBy": "shippingOrigin"
+      "relation": "manyToOne",
+      "target": "api::city.city",
+      "required": true
     }
   }
 }

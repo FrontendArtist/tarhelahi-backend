@@ -696,6 +696,42 @@ export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiCityCity extends Struct.CollectionTypeSchema {
+  collectionName: 'cities';
+  info: {
+    description: '\u0634\u0647\u0631 \u0628\u0631\u0627\u06CC \u0627\u0646\u062A\u062E\u0627\u0628 \u0645\u0628\u062F\u0623 \u0627\u0631\u0633\u0627\u0644 \u0648 \u0622\u062F\u0631\u0633.';
+    displayName: '\u0634\u0647\u0631';
+    pluralName: 'cities';
+    singularName: 'city';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    externalId: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 1;
+        },
+        number
+      >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::city.city'> &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    province: Schema.Attribute.Relation<'manyToOne', 'api::province.province'>;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiCommentComment extends Struct.CollectionTypeSchema {
   collectionName: 'comments';
   info: {
@@ -1498,6 +1534,45 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiProvinceProvince extends Struct.CollectionTypeSchema {
+  collectionName: 'provinces';
+  info: {
+    description: '\u0627\u0633\u062A\u0627\u0646 \u0628\u0631\u0627\u06CC \u0627\u0646\u062A\u062E\u0627\u0628 \u0645\u0628\u062F\u0623 \u0627\u0631\u0633\u0627\u0644 \u0648 \u0622\u062F\u0631\u0633.';
+    displayName: '\u0627\u0633\u062A\u0627\u0646';
+    pluralName: 'provinces';
+    singularName: 'province';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    cities: Schema.Attribute.Relation<'oneToMany', 'api::city.city'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    externalId: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 1;
+        },
+        number
+      >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::province.province'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiQuranSubjectQuranSubject
   extends Struct.CollectionTypeSchema {
   collectionName: 'quran_subjects';
@@ -1652,15 +1727,8 @@ export interface ApiShippingOriginShippingOrigin
     draftAndPublish: false;
   };
   attributes: {
-    cityId: Schema.Attribute.Integer &
-      Schema.Attribute.Required &
-      Schema.Attribute.SetMinMax<
-        {
-          min: 1;
-        },
-        number
-      >;
-    cityName: Schema.Attribute.String & Schema.Attribute.Required;
+    city: Schema.Attribute.Relation<'manyToOne', 'api::city.city'> &
+      Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1674,7 +1742,6 @@ export interface ApiShippingOriginShippingOrigin
     originId: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
-    products: Schema.Attribute.Relation<'oneToMany', 'api::product.product'>;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -2504,6 +2571,7 @@ declare module '@strapi/strapi' {
       'api::byemoney-cart.byemoney-cart': ApiByemoneyCartByemoneyCart;
       'api::byemoney-purchase-log.byemoney-purchase-log': ApiByemoneyPurchaseLogByemoneyPurchaseLog;
       'api::category.category': ApiCategoryCategory;
+      'api::city.city': ApiCityCity;
       'api::comment.comment': ApiCommentComment;
       'api::contact-message.contact-message': ApiContactMessageContactMessage;
       'api::coupon.coupon': ApiCouponCoupon;
@@ -2520,6 +2588,7 @@ declare module '@strapi/strapi' {
       'api::order.order': ApiOrderOrder;
       'api::popup-message.popup-message': ApiPopupMessagePopupMessage;
       'api::product.product': ApiProductProduct;
+      'api::province.province': ApiProvinceProvince;
       'api::quran-subject.quran-subject': ApiQuranSubjectQuranSubject;
       'api::salek-guide.salek-guide': ApiSalekGuideSalekGuide;
       'api::service.service': ApiServiceService;
