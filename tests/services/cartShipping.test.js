@@ -74,11 +74,13 @@ describe('cartShipping (SHIP-COST-MODE)', () => {
       strapi,
       [product(50)],
       { city: 'تهران', province: 'تهران' },
-      { fetchImpl },
+      { fetchImpl, fromCityId: 573 },
     );
 
     expect(result).toEqual({ shippingAmountInNoor: 335, shippingRuleLabel: 'برآورد پستکس' });
     expect(fetchImpl).toHaveBeenCalled();
+    const quoteCall = fetchImpl.mock.calls.find(([url]) => String(url).includes('shipping/quotes'));
+    expect(JSON.parse(quoteCall[1].body).from_city_code).toBe(573);
   });
 
   it('skips postex call when free-shipping threshold is met', async () => {
@@ -94,7 +96,7 @@ describe('cartShipping (SHIP-COST-MODE)', () => {
       strapi,
       [product(120)],
       { city: 'تهران' },
-      { fetchImpl },
+      { fetchImpl, fromCityId: 259 },
     );
 
     expect(result).toEqual({ shippingAmountInNoor: 0, shippingRuleLabel: 'ارسال رایگان' });
@@ -102,6 +104,14 @@ describe('cartShipping (SHIP-COST-MODE)', () => {
   });
 
   it('conflicts when postex mode has no API key', async () => {
+    const strapi = settingsQuery({ costMode: 'postex' });
+    await expect(
+      cartShipping.calculate(strapi, [product(10)], { city: 'تهران' }, { fromCityId: 573 }),
+    ).rejects.toMatchObject({ code: 'CART_CONFLICT', status: 409 });
+  });
+
+  it('conflicts when postex mode has no fromCityId', async () => {
+    process.env.POSTEX_API_KEY = 'test-key';
     const strapi = settingsQuery({ costMode: 'postex' });
     await expect(
       cartShipping.calculate(strapi, [product(10)], { city: 'تهران' }),
@@ -126,8 +136,9 @@ describe('cartShipping (SHIP-COST-MODE)', () => {
         strapi,
         [product(10)],
         { city: 'مشهد', province: 'خراسان رضوی' },
-        { fetchImpl },
+        { fetchImpl, fromCityId: 573 },
       ),
     ).rejects.toMatchObject({ code: 'CART_CONFLICT', status: 409 });
   });
 });
+

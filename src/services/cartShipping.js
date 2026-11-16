@@ -53,6 +53,11 @@ async function calculatePostex(settings, subtotal, addressSnapshot, overrides = 
     conflict('برآورد هزینهٔ ارسال از پستکس ممکن نیست؛ کلید دسترسی تنظیم نشده است.');
   }
 
+  const fromCityId = Number(overrides.fromCityId);
+  if (!Number.isSafeInteger(fromCityId) || fromCityId < 1) {
+    conflict('مبدأ ارسال برای برآورد پستکس معتبر نیست.');
+  }
+
   const rate = settings?.rialPerNoorForShipping != null
     ? settings.rialPerNoorForShipping
     : DEFAULT_RIAL_PER_NOOR;

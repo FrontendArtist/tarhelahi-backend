@@ -72,6 +72,12 @@
       "type": "boolean",
       "default": true
     },
+    "shippingOrigin": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::shipping-origin.shipping-origin",
+      "inversedBy": "products"
+    },
     "categories": {
       "type": "relation",
       "relation": "manyToMany",

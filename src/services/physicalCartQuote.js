@@ -5,6 +5,7 @@ const { discountedPrice } = require('../api/order/services/checkout-pricing');
 const { resolveItem, assertOwnership } = require('./chapterCatalog');
 const stock = require('./stockReservation');
 const shipping = require('./cartShipping');
+const shippingOrigins = require('./shippingOrigins');
 
 function invalid(message) {
   const error = new Error(message);
@@ -89,6 +90,7 @@ function money(value) {
 async function quote(strapi, input, items, buyer, address) {
   const rows = [];
   const couponItems = [];
+  const productRecords = [];
   let itemDiscountInNoor = 0;
   for (const item of items) {
     let record;
@@ -97,6 +99,7 @@ async function quote(strapi, input, items, buyer, address) {
     let price;
     if (item.type === 'product') {
       record = await stock.assertPublished(strapi, item);
+      productRecords.push(record);
       const availableQuantity = await stock.available(strapi, item.externalId);
       if (availableQuantity < item.quantity) {
         stock.lineFailure(item, availableQuantity === 0 ? 'OUT_OF_STOCK' : 'INSUFFICIENT_STOCK', availableQuantity);
@@ -174,7 +177,13 @@ async function quote(strapi, input, items, buyer, address) {
       }
     }
   }
-  const delivery = await shipping.calculate(strapi, rows, address.addressSnapshot);
+  const origin = shippingOrigins.resolveCartOrigin(productRecords);
+  const delivery = await shipping.calculate(
+    strapi,
+    rows,
+    address.addressSnapshot,
+    origin ? { fromCityId: origin.cityId } : {},
+  );
   const priceInNoor = money(originalTotalInNoor - itemDiscountInNoor - couponDiscountInNoor + delivery.shippingAmountInNoor);
   const quotedItems = rows.map((row, index) => {
     const rowCatalogDiscount = (row.unitPriceInNoor - row.discountedUnitPriceInNoor) * row.quantity;
@@ -204,6 +213,8 @@ async function quote(strapi, input, items, buyer, address) {
     couponDiscountInNoor,
     ...delivery,
     ...address,
+    shippingOriginId: origin?.originId ?? null,
+    shippingOriginLabel: origin?.displayName ?? null,
     priceInNoor,
   };
 }

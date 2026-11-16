@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "shipping_origins",
+  "info": {
+    "singularName": "shipping-origin",
+    "pluralName": "shipping-origins",
+    "displayName": "مبدأ ارسال",
+    "description": "انبار/مبدأ ارسال کالا؛ شناسه با بای‌مانی مشترک است (SHIP-MULTI-ORIGIN)."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "originId": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "regex": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "displayName": {
+      "type": "string",
+      "required": true
+    },
+    "cityId": {
+      "type": "integer",
+      "required": true,
+      "min": 1
+    },
+    "cityName": {
+      "type": "string",
+      "required": true
+    },
+    "products": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::product.product",
+      "mappedBy": "shippingOrigin"
+    }
+  }
+}

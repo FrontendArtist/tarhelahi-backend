@@ -187,6 +187,15 @@ module.exports = {
     const { getThresholdMinutes } = require('./services/gatewayReviewRecovery');
     await getThresholdMinutes(strapi);
 
+    try {
+      const { ensureDefaultOrigin } = require('./services/shippingOrigins');
+      await ensureDefaultOrigin(strapi);
+    } catch (error) {
+      strapi.log.warn(
+        `[ShippingOrigin] ensureDefaultOrigin skipped: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+
     const uploadPlugin = strapi.plugin('upload');
     if (!uploadPlugin) return;
 

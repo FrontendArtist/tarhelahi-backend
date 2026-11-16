@@ -1,12 +1,13 @@
 'use strict';
 
 /**
- * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE).
- * نگاشت شهر از cities/all؛ مبدأ پیش‌فرض رامسر (city_id=573) تا SHIP-MULTI-ORIGIN.
+ * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE / SHIP-MULTI-ORIGIN).
+ * نگاشت شهر از cities/all؛ from_city از مبدأ کالای سبد می‌آید (نه ثابت اپ).
  */
 
 const DEFAULT_BASE_URL = 'https://api.postex.ir';
-const DEFAULT_FROM_CITY_ID = 573; // رامسر — هم‌راستا با Postex:Sender در بای‌مانی
+/** فقط برای آزمون‌های قدیمی؛ مسیر زنده باید fromCityId مبدأ کالا را بدهد. */
+const DEFAULT_FROM_CITY_ID = 573;
 const DEFAULT_COURIER = 'IR_POST';
 const DEFAULT_SERVICE_TYPE = 'EXPRESS';
 const DEFAULT_BOX_TYPE_ID = 5;

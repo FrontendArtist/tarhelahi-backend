@@ -1481,6 +1481,10 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     price: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
     purchasePrice: Schema.Attribute.Decimal;
+    shippingOrigin: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::shipping-origin.shipping-origin'
+    >;
     shortDescription: Schema.Attribute.Text;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     specifications: Schema.Attribute.JSON;
@@ -1629,6 +1633,49 @@ export interface ApiSettlementSettlement extends Struct.CollectionTypeSchema {
     settledAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     totalAmount: Schema.Attribute.BigInteger & Schema.Attribute.DefaultTo<'0'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiShippingOriginShippingOrigin
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'shipping_origins';
+  info: {
+    description: '\u0627\u0646\u0628\u0627\u0631/\u0645\u0628\u062F\u0623 \u0627\u0631\u0633\u0627\u0644 \u06A9\u0627\u0644\u0627\u061B \u0634\u0646\u0627\u0633\u0647 \u0628\u0627 \u0628\u0627\u06CC\u200C\u0645\u0627\u0646\u06CC \u0645\u0634\u062A\u0631\u06A9 \u0627\u0633\u062A (SHIP-MULTI-ORIGIN).';
+    displayName: '\u0645\u0628\u062F\u0623 \u0627\u0631\u0633\u0627\u0644';
+    pluralName: 'shipping-origins';
+    singularName: 'shipping-origin';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    cityId: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 1;
+        },
+        number
+      >;
+    cityName: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    displayName: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::shipping-origin.shipping-origin'
+    > &
+      Schema.Attribute.Private;
+    originId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    products: Schema.Attribute.Relation<'oneToMany', 'api::product.product'>;
+    publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -2477,6 +2524,7 @@ declare module '@strapi/strapi' {
       'api::salek-guide.salek-guide': ApiSalekGuideSalekGuide;
       'api::service.service': ApiServiceService;
       'api::settlement.settlement': ApiSettlementSettlement;
+      'api::shipping-origin.shipping-origin': ApiShippingOriginShippingOrigin;
       'api::shipping-setting.shipping-setting': ApiShippingSettingShippingSetting;
       'api::social.social': ApiSocialSocial;
       'api::surah.surah': ApiSurahSurah;
