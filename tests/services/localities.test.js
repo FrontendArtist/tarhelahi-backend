@@ -1,0 +1,106 @@
+'use strict';
+
+const localities = require('../../src/services/localities');
+
+function compareFa(left, right) {
+  return left.localeCompare(right, 'fa');
+}
+
+describe('localities', () => {
+  it('returns an empty catalog when the tables have no provinces', async () => {
+    const findMany = jest.fn(async () => []);
+    const strapi = { db: { query: () => ({ findMany }) } };
+
+    await expect(localities.listPublic(strapi)).resolves.toEqual([]);
+    expect(findMany).toHaveBeenCalledWith({
+      select: ['name'],
+      populate: { cities: { select: ['name'] } },
+    });
+  });
+
+  it('returns sorted names only, without ids or carrier ids', async () => {
+    const findMany = jest.fn(async () => [
+      {
+        id: 8,
+        externalId: 2,
+        name: ' تهران ',
+        cities: [
+          { id: 3, externalId: 100, name: 'ری' },
+          { id: 4, externalId: 101, name: ' تهران ' },
+          { id: 5, externalId: 102, name: '   ' },
+        ],
+      },
+      {
+        id: 1,
+        externalId: 9,
+        name: 'آذربایجان شرقی',
+        cities: [{ id: 9, externalId: 200, name: 'تبریز' }],
+      },
+      { id: 4, externalId: 4, name: '   ', cities: [{ id: 1, externalId: 1, name: 'بی‌نام' }] },
+    ]);
+    const strapi = { db: { query: () => ({ findMany }) } };
+
+    const result = await localities.listPublic(strapi);
+
+    expect(result).toEqual([
+      { name: 'آذربایجان شرقی', cities: ['تبریز'] },
+      { name: 'تهران', cities: ['تهران', 'ری'] },
+    ]);
+    expect(result.map((row) => row.name)).toEqual([...result.map((row) => row.name)].sort(compareFa));
+    expect(result[1].cities).toEqual([...result[1].cities].sort(compareFa));
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('externalId');
+    expect(serialized).not.toContain('"id"');
+    expect(result[0]).toEqual({ name: expect.any(String), cities: expect.any(Array) });
+  });
+
+  it('accepts an official province/city pair and rejects every other combination', async () => {
+    const provinces = [
+      { id: 1, name: 'مازندران', externalId: 2 },
+      { id: 2, name: 'تهران', externalId: 8 },
+      { id: 3, name: 'تهران', externalId: 18 },
+    ];
+    const cities = [
+      { id: 10, name: 'رامسر', provinceId: 1, externalId: 573 },
+      { id: 11, name: 'ساری', provinceId: 1, externalId: 555 },
+      { id: 12, name: 'ری', provinceId: 3, externalId: 301 },
+    ];
+    const strapi = {
+      db: {
+        query(uid) {
+          if (uid === localities.PROVINCE_UID) {
+            return {
+              findMany: async ({ where, select } = {}) => {
+                expect(select).toEqual(['id']);
+                return provinces.filter((row) => row.name === where.name);
+              },
+            };
+          }
+          if (uid === localities.CITY_UID) {
+            return {
+              findOne: async ({ where, select } = {}) => {
+                expect(select).toEqual(['id']);
+                const ids = where.province.id.$in;
+                return cities.find((row) => row.name === where.name && ids.includes(row.provinceId)) || null;
+              },
+            };
+          }
+          throw new Error(`unexpected uid ${uid}`);
+        },
+      },
+    };
+
+    await expect(localities.assertOfficialPair(strapi, '  مازندران  ', ' رامسر ')).resolves.toBeUndefined();
+    await expect(localities.assertOfficialPair(strapi, 'تهران', 'ری')).resolves.toBeUndefined();
+    await expect(localities.matchesOfficialPair(strapi, 'مازندران', 'تهران')).resolves.toBe(false);
+    await expect(localities.assertOfficialPair(strapi, 'مازندران', 'تهران')).rejects.toMatchObject({
+      name: 'ValidationError',
+      message: localities.INVALID_PAIR_MESSAGE,
+    });
+    await expect(localities.assertOfficialPair(strapi, 'گیلان', 'رشت')).rejects.toMatchObject({
+      name: 'ValidationError',
+    });
+    await expect(localities.matchesOfficialPair(strapi, '   ', 'رامسر')).resolves.toBe(false);
+    await expect(localities.matchesOfficialPair(strapi, 2, 'رامسر')).resolves.toBe(false);
+  });
+});
