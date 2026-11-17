@@ -4,56 +4,34 @@ const lifecycles = require('../../../src/api/address/content-types/address/lifec
 const localities = require('../../../src/services/localities');
 
 function createStrapi() {
-  const provinces = [
-    { id: 1, name: 'مازندران' },
-    { id: 2, name: 'تهران' },
-  ];
   const cities = [
-    { id: 10, name: 'رامسر', provinceId: 1 },
-    { id: 11, name: 'ساری', provinceId: 1 },
-    { id: 12, name: 'ری', provinceId: 2 },
-  ];
-  const addresses = [
     {
-      id: 7,
-      province: 'مازندران',
-      city: 'رامسر',
-      postalCode: '1111111111',
-      fullAddress: 'خیابان قدیم',
-      recipientName: 'علی',
-      recipientPhone: '09120000000',
+      id: 10,
+      documentId: 'city-ramsar',
+      name: 'رامسر',
+      externalId: 573,
+      province: { name: 'مازندران' },
+    },
+    {
+      id: 12,
+      documentId: 'city-rey',
+      name: 'ری',
+      externalId: 301,
+      province: { name: 'تهران' },
     },
   ];
-  const calls = [];
 
   const strapi = {
     db: {
       query(uid) {
-        if (uid === localities.PROVINCE_UID) {
-          return {
-            findMany: async ({ where } = {}) => {
-              calls.push('province');
-              return provinces.filter((row) => !where?.name || row.name === where.name);
-            },
-          };
-        }
         if (uid === localities.CITY_UID) {
           return {
-            findOne: async ({ where } = {}) => {
-              calls.push('city');
-              const ids = where?.province?.id?.$in || [];
-              return cities.find((row) => row.name === where.name && ids.includes(row.provinceId)) || null;
-            },
-          };
-        }
-        if (uid === 'api::address.address') {
-          return {
             findOne: async ({ where, select } = {}) => {
-              calls.push(['address', where, select]);
-              const row = addresses.find((item) => item.id === where.id) || null;
-              if (!row) return null;
-              if (!select) return { ...row };
-              return Object.fromEntries(select.map((key) => [key, row[key]]));
+              expect(select).toEqual(['id', 'documentId', 'name']);
+              const row = cities.find((city) => (
+                where.documentId ? city.documentId === where.documentId : city.id === where.id
+              ));
+              return row ? { ...row, province: { ...row.province } } : null;
             },
           };
         }
@@ -62,7 +40,7 @@ function createStrapi() {
     },
   };
 
-  return { strapi, calls, addresses };
+  return { strapi, cities };
 }
 
 describe('address locality lifecycle', () => {
@@ -72,12 +50,13 @@ describe('address locality lifecycle', () => {
     global.strapi = previous;
   });
 
-  it('trims and accepts an official pair on create without changing other fields', async () => {
+  it('links our city id on create and copies the official names', async () => {
     const { strapi } = createStrapi();
     global.strapi = strapi;
     const data = {
-      province: '  مازندران  ',
-      city: ' رامسر ',
+      cityLink: ' city-ramsar ',
+      province: 'نام اشتباه',
+      city: 'شهر اشتباه',
       postalCode: '1234567890',
       fullAddress: 'خیابان ساحلی',
       recipientName: 'مریم',
@@ -88,6 +67,7 @@ describe('address locality lifecycle', () => {
     await lifecycles.beforeCreate({ params: { data } });
 
     expect(data).toEqual({
+      cityLink: 10,
       province: 'مازندران',
       city: 'رامسر',
       postalCode: '1234567890',
@@ -96,118 +76,77 @@ describe('address locality lifecycle', () => {
       recipientPhone: '09121111111',
       title: 'آدرس خانه',
     });
+    expect(data.externalId).toBeUndefined();
   });
 
-  it('rejects free-text province or city on create and leaves other fields unchanged', async () => {
+  it('accepts a relation object that already carries our document id', async () => {
     const { strapi } = createStrapi();
     global.strapi = strapi;
-    const data = {
-      province: ' استان آزاد ',
-      city: ' شهر آزاد ',
-      postalCode: '1234567890',
-      fullAddress: 'خیابان آزاد',
-      recipientName: 'مریم',
-      recipientPhone: '09121111111',
-    };
+    const data = { cityLink: { connect: [{ documentId: 'city-rey' }] }, fullAddress: 'خیابان' };
+
+    await lifecycles.beforeCreate({ params: { data } });
+
+    expect(data.cityLink).toBe(12);
+    expect(data.province).toBe('تهران');
+    expect(data.city).toBe('ری');
+  });
+
+  it('rejects create without our city id and does not keep typed names', async () => {
+    const { strapi } = createStrapi();
+    global.strapi = strapi;
+    const data = { province: 'مازندران', city: 'رامسر', fullAddress: 'خیابان' };
 
     await expect(lifecycles.beforeCreate({ params: { data } })).rejects.toMatchObject({
       name: 'ValidationError',
-      message: localities.INVALID_PAIR_MESSAGE,
+      message: localities.CITY_REQUIRED_MESSAGE,
     });
-    expect(data).toEqual({
-      province: 'استان آزاد',
-      city: 'شهر آزاد',
-      postalCode: '1234567890',
-      fullAddress: 'خیابان آزاد',
-      recipientName: 'مریم',
-      recipientPhone: '09121111111',
-    });
+    expect(data).toEqual({ province: 'مازندران', city: 'رامسر', fullAddress: 'خیابان' });
   });
 
-  it('rejects a city that belongs to another province', async () => {
+  it('rejects an unknown city id', async () => {
     const { strapi } = createStrapi();
     global.strapi = strapi;
-    const data = { province: 'مازندران', city: 'ری', fullAddress: 'خیابان' };
+    const data = { cityLink: 'missing-city', fullAddress: 'خیابان' };
 
     await expect(lifecycles.beforeCreate({ params: { data } })).rejects.toMatchObject({
       name: 'ValidationError',
+      message: localities.CITY_REQUIRED_MESSAGE,
     });
     expect(data.fullAddress).toBe('خیابان');
   });
 
-  it('rejects non-string province or city values', async () => {
+  it('rewrites names when the linked city changes', async () => {
     const { strapi } = createStrapi();
     global.strapi = strapi;
-    const data = { province: 1, city: 'رامسر', fullAddress: 'خیابان' };
-
-    await expect(lifecycles.beforeCreate({ params: { data } })).rejects.toMatchObject({
-      name: 'ValidationError',
-    });
-    expect(data).toEqual({ province: 1, city: 'رامسر', fullAddress: 'خیابان' });
-  });
-
-  it('accepts an official pair on update and trims only those fields', async () => {
-    const { strapi, calls } = createStrapi();
-    global.strapi = strapi;
-    const data = {
-      province: ' تهران ',
-      city: ' ری ',
-      postalCode: '2222222222',
-      fullAddress: 'خیابان جدید',
-    };
+    const data = { cityLink: 'city-rey', province: 'مازندران', city: 'رامسر', postalCode: '2222222222' };
 
     await lifecycles.beforeUpdate({ params: { data, where: { id: 7 } } });
 
     expect(data).toEqual({
+      cityLink: 12,
       province: 'تهران',
       city: 'ری',
       postalCode: '2222222222',
-      fullAddress: 'خیابان جدید',
     });
-    expect(calls.some((call) => Array.isArray(call) && call[0] === 'address')).toBe(false);
   });
 
-  it('rejects a free-text city on update', async () => {
+  it('rejects a name-only update', async () => {
     const { strapi } = createStrapi();
     global.strapi = strapi;
-    const data = { province: 'مازندران', city: 'نوشهر', recipientPhone: '09120000000' };
+    const data = { city: 'ری', recipientPhone: '09120000000' };
 
     await expect(lifecycles.beforeUpdate({ params: { data, where: { id: 7 } } })).rejects.toMatchObject({
       name: 'ValidationError',
-      message: localities.INVALID_PAIR_MESSAGE,
+      message: localities.CITY_REQUIRED_MESSAGE,
     });
-    expect(data).toEqual({ province: 'مازندران', city: 'نوشهر', recipientPhone: '09120000000' });
-  });
-
-  it('checks a partial city change against the stored province and does not write the province back', async () => {
-    const { strapi, calls } = createStrapi();
-    global.strapi = strapi;
-    const data = { city: ' ساری ', postalCode: '3333333333' };
-
-    await lifecycles.beforeUpdate({ params: { data, where: { id: 7 } } });
-
-    expect(data).toEqual({ city: 'ساری', postalCode: '3333333333' });
-    expect(calls).toContainEqual(['address', { id: 7 }, ['province', 'city']]);
-  });
-
-  it('rejects a partial city change that does not belong to the stored province', async () => {
-    const { strapi, addresses } = createStrapi();
-    global.strapi = strapi;
-    const data = { city: 'ری' };
-
-    await expect(lifecycles.beforeUpdate({ params: { data, where: { id: 7 } } })).rejects.toMatchObject({
-      name: 'ValidationError',
-    });
-    expect(data).toEqual({ city: 'ری' });
-    expect(addresses[0].province).toBe('مازندران');
-    expect(addresses[0].fullAddress).toBe('خیابان قدیم');
+    expect(data).toEqual({ city: 'ری', recipientPhone: '09120000000' });
   });
 
   it('leaves an update of other address fields alone', async () => {
     global.strapi = {
       db: {
         query() {
-          throw new Error('locality tables should not be read');
+          throw new Error('city table should not be read');
         },
       },
     };

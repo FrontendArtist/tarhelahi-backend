@@ -43,7 +43,10 @@ function selection(input) {
 async function buyerProfile(strapi, externalId) {
   const buyer = await strapi.db.query('plugin::users-permissions.user').findOne({
     where: { documentId: externalId },
-    populate: ['courses', 'address'],
+    populate: {
+      courses: true,
+      address: { populate: { cityLink: { populate: { province: true } } } },
+    },
   });
   if (!buyer || !buyer.confirmed || buyer.blocked) {
     stock.conflict('خریدار معتبر و فعال نیست.');
@@ -58,9 +61,16 @@ function addressOf(buyer, items, isPreview = false) {
   if (buyer.is_foreigner === true) {
     stock.conflict('فعلاً پشتیبانی نمی‌شود');
   }
-  const addressSnapshot = {};
+  const link = buyer.address?.cityLink;
+  const cityDocumentId = typeof link?.documentId === 'string' ? link.documentId.trim() : '';
+  const linkedProvince = typeof link?.province?.name === 'string' ? link.province.name.trim() : '';
+  const linkedCity = typeof link?.name === 'string' ? link.name.trim() : '';
+  if (!cityDocumentId || !linkedProvince || !linkedCity) {
+    invalid('شهر آدرس باید از فهرست شهرها انتخاب شود.');
+  }
+  const addressSnapshot = { province: linkedProvince, city: linkedCity, cityDocumentId };
   let isComplete = true;
-  for (const field of ['province', 'city', 'postalCode', 'fullAddress', 'recipientName', 'recipientPhone']) {
+  for (const field of ['postalCode', 'fullAddress', 'recipientName', 'recipientPhone']) {
     const value = buyer.address?.[field];
     if (field === 'postalCode' && (value == null || value === '')) {
       addressSnapshot[field] = null;

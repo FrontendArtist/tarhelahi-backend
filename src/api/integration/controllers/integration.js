@@ -319,6 +319,28 @@ module.exports = {
   },
 
   /**
+   * POST /api/integrations/byemoney/v1/localities/carrier-code
+   * Service read: our city documentId, or an exact stored name pair, to the carrier code on that row.
+   */
+  async carrierCityCode(ctx) {
+    const localities = require('../../../services/localities');
+    const body = ctx.request.body || {};
+    const hasDocumentId = typeof body.cityDocumentId === 'string' && body.cityDocumentId.trim().length > 0;
+    const hasName = typeof body.province === 'string' || typeof body.city === 'string';
+    if (body.cityDocumentId != null && typeof body.cityDocumentId !== 'string') {
+      return ctx.badRequest('شناسهٔ شهر معتبر نیست.');
+    }
+    if (!hasDocumentId && !hasName) {
+      return ctx.badRequest('شناسهٔ شهر یا نام دقیق استان و شهر لازم است.');
+    }
+    const carrierCityCode = await localities.carrierCityCode(strapi, body);
+    if (carrierCityCode == null) {
+      return ctx.notFound('شهر در جدول محل یافت نشد.');
+    }
+    ctx.body = { carrierCityCode };
+  },
+
+  /**
    * POST /api/integrations/byemoney/v1/purchases/confirm
    * Receives course purchase confirmation webhook from ByeMoney.
    * Grants user access to the course idempotently.

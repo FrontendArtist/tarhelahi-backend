@@ -45,7 +45,7 @@ describe('GET /localities route', () => {
     expect(ctx.body).toEqual({ data: [] });
   });
 
-  it('returns the name catalog without ids, carrier ids, or pagination meta', async () => {
+  it('returns names and our city id without carrier ids or pagination meta', async () => {
     global.strapi = {
       db: {
         query: () => ({
@@ -55,15 +55,15 @@ describe('GET /localities route', () => {
               externalId: 8,
               name: 'تهران',
               cities: [
-                { id: 4, externalId: 101, name: 'ری' },
-                { id: 3, externalId: 100, name: 'تهران' },
+                { id: 4, documentId: 'city-rey', externalId: 101, name: 'ری' },
+                { id: 3, documentId: 'city-tehran', externalId: 100, name: 'تهران' },
               ],
             },
             {
               id: 1,
               externalId: 1,
               name: 'مازندران',
-              cities: [{ id: 10, externalId: 573, name: 'رامسر' }],
+              cities: [{ id: 10, documentId: 'city-ramsar', externalId: 573, name: 'رامسر' }],
             },
           ],
         }),
@@ -75,8 +75,14 @@ describe('GET /localities route', () => {
 
     expect(ctx.body).toEqual({
       data: [
-        { name: 'تهران', cities: ['تهران', 'ری'] },
-        { name: 'مازندران', cities: ['رامسر'] },
+        {
+          name: 'تهران',
+          cities: [
+            { documentId: 'city-tehran', name: 'تهران' },
+            { documentId: 'city-rey', name: 'ری' },
+          ],
+        },
+        { name: 'مازندران', cities: [{ documentId: 'city-ramsar', name: 'رامسر' }] },
       ],
     });
     expect(ctx.body.meta).toBeUndefined();

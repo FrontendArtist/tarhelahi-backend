@@ -29,6 +29,11 @@
       "type": "string",
       "required": true
     },
+    "cityLink": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::city.city"
+    },
     "postalCode": {
       "type": "string"
     },

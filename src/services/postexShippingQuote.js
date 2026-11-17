@@ -142,15 +142,24 @@ async function fetchWithTimeout(cfg, url, init) {
 /**
  * @returns {Promise<number>} total_cost به ریال (صحیح)
  */
-async function quoteTotalCostIrr({ cityName, provinceName, parcelValueIrr, weightGrams }, overrides = {}) {
+async function quoteTotalCostIrr({ cityName, provinceName, toCityCode, parcelValueIrr, weightGrams }, overrides = {}) {
   const cfg = configFromEnv(overrides);
   if (!cfg.apiKey) {
     throw new Error('کلید دسترسی پستکس تنظیم نشده است.');
   }
 
-  const toCityId = await resolveCityId(cityName, provinceName, cfg);
-  if (toCityId == null) {
-    throw new Error(`شهر گیرنده «${cityName || 'نامشخص'}» در فهرست پستکس یافت نشد.`);
+  let toCityId;
+  if (toCityCode != null) {
+    const direct = Number(toCityCode);
+    if (!Number.isSafeInteger(direct) || direct < 1) {
+      throw new Error('شناسهٔ محل گیرنده معتبر نیست.');
+    }
+    toCityId = direct;
+  } else {
+    toCityId = await resolveCityId(cityName, provinceName, cfg);
+    if (toCityId == null) {
+      throw new Error(`شهر گیرنده «${cityName || 'نامشخص'}» در فهرست پستکس یافت نشد.`);
+    }
   }
 
   const value = Number.isSafeInteger(Number(parcelValueIrr)) && Number(parcelValueIrr) > 0

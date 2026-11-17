@@ -3,12 +3,17 @@
 const cartShipping = require('../../src/services/cartShipping');
 const postexQuote = require('../../src/services/postexShippingQuote');
 
-function settingsQuery(settings) {
+function settingsQuery(settings, cities = []) {
   return {
     db: {
-      query: jest.fn().mockReturnValue({
-        findOne: jest.fn().mockResolvedValue(settings),
-      }),
+      query(uid) {
+        if (uid === 'api::city.city') {
+          return {
+            findOne: async ({ where } = {}) => cities.find((city) => city.documentId === where?.documentId) || null,
+          };
+        }
+        return { findOne: async () => settings };
+      },
     },
   };
 }
@@ -49,38 +54,32 @@ describe('cartShipping (SHIP-COST-MODE)', () => {
     expect(result).toEqual({ shippingAmountInNoor: 25, shippingRuleLabel: 'ارسال ثابت داخلی' });
   });
 
-  it('quotes postex total_cost and ceilings to whole Noor', async () => {
+  it('quotes postex total_cost from the linked city row and ceilings to whole Noor', async () => {
     process.env.POSTEX_API_KEY = 'test-key';
-    const fetchImpl = jest.fn(async (url) => {
-      if (String(url).includes('cities/all')) {
-        return {
-          ok: true,
-          json: async () => [{ cities: [{ id: 1, name: 'تهران' }] }],
-        };
-      }
-      return {
-        ok: true,
-        text: async () => JSON.stringify({ total_cost: 3342000 }),
-      };
-    });
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ total_cost: 3342000 }),
+    }));
 
     const strapi = settingsQuery({
       costMode: 'postex',
       rialPerNoorForShipping: 10000,
       freeShippingThresholdInNoor: 1000,
-    });
+    }, [{ documentId: 'city-tehran', externalId: 100 }]);
 
     const result = await cartShipping.calculate(
       strapi,
       [product(50)],
-      { city: 'تهران', province: 'تهران' },
+      { city: 'تهران', province: 'تهران', cityDocumentId: 'city-tehran' },
       { fetchImpl, fromCityId: 573 },
     );
 
     expect(result).toEqual({ shippingAmountInNoor: 335, shippingRuleLabel: 'برآورد پستکس' });
-    expect(fetchImpl).toHaveBeenCalled();
     const quoteCall = fetchImpl.mock.calls.find(([url]) => String(url).includes('shipping/quotes'));
-    expect(JSON.parse(quoteCall[1].body).from_city_code).toBe(573);
+    const body = JSON.parse(quoteCall[1].body);
+    expect(body.from_city_code).toBe(573);
+    expect(body.parcels[0].to_city_code).toBe(100);
+    expect(fetchImpl.mock.calls.some(([url]) => String(url).includes('cities/all'))).toBe(false);
   });
 
   it('skips postex call when free-shipping threshold is met', async () => {
@@ -118,24 +117,35 @@ describe('cartShipping (SHIP-COST-MODE)', () => {
     ).rejects.toMatchObject({ code: 'CART_CONFLICT', status: 409 });
   });
 
+  it('conflicts when the snapshot has no city in our table', async () => {
+    process.env.POSTEX_API_KEY = 'test-key';
+    const strapi = settingsQuery({ costMode: 'postex', rialPerNoorForShipping: 10000 });
+    await expect(
+      cartShipping.calculate(
+        strapi,
+        [product(10)],
+        { city: 'تهران', province: 'تهران', cityDocumentId: 'missing' },
+        { fromCityId: 573 },
+      ),
+    ).rejects.toMatchObject({ code: 'CART_CONFLICT', status: 409 });
+  });
+
   it('conflicts when postex quote fails', async () => {
     process.env.POSTEX_API_KEY = 'test-key';
-    const fetchImpl = jest.fn(async (url) => {
-      if (String(url).includes('cities/all')) {
-        return {
-          ok: true,
-          json: async () => [{ cities: [{ id: 259, name: 'مشهد' }] }],
-        };
-      }
-      return { ok: false, text: async () => JSON.stringify({ message: 'قطع موقت' }) };
-    });
-    const strapi = settingsQuery({ costMode: 'postex', rialPerNoorForShipping: 10000 });
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      text: async () => JSON.stringify({ message: 'قطع موقت' }),
+    }));
+    const strapi = settingsQuery(
+      { costMode: 'postex', rialPerNoorForShipping: 10000 },
+      [{ documentId: 'city-mashhad', externalId: 259 }],
+    );
 
     await expect(
       cartShipping.calculate(
         strapi,
         [product(10)],
-        { city: 'مشهد', province: 'خراسان رضوی' },
+        { city: 'مشهد', province: 'خراسان رضوی', cityDocumentId: 'city-mashhad' },
         { fetchImpl, fromCityId: 573 },
       ),
     ).rejects.toMatchObject({ code: 'CART_CONFLICT', status: 409 });

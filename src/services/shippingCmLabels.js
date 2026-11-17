@@ -20,6 +20,9 @@ const LABEL_PATCHES = {
   'api::product.product': {
     shippingOrigin: 'مبدأ ارسال',
   },
+  'api::address.address': {
+    cityLink: 'شهر',
+  },
   'api::province.province': {
     externalId: 'شناسه محل',
     name: 'نام استان',

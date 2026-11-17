@@ -2,6 +2,7 @@
 
 const { conflict } = require('./stockReservation');
 const postexQuote = require('./postexShippingQuote');
+const localities = require('./localities');
 
 const MODE_FIXED = 'fixed';
 const MODE_POSTEX = 'postex';
@@ -42,7 +43,7 @@ async function calculateFixed(settings, subtotal) {
   return { shippingAmountInNoor: Number(fixedAmount), shippingRuleLabel: 'ارسال ثابت داخلی' };
 }
 
-async function calculatePostex(settings, subtotal, addressSnapshot, overrides = {}) {
+async function calculatePostex(strapi, settings, subtotal, addressSnapshot, overrides = {}) {
   const threshold = settings?.freeShippingThresholdInNoor;
   assertThreshold(threshold);
   if (threshold != null && subtotal >= Number(threshold)) {
@@ -64,14 +65,17 @@ async function calculatePostex(settings, subtotal, addressSnapshot, overrides = 
   // ارزش اظهارشده ≈ جمع نور کالا × نرخ؛ کف پیش‌فرض عملیاتی پستکس (۵۰ میلیون ریال).
   const parcelValueIrr = Math.max(50_000_000, Math.round(subtotal * Number(rate)));
 
+  const toCityCode = await localities.carrierCityCode(strapi, {
+    cityDocumentId: addressSnapshot?.cityDocumentId,
+  });
+  if (toCityCode == null) {
+    conflict('شهر گیرنده در جدول محل یافت نشد.');
+  }
+
   let totalIrr;
   try {
     totalIrr = await postexQuote.quoteTotalCostIrr(
-      {
-        cityName: addressSnapshot.city,
-        provinceName: addressSnapshot.province,
-        parcelValueIrr,
-      },
+      { toCityCode, parcelValueIrr },
       overrides,
     );
   } catch (error) {
@@ -100,7 +104,7 @@ async function calculate(strapi, items, addressSnapshot, overrides = {}) {
   const mode = readMode(settings);
 
   if (mode === MODE_POSTEX) {
-    return calculatePostex(settings, subtotal, addressSnapshot, overrides);
+    return calculatePostex(strapi, settings, subtotal, addressSnapshot, overrides);
   }
   return calculateFixed(settings, subtotal);
 }

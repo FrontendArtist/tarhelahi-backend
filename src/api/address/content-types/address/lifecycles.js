@@ -1,47 +1,41 @@
 'use strict';
 
+const { errors } = require('@strapi/utils');
 const localities = require('../../../../services/localities');
-
-const ADDRESS_UID = 'api::address.address';
 
 function has(data, key) {
   return Object.prototype.hasOwnProperty.call(data, key);
+}
+
+async function applyCityLink(data) {
+  const city = await localities.loadLinkedCity(strapi, data.cityLink);
+  if (!city) {
+    throw new errors.ValidationError(localities.CITY_REQUIRED_MESSAGE);
+  }
+  data.cityLink = city.id;
+  data.province = city.provinceName;
+  data.city = city.name;
 }
 
 module.exports = {
   async beforeCreate(event) {
     const data = event?.params?.data;
     if (!data || typeof data !== 'object') {
-      await localities.assertOfficialPair(strapi, '', '');
-      return;
+      throw new errors.ValidationError(localities.CITY_REQUIRED_MESSAGE);
     }
-    if (typeof data.province === 'string') data.province = data.province.trim();
-    if (typeof data.city === 'string') data.city = data.city.trim();
-    await localities.assertOfficialPair(strapi, data.province, data.city);
+    await applyCityLink(data);
   },
 
   async beforeUpdate(event) {
     const data = event?.params?.data;
     if (!data || typeof data !== 'object') return;
 
-    const touchesProvince = has(data, 'province');
-    const touchesCity = has(data, 'city');
-    if (!touchesProvince && !touchesCity) return;
-
-    if (touchesProvince && typeof data.province === 'string') data.province = data.province.trim();
-    if (touchesCity && typeof data.city === 'string') data.city = data.city.trim();
-
-    let provinceName = touchesProvince ? data.province : undefined;
-    let cityName = touchesCity ? data.city : undefined;
-    if (!touchesProvince || !touchesCity) {
-      const existing = await strapi.db.query(ADDRESS_UID).findOne({
-        where: event.params.where,
-        select: ['province', 'city'],
-      });
-      if (!touchesProvince) provinceName = existing?.province;
-      if (!touchesCity) cityName = existing?.city;
+    const touchesLink = has(data, 'cityLink');
+    const touchesNames = has(data, 'province') || has(data, 'city');
+    if (!touchesLink && !touchesNames) return;
+    if (!touchesLink) {
+      throw new errors.ValidationError(localities.CITY_REQUIRED_MESSAGE);
     }
-
-    await localities.assertOfficialPair(strapi, provinceName, cityName);
+    await applyCityLink(data);
   },
 };
