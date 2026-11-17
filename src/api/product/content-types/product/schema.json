@@ -14,6 +14,19 @@
     "weight": {
       "type": "decimal"
     },
+    "length": {
+      "type": "decimal"
+    },
+    "width": {
+      "type": "decimal"
+    },
+    "height": {
+      "type": "decimal"
+    },
+    "isFragile": {
+      "type": "boolean",
+      "default": false
+    },
     "title": {
       "type": "string",
       "required": true

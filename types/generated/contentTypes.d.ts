@@ -442,6 +442,7 @@ export interface ApiAddressAddress extends Struct.CollectionTypeSchema {
   };
   attributes: {
     city: Schema.Attribute.String & Schema.Attribute.Required;
+    cityLink: Schema.Attribute.Relation<'manyToOne', 'api::city.city'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1502,12 +1503,15 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       > &
       Schema.Attribute.DefaultTo<0>;
     discountUntil: Schema.Attribute.DateTime;
+    height: Schema.Attribute.Decimal;
     images: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios',
       true
     > &
       Schema.Attribute.Required;
     isAvailable: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    isFragile: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    length: Schema.Attribute.Decimal;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -1531,6 +1535,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     weight: Schema.Attribute.Decimal;
+    width: Schema.Attribute.Decimal;
   };
 }
 

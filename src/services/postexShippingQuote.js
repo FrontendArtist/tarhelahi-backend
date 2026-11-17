@@ -1,8 +1,9 @@
 'use strict';
 
 /**
- * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE / SHIP-MULTI-ORIGIN).
+ * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE / SHIP-PARCEL-FACTORS).
  * نگاشت شهر از cities/all؛ from_city از مبدأ کالای سبد می‌آید (نه ثابت اپ).
+ * وزن، ابعاد و ارزش از کالای واقعی می‌آید؛ box_type_id و اعداد ثابت جعبه حذف شده‌اند.
  */
 
 const DEFAULT_BASE_URL = 'https://api.postex.ir';
@@ -10,10 +11,8 @@ const DEFAULT_BASE_URL = 'https://api.postex.ir';
 const DEFAULT_FROM_CITY_ID = 573;
 const DEFAULT_COURIER = 'IR_POST';
 const DEFAULT_SERVICE_TYPE = 'EXPRESS';
-const DEFAULT_BOX_TYPE_ID = 5;
-const DEFAULT_WEIGHT_GRAMS = 250;
-const DEFAULT_PARCEL_VALUE_IRR = 50_000_000;
 const DEFAULT_TIMEOUT_MS = 12_000;
+const VALUE_FLOOR_IRR = 50_000_000;
 
 let cityCache = null;
 let cityCachePromise = null;
@@ -36,9 +35,6 @@ function configFromEnv(overrides = {}) {
     fromCityId: Number(overrides.fromCityId) || DEFAULT_FROM_CITY_ID,
     courierCode: overrides.courierCode || DEFAULT_COURIER,
     serviceType: overrides.serviceType || DEFAULT_SERVICE_TYPE,
-    boxTypeId: Number(overrides.boxTypeId) || DEFAULT_BOX_TYPE_ID,
-    weightGrams: Number(overrides.weightGrams) || DEFAULT_WEIGHT_GRAMS,
-    parcelValueIrr: Number(overrides.parcelValueIrr) || DEFAULT_PARCEL_VALUE_IRR,
     collectionType: overrides.collectionType || 'pick_up',
     timeoutMs: Number(overrides.timeoutMs) || DEFAULT_TIMEOUT_MS,
     fetchImpl: overrides.fetchImpl || globalThis.fetch,
@@ -139,35 +135,91 @@ async function fetchWithTimeout(cfg, url, init) {
   }
 }
 
+function collectFieldErrors(node, path, out) {
+  if (node == null) {
+    return;
+  }
+  if (typeof node === 'string') {
+    const text = node.trim();
+    if (text) {
+      out.push(path ? `${path}: ${text}` : text);
+    }
+    return;
+  }
+  if (Array.isArray(node)) {
+    if (node.every((entry) => typeof entry === 'string')) {
+      const joined = node.map((entry) => String(entry).trim()).filter(Boolean).join('؛ ');
+      if (joined) {
+        out.push(path ? `${path}: ${joined}` : joined);
+      }
+      return;
+    }
+    node.forEach((entry, index) => {
+      collectFieldErrors(entry, path ? `${path}[${index}]` : `[${index}]`, out);
+    });
+    return;
+  }
+  if (typeof node === 'object') {
+    for (const [key, value] of Object.entries(node)) {
+      const next = path ? `${path}.${key}` : key;
+      collectFieldErrors(value, next, out);
+    }
+  }
+}
+
+function extractErrorMessage(payload, status) {
+  if (payload && typeof payload === 'object') {
+    const parts = [];
+    const title = payload.message || payload.Message || payload.title;
+    if (typeof title === 'string' && title.trim()) {
+      parts.push(title.trim());
+    }
+    collectFieldErrors(payload.errors, '', parts);
+    collectFieldErrors(payload.invalid_fields, 'invalid_fields', parts);
+    if (parts.length > 0) {
+      return parts.join(' | ');
+    }
+  }
+  return `استعلام هزینهٔ پستکس ناموفق بود (${status}).`;
+}
+
+function assertPositiveInt(name, value) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 1) {
+    throw new Error(`${name} مرسوله معتبر نیست.`);
+  }
+  return number;
+}
+
 /**
  * @returns {Promise<number>} total_cost به ریال (صحیح)
  */
-async function quoteTotalCostIrr({ cityName, provinceName, toCityCode, parcelValueIrr, weightGrams }, overrides = {}) {
+async function quoteTotalCostIrr(input, overrides = {}) {
   const cfg = configFromEnv(overrides);
   if (!cfg.apiKey) {
     throw new Error('کلید دسترسی پستکس تنظیم نشده است.');
   }
 
   let toCityId;
-  if (toCityCode != null) {
-    const direct = Number(toCityCode);
+  if (input.toCityCode != null) {
+    const direct = Number(input.toCityCode);
     if (!Number.isSafeInteger(direct) || direct < 1) {
       throw new Error('شناسهٔ محل گیرنده معتبر نیست.');
     }
     toCityId = direct;
   } else {
-    toCityId = await resolveCityId(cityName, provinceName, cfg);
+    toCityId = await resolveCityId(input.cityName, input.provinceName, cfg);
     if (toCityId == null) {
-      throw new Error(`شهر گیرنده «${cityName || 'نامشخص'}» در فهرست پستکس یافت نشد.`);
+      throw new Error(`شهر گیرنده «${input.cityName || 'نامشخص'}» در فهرست پستکس یافت نشد.`);
     }
   }
 
-  const value = Number.isSafeInteger(Number(parcelValueIrr)) && Number(parcelValueIrr) > 0
-    ? Number(parcelValueIrr)
-    : cfg.parcelValueIrr;
-  const weight = Number.isSafeInteger(Number(weightGrams)) && Number(weightGrams) > 0
-    ? Number(weightGrams)
-    : cfg.weightGrams;
+  const weight = assertPositiveInt('وزن', input.weightGrams);
+  const length = assertPositiveInt('طول', input.lengthCm);
+  const width = assertPositiveInt('عرض', input.widthCm);
+  const height = assertPositiveInt('ارتفاع', input.heightCm);
+  const value = assertPositiveInt('ارزش', input.parcelValueIrr);
+  const isFragile = input.isFragile === true;
 
   const body = {
     collection_type: cfg.collectionType,
@@ -178,20 +230,19 @@ async function quoteTotalCostIrr({ cityName, provinceName, toCityCode, parcelVal
     },
     parcels: [
       {
-        custom_parcel_id: 'cart-shipping',
+        custom_parcel_id: input.customParcelId || 'cart-shipping',
         to_city_code: toCityId,
         payment_type: 'SENDER',
         parcel_properties: {
-          length: 15,
-          width: 10,
-          height: 5,
+          length,
+          width,
+          height,
           total_weight: weight,
-          is_fragile: false,
+          is_fragile: isFragile,
           is_liquid: false,
           total_value: value,
           pre_paid_amount: 0,
           total_value_currency: 'IRR',
-          box_type_id: cfg.boxTypeId,
         },
       },
     ],
@@ -217,8 +268,7 @@ async function quoteTotalCostIrr({ cityName, provinceName, toCityCode, parcelVal
   }
 
   if (!response.ok) {
-    const message = payload?.message || payload?.Message || `استعلام هزینهٔ پستکس ناموفق بود (${response.status}).`;
-    throw new Error(message);
+    throw new Error(extractErrorMessage(payload, response.status));
   }
 
   const total = Number(payload?.total_cost);
@@ -226,6 +276,31 @@ async function quoteTotalCostIrr({ cityName, provinceName, toCityCode, parcelVal
     throw new Error('مبلغ برآورد پستکس نامعتبر است.');
   }
   return total;
+}
+
+/**
+ * ارزش واقعی را می‌فرستد؛ فقط اگر پستکس رد کرد و ارزش زیر کف بود، با کف ۵۰ میلیون تکرار می‌کند.
+ * @returns {Promise<{ totalIrr: number, declaredValueIrr: number }>}
+ */
+async function quoteParcelCostIrr(input, overrides = {}) {
+  const actual = assertPositiveInt('ارزش', input.parcelValueIrr);
+  try {
+    const totalIrr = await quoteTotalCostIrr({ ...input, parcelValueIrr: actual }, overrides);
+    return { totalIrr, declaredValueIrr: actual };
+  } catch (firstError) {
+    if (actual >= VALUE_FLOOR_IRR) {
+      throw firstError;
+    }
+    try {
+      const totalIrr = await quoteTotalCostIrr(
+        { ...input, parcelValueIrr: VALUE_FLOOR_IRR },
+        overrides,
+      );
+      return { totalIrr, declaredValueIrr: VALUE_FLOOR_IRR };
+    } catch {
+      throw firstError;
+    }
+  }
 }
 
 /** فقط برای آزمون. */
@@ -237,10 +312,13 @@ function resetCityCacheForTests() {
 module.exports = {
   isConfigured,
   quoteTotalCostIrr,
+  quoteParcelCostIrr,
   resolveCityId,
   normalizeName,
+  extractErrorMessage,
   resetCityCacheForTests,
   DEFAULT_FROM_CITY_ID,
   DEFAULT_COURIER,
   DEFAULT_SERVICE_TYPE,
+  VALUE_FLOOR_IRR,
 };

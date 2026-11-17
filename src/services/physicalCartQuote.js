@@ -163,6 +163,9 @@ async function quote(strapi, input, items, buyer, address) {
       lineTotalInNoor,
       // قیمت واحد پس از تخفیف کاتالوگ فقط ورودی سرویس ارسال است؛ تخفیف سفارش تقسیم نمی‌شود.
       discountedUnitPriceInNoor: price,
+      ...(item.type === 'product'
+        ? { parcelFactors: shipping.readParcelFactors(record, item.quantity) }
+        : {}),
     });
   }
   const originalTotalInNoor = money(rows.reduce((sum, item) => sum + item.lineTotalInNoor, 0));
@@ -196,13 +199,36 @@ async function quote(strapi, input, items, buyer, address) {
     origin ? { fromCityId: origin.cityId } : {},
   );
   const priceInNoor = money(originalTotalInNoor - itemDiscountInNoor - couponDiscountInNoor + delivery.shippingAmountInNoor);
+  const parcelByExternalId = new Map(
+    (delivery.parcelQuotes || []).map((quote) => [quote.externalId, quote]),
+  );
   const quotedItems = rows.map((row, index) => {
     const rowCatalogDiscount = (row.unitPriceInNoor - row.discountedUnitPriceInNoor) * row.quantity;
     const rowCouponDiscount = couponItemDiscounts.has(index)
       ? couponItemDiscounts.get(index)
       : (couponItemDiscounts.get(`${row.type}:${row.externalId}`) || 0);
     const rowPriceInNoor = money(row.lineTotalInNoor - rowCatalogDiscount - rowCouponDiscount);
-    const { discountedUnitPriceInNoor, ...cleanRow } = row;
+    const { discountedUnitPriceInNoor, parcelFactors, ...cleanRow } = row;
+    const quotedParcel = parcelByExternalId.get(row.externalId);
+    const parcel = quotedParcel
+      ? {
+        weightGrams: quotedParcel.weightGrams,
+        lengthCm: quotedParcel.lengthCm,
+        widthCm: quotedParcel.widthCm,
+        heightCm: quotedParcel.heightCm,
+        declaredValueIrr: quotedParcel.declaredValueIrr,
+        isFragile: quotedParcel.isFragile === true,
+      }
+      : (row.type === 'product' && parcelFactors
+        ? {
+          weightGrams: parcelFactors.weightGrams,
+          lengthCm: parcelFactors.lengthCm,
+          widthCm: parcelFactors.widthCm,
+          heightCm: parcelFactors.heightCm,
+          declaredValueIrr: null,
+          isFragile: parcelFactors.isFragile === true,
+        }
+        : undefined);
     return {
       ...cleanRow,
       externalCourseId: row.externalId,
@@ -210,8 +236,10 @@ async function quote(strapi, input, items, buyer, address) {
       itemDiscountInNoor: rowCatalogDiscount,
       couponDiscountInNoor: rowCouponDiscount,
       priceInNoor: rowPriceInNoor,
+      ...(parcel ? { parcel } : {}),
     };
   });
+  const { parcelQuotes, ...deliveryPublic } = delivery;
   return {
     cartId: input.cartId,
     reservationId: input.cartId,
@@ -222,7 +250,7 @@ async function quote(strapi, input, items, buyer, address) {
     originalTotalInNoor,
     itemDiscountInNoor,
     couponDiscountInNoor,
-    ...delivery,
+    ...deliveryPublic,
     ...address,
     shippingOriginId: origin?.originId ?? null,
     shippingOriginLabel: origin?.displayName ?? null,
