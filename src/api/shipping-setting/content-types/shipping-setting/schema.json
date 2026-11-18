@@ -18,7 +18,7 @@
     "rialPerNoorForShipping": {
       "type": "biginteger",
       "min": 1,
-      "default": "10000"
+      "required": true
     }
   }
 }

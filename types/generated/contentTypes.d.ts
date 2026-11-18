@@ -1806,13 +1806,13 @@ export interface ApiShippingSettingShippingSetting
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
     rialPerNoorForShipping: Schema.Attribute.BigInteger &
+      Schema.Attribute.Required &
       Schema.Attribute.SetMinMax<
         {
           min: 1;
         },
         number
-      > &
-      Schema.Attribute.DefaultTo<'10000'>;
+      >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

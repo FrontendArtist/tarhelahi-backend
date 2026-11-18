@@ -61,6 +61,32 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
     expect(paid.parcelQuotes[0].declaredValueIrr).toBe(30 * 10000);
   });
 
+  it('rejects a physical cart when the rial-per-noor rate is missing', async () => {
+    const strapi = settingsQuery({ costMode: 'fixed', fixedAmountInNoor: 40 });
+    await expect(
+      cartShipping.calculate(strapi, [product(30)], { city: 'تهران' }),
+    ).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'نرخ ریال به نور برای ارسال تنظیم نشده است.',
+    });
+  });
+
+  it('rejects a declared value above the Iran Post maximum', async () => {
+    const strapi = settingsQuery({
+      costMode: 'fixed',
+      fixedAmountInNoor: 40,
+      rialPerNoorForShipping: 10000,
+    });
+    await expect(
+      cartShipping.calculate(strapi, [product(700000)], { city: 'تهران' }),
+    ).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'ارزش ریالی کالا از سقف شرکت پست (۵ میلیارد ریال) بیشتر است.',
+    });
+  });
+
   it('defaults missing costMode to fixed', async () => {
     const strapi = settingsQuery({ fixedAmountInNoor: 25, rialPerNoorForShipping: 10000 });
     const result = await cartShipping.calculate(strapi, [product(10)], { city: 'مشهد' });

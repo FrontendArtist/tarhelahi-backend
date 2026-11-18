@@ -7,7 +7,7 @@ const postexBoxes = require('./postexBoxes');
 
 const MODE_FIXED = 'fixed';
 const MODE_POSTEX = 'postex';
-const DEFAULT_RIAL_PER_NOOR = 10_000;
+const IR_POST_MAX_DECLARED_VALUE_IRR = 5_000_000_000;
 
 function readMode(settings) {
   return settings?.costMode === MODE_POSTEX ? MODE_POSTEX : MODE_FIXED;
@@ -99,11 +99,22 @@ function requireParcelFactors(item) {
   };
 }
 
+function shippingRate(settings) {
+  const rate = Number(settings?.rialPerNoorForShipping);
+  if (!Number.isSafeInteger(rate) || rate < 1) {
+    conflict('نرخ ریال به نور برای ارسال تنظیم نشده است.');
+  }
+  return rate;
+}
+
 function lineValueIrr(item, rate) {
   const noor = Number(item.discountedUnitPriceInNoor) * Number(item.quantity);
   const value = Math.round(noor * Number(rate));
   if (!Number.isSafeInteger(value) || value < 1) {
     conflict('ارزش ریالی قلم برای برآورد پستکس معتبر نیست.');
+  }
+  if (value > IR_POST_MAX_DECLARED_VALUE_IRR) {
+    conflict('ارزش ریالی کالا از سقف شرکت پست (۵ میلیارد ریال) بیشتر است.');
   }
   return value;
 }
@@ -115,9 +126,7 @@ async function calculateFixed(settings, subtotal, physicalItems) {
   }
   const threshold = settings?.freeShippingThresholdInNoor;
   assertThreshold(threshold);
-  const rate = settings?.rialPerNoorForShipping != null
-    ? settings.rialPerNoorForShipping
-    : DEFAULT_RIAL_PER_NOOR;
+  const rate = shippingRate(settings);
   for (const item of physicalItems) {
     requireParcelFactors(item);
   }
@@ -155,9 +164,7 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
   const threshold = settings?.freeShippingThresholdInNoor;
   assertThreshold(threshold);
 
-  const rate = settings?.rialPerNoorForShipping != null
-    ? settings.rialPerNoorForShipping
-    : DEFAULT_RIAL_PER_NOOR;
+  const rate = shippingRate(settings);
 
   for (const item of physicalItems) {
     requireParcelFactors(item);
@@ -261,5 +268,4 @@ module.exports = {
   requireProductParcelOrConflict,
   MODE_FIXED,
   MODE_POSTEX,
-  DEFAULT_RIAL_PER_NOOR,
 };
