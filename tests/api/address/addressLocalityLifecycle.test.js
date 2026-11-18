@@ -82,7 +82,7 @@ describe('address locality lifecycle', () => {
   it('accepts a relation object that already carries our document id', async () => {
     const { strapi } = createStrapi();
     global.strapi = strapi;
-    const data = { cityLink: { connect: [{ documentId: 'city-rey' }] }, fullAddress: 'خیابان' };
+    const data = { cityLink: { connect: [{ documentId: 'city-rey' }] }, fullAddress: 'خیابان ساحلی' };
 
     await lifecycles.beforeCreate({ params: { data } });
 
@@ -155,5 +155,32 @@ describe('address locality lifecycle', () => {
     await lifecycles.beforeUpdate({ params: { data, where: { id: 7 } } });
 
     expect(data).toEqual({ postalCode: '4444444444', fullAddress: 'فقط خیابان', recipientName: 'رضا' });
+  });
+
+  it('rejects a short street address on create', async () => {
+    const { strapi } = createStrapi();
+    global.strapi = strapi;
+    const data = { cityLink: 'city-ramsar', fullAddress: 'مشهد' };
+
+    await expect(lifecycles.beforeCreate({ params: { data } })).rejects.toMatchObject({
+      name: 'ValidationError',
+      message: 'نشانی باید حداقل ۱۰ نویسه باشد (خیابان، کوچه و پلاک).',
+    });
+  });
+
+  it('rejects a short street address on update without reading the city table', async () => {
+    global.strapi = {
+      db: {
+        query() {
+          throw new Error('city table should not be read');
+        },
+      },
+    };
+    const data = { fullAddress: '  مشهد  ' };
+
+    await expect(lifecycles.beforeUpdate({ params: { data, where: { id: 7 } } })).rejects.toMatchObject({
+      name: 'ValidationError',
+      message: 'نشانی باید حداقل ۱۰ نویسه باشد (خیابان، کوچه و پلاک).',
+    });
   });
 });

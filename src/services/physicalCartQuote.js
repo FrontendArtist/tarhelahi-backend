@@ -6,6 +6,7 @@ const { resolveItem, assertOwnership } = require('./chapterCatalog');
 const stock = require('./stockReservation');
 const shipping = require('./cartShipping');
 const shippingOrigins = require('./shippingOrigins');
+const fullAddressRule = require('./fullAddressRule');
 
 function invalid(message) {
   const error = new Error(message);
@@ -76,14 +77,18 @@ function addressOf(buyer, items, isPreview = false) {
       addressSnapshot[field] = null;
       continue;
     }
-    if (typeof value !== 'string' || !value.trim()) {
+    const text = typeof value === 'string' ? value.trim() : '';
+    const tooShort = field === 'fullAddress' && text && !fullAddressRule.isFullAddressLongEnough(text);
+    if (!text || tooShort) {
       isComplete = false;
       if (!isPreview) {
-        invalid('آدرس پروفایل برای ارسال کالا کامل نیست.');
+        invalid(tooShort
+          ? fullAddressRule.SHORT_FULL_ADDRESS_MESSAGE
+          : 'آدرس پروفایل برای ارسال کالا کامل نیست.');
       }
       addressSnapshot[field] = field === 'recipientPhone' ? '09000000000' : 'ثبت‌نشده';
     } else {
-      addressSnapshot[field] = value.trim();
+      addressSnapshot[field] = text;
     }
   }
   const addressVersion = isComplete ? createHash('sha256').update(JSON.stringify(addressSnapshot)).digest('hex') : null;

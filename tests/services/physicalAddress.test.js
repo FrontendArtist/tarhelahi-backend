@@ -14,7 +14,7 @@ describe('physical address snapshot', () => {
       province: 'نام کهنه',
       city: 'شهر کهنه',
       postalCode: '1234567890',
-      fullAddress: 'خیابان',
+      fullAddress: 'خیابان ساحلی',
       recipientName: 'مریم',
       recipientPhone: '09120000000',
       cityLink: {
@@ -30,7 +30,7 @@ describe('physical address snapshot', () => {
       city: 'رامسر',
       cityDocumentId: 'city-ramsar',
       postalCode: '1234567890',
-      fullAddress: 'خیابان',
+      fullAddress: 'خیابان ساحلی',
       recipientName: 'مریم',
       recipientPhone: '09120000000',
     });
@@ -38,12 +38,26 @@ describe('physical address snapshot', () => {
     expect(result.addressVersion).toEqual(expect.any(String));
   });
 
+  it('rejects a street address shorter than ten characters', () => {
+    expect(() => addressOf(buyer({
+      postalCode: '1234567890',
+      fullAddress: 'مشهد',
+      recipientName: 'مریم',
+      recipientPhone: '09120000000',
+      cityLink: {
+        documentId: 'city-ramsar',
+        name: 'رامسر',
+        province: { name: 'مازندران' },
+      },
+    }), [product])).toThrow('نشانی باید حداقل ۱۰ نویسه باشد (خیابان، کوچه و پلاک).');
+  });
+
   it('rejects a physical cart whose address is not linked to our city table', () => {
     expect(() => addressOf(buyer({
       province: 'مازندران',
       city: 'رامسر',
       postalCode: '1234567890',
-      fullAddress: 'خیابان',
+      fullAddress: 'خیابان ساحلی',
       recipientName: 'مریم',
       recipientPhone: '09120000000',
     }), [product], true)).toThrow('شهر آدرس باید از فهرست شهرها انتخاب شود.');
