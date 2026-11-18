@@ -464,5 +464,47 @@ describe('جلوگیری از تأیید سبد و خرید مجدد دوره ت
     expect(secondResult.httpStatus).toBe(200);
     expect(secondResult.response.status).toBe('already_granted');
   });
+
+  test('خرید یکجای دورهٔ فصلی بدون فصل قبلی قیمت پکیج را برمی‌گرداند', async () => {
+    const setup = buildMockSetup();
+    const quote = await cartService.preview(setup.strapi, {
+      buyerExternalUserId: 'buyer-user-doc',
+      externalCourseIds: ['chaptered-parent-doc'],
+    });
+    expect(quote.priceInNoor).toBe(500);
+    expect(quote.originalTotalInNoor).toBe(500);
+  });
+
+  test('لاگ کیف پول و شناسهٔ ذخیره‌شده فقط قیمت فصل باقی‌مانده را در خرید یکجا حساب می‌کنند', async () => {
+    const setup = buildMockSetup();
+    setup.buyer.enrolledChapterIntegrationIds = [setup.chapterId1];
+    setup.purchaseLogs.push({
+      purchaseId: randomUUID(),
+      strapiUserId: 'buyer-user-doc',
+      itemType: 'course_chapter',
+      chapterExternalId: setup.chapterId1,
+      status: 'processed',
+    });
+    const quote = await cartService.preview(setup.strapi, {
+      buyerExternalUserId: 'buyer-user-doc',
+      externalCourseIds: ['chaptered-parent-doc'],
+    });
+    expect(quote.priceInNoor).toBe(60);
+    expect(quote.originalTotalInNoor).toBe(60);
+  });
+
+  test('وقتی همهٔ فصل‌ها خریده شده باشد خرید یکجای دوره با ALREADY_OWNED رد می‌شود', async () => {
+    const setup = buildMockSetup({ enrolledChapters: [201] });
+    setup.buyer.enrolledChapterIntegrationIds = [setup.chapterId2];
+    await expect(cartService.prepare(setup.strapi, {
+      cartId: randomUUID(),
+      buyerExternalUserId: 'buyer-user-doc',
+      externalCourseIds: ['chaptered-parent-doc'],
+    })).rejects.toMatchObject({
+      code: 'CART_UNAVAILABLE',
+      status: 409,
+      reason: 'ALREADY_OWNED',
+    });
+  });
 });
 

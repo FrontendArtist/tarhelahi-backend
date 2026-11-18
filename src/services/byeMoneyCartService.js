@@ -2,7 +2,7 @@
 
 const { discountedPrice } = require('../api/order/services/checkout-pricing');
 const { confirmPurchase } = require('./byeMoneyPurchaseService');
-const { resolveItem, assertOwnership } = require('./chapterCatalog');
+const { resolveItem, assertOwnership, quoteChapteredCourse } = require('./chapterCatalog');
 const UID = 'api::byemoney-cart.byemoney-cart';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CART_LOCK = 1869767795;
@@ -86,14 +86,21 @@ async function quote(strapi, input) {
     if (chapter && (chapter.price == null || String(chapter.price).trim() === '')) {
       fail('قیمت پایهٔ فصل معتبر نیست.', 400);
     }
-    const basePrice = chapter
-      ? Number(chapter.price)
-      : Number(
-          isForeign && Number(course.internationalPrice) > 0
-            ? course.internationalPrice
-            : course.price,
-        );
-    const price = chapter ? basePrice : discountedPrice(course, isForeign);
+    let basePrice;
+    let price;
+    if (chapter) {
+      basePrice = Number(chapter.price);
+      price = basePrice;
+    } else if (course.isChaptered === true && Array.isArray(course.chapters) && course.chapters.length > 0) {
+      const quoted = await quoteChapteredCourse(strapi, buyer, course, isForeign);
+      basePrice = quoted.basePrice;
+      price = quoted.price;
+    } else {
+      basePrice = Number(
+        isForeign && Number(course.internationalPrice) > 0 ? course.internationalPrice : course.price,
+      );
+      price = discountedPrice(course, isForeign);
+    }
     if (
       !Number.isSafeInteger(basePrice) ||
       !Number.isSafeInteger(price) ||

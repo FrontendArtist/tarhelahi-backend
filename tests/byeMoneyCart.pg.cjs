@@ -196,6 +196,7 @@ test('رزرو و تحویل سبد روی PostgreSQL مستقل', { skip: proce
         { ...request, purchaseIds: [randomUUID()] }, 'commit')));
       const buyer = await table('users').whereRaw("payload->>'documentId' = 'user-a'").first();
       assert.deepEqual(buyer.payload.enrolledChapters.sort(), [101, 102]);
+      assert.deepEqual(buyer.payload.enrolledChapterIntegrationIds.sort(), chapters.sort());
       assert.deepEqual(buyer.payload.courses, []);
       assert.equal((await table('logs').select()).length, 2);
     });
@@ -207,6 +208,7 @@ test('رزرو و تحویل سبد روی PostgreSQL مستقل', { skip: proce
       await Promise.all(Array.from({ length: 4 }, () => service.transition(strapi, commit, 'commit')));
       const buyer = await table('users').whereRaw("payload->>'documentId' = 'user-a'").first();
       assert.deepEqual(buyer.payload.enrolledChapters, [101]);
+      assert.deepEqual(buyer.payload.enrolledChapterIntegrationIds, [chapters[0]]);
       assert.deepEqual(buyer.payload.courses, []);
       assert.equal((await table('logs').select()).length, 1);
     });

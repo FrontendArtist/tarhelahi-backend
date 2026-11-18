@@ -61,7 +61,20 @@ async function confirmChapter(strapi, payload) {
     }
     const enrolled = Array.isArray(user.enrolledChapters) ? user.enrolledChapters : [];
     const ids = [...new Set([...enrolled.map(Number), Number(chapter.id)])];
-    await users.update({ where: { id: user.id }, data: { enrolledChapters: ids } });
+    const storedUuids = Array.isArray(user.enrolledChapterIntegrationIds)
+      ? user.enrolledChapterIntegrationIds.map((id) => String(id).toLowerCase())
+      : [];
+    const chapterUuid = String(chapter.integrationId || '').trim().toLowerCase();
+    const enrolledChapterIntegrationIds = chapterUuid
+      ? [...new Set([...storedUuids, chapterUuid])]
+      : storedUuids;
+    await users.update({
+      where: { id: user.id },
+      data: {
+        enrolledChapters: ids,
+        ...(enrolledChapterIntegrationIds.length > 0 ? { enrolledChapterIntegrationIds } : {}),
+      },
+    });
     await logs.create({
       data: {
         purchaseId,

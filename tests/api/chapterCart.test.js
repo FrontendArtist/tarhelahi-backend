@@ -75,6 +75,7 @@ function fixture() {
       findOne: jest.fn(async ({ where }) =>
         logs.find((log) => log.purchaseId === where.purchaseId),
       ),
+      findMany: jest.fn(async () => logs.filter((log) => log.itemType === 'course_chapter' && log.status === 'processed')),
       create: jest.fn(async ({ data }) => logs.push(data)),
     },
     'api::byemoney-cart.byemoney-cart': {
@@ -172,12 +173,43 @@ test('prepare و پیش‌نمایش فصل محاسبهٔ مشترک و ترت�
   expect(await service.prepare(f.strapi, f.input)).toEqual(snapshot);
 });
 
-test.each(['preview', 'prepare'])('خرید کل دورهٔ فصلی در %s رد می‌شود', async (action) => {
+test.each(['preview', 'prepare'])('خرید کل دورهٔ فصلی بدون فصل قبلی با قیمت پکیج در %s انجام می‌شود', async (action) => {
   const f = fixture();
+  const result = await service[action](f.strapi, { ...f.input, externalCourseIds: ['parent'] });
+  const row = action === 'preview' ? result.courses[0] : result.items[0];
+  expect(row.priceInNoor).toBe(100);
+  expect(row.basePriceInNoor).toBe(999);
+  expect(row.itemDiscountInNoor).toBe(899);
+});
+
+test('خرید کل دورهٔ فصلی فقط قیمت فصل باقی‌مانده را با تخفیف دوره حساب می‌کند', async () => {
+  const f = fixture();
+  f.buyer.enrolledChapterIntegrationIds = [f.first];
+  const preview = await service.preview(f.strapi, { ...f.input, externalCourseIds: ['parent'] });
+  expect(preview.courses[0].basePriceInNoor).toBe(105);
+  expect(preview.courses[0].priceInNoor).toBe(10);
+  expect(preview.priceInNoor).toBe(10);
+});
+
+test('لاگ کیف پول همان کسر را بدون شناسهٔ ذخیره‌شده روی کاربر اعمال می‌کند', async () => {
+  const f = fixture();
+  f.logs.push({
+    purchaseId: randomUUID(),
+    strapiUserId: 'buyer',
+    itemType: 'course_chapter',
+    chapterExternalId: f.second,
+    status: 'processed',
+  });
+  const preview = await service.preview(f.strapi, { ...f.input, externalCourseIds: ['parent'] });
+  expect(preview.courses[0].priceInNoor).toBe(10);
+});
+
+test('مالکیت همهٔ فصل‌ها خرید کل دوره را رد می‌کند', async () => {
+  const f = fixture();
+  f.buyer.enrolledChapters = [21, 22];
   await expect(
-    service[action](f.strapi, { ...f.input, externalCourseIds: ['parent'] }),
-  ).rejects.toMatchObject({ code: 'CART_UNAVAILABLE', status: 409 });
-  expect(f.carts).toHaveLength(0);
+    service.preview(f.strapi, { ...f.input, externalCourseIds: ['parent'] }),
+  ).rejects.toMatchObject({ code: 'CART_UNAVAILABLE', status: 409, reason: 'ALREADY_OWNED' });
 });
 
 test.each(['course', 'published', 'draft'])(
@@ -217,6 +249,7 @@ test('commit فقط همان فصل‌ها را اعطا می‌کند و تکر
   await service.transition(f.strapi, request, 'commit');
   await service.transition(f.strapi, request, 'commit');
   expect(f.buyer.enrolledChapters.sort()).toEqual([21, 22]);
+  expect(f.buyer.enrolledChapterIntegrationIds.sort()).toEqual([f.first, f.second].sort());
   expect(f.buyer.courses).toEqual([]);
   expect(f.writes).not.toHaveBeenCalled();
   expect(f.logs).toHaveLength(2);
@@ -238,6 +271,7 @@ test('وبهوک نوع فصل را می‌خواند و alias شناسهٔ وا
     'already_granted',
   );
   expect(f.buyer.enrolledChapters).toEqual([21]);
+  expect(f.buyer.enrolledChapterIntegrationIds).toEqual([f.first]);
   expect(f.buyer.courses).toEqual([]);
   expect(f.writes).not.toHaveBeenCalled();
   payload.item.externalId = f.second;
@@ -277,14 +311,14 @@ test('lifecycle شناسهٔ متعلق به والد دیگر را رد می‌
   ).rejects.toThrow('دورهٔ دیگری');
 });
 
-test('خطای فروش کل دورهٔ فصلی با کد CART_UNAVAILABLE از کنترلر برمی‌گردد', async () => {
+test('خرید کل دورهٔ فصلی از کنترلر با قیمت پکیج برمی‌گردد', async () => {
   const f = fixture();
   global.strapi = f.strapi;
   try {
     const ctx = { params: {}, request: { body: { ...f.input, externalCourseIds: ['parent'] } } };
     await controller.prepareCart(ctx);
-    expect(ctx.body.code).toBe('CART_UNAVAILABLE');
-    expect(ctx.status).toBe(409);
+    expect(ctx.body.items[0].priceInNoor).toBe(100);
+    expect(ctx.status).toBeUndefined();
   } finally {
     delete global.strapi;
   }

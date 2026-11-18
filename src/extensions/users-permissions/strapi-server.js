@@ -132,18 +132,25 @@ module.exports = (plugin) => {
 
   async function attachEnrolledChapterIntegrationIds(user) {
     if (!user) return;
+    const stored = Array.isArray(user.enrolledChapterIntegrationIds)
+      ? user.enrolledChapterIntegrationIds.map((id) => String(id).trim().toLowerCase()).filter(Boolean)
+      : [];
+    let calculated = [];
     if (Array.isArray(user.enrolledChapters) && user.enrolledChapters.length > 0) {
       const chapterIds = user.enrolledChapters.map(Number).filter(Boolean);
       if (chapterIds.length > 0) {
-        const rows = await strapi.db.connection('components_course_parts_chapters')
-          .whereIn('id', chapterIds)
-          .whereNotNull('integration_id')
-          .select('id', 'integration_id');
-        user.enrolledChapterIntegrationIds = rows.map((r) => r.integration_id).filter(Boolean);
-        return;
+        try {
+          const rows = await strapi.db.connection('components_course_parts_chapters')
+            .whereIn('id', chapterIds)
+            .whereNotNull('integration_id')
+            .select('id', 'integration_id');
+          calculated = rows.map((r) => String(r.integration_id).trim().toLowerCase()).filter(Boolean);
+        } catch {
+          calculated = [];
+        }
       }
     }
-    user.enrolledChapterIntegrationIds = [];
+    user.enrolledChapterIntegrationIds = [...new Set([...stored, ...calculated])];
   }
 
   if (plugin.controllers.user?.findOne) {

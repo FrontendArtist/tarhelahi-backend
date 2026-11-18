@@ -2,7 +2,7 @@
 
 const { createHash } = require('node:crypto');
 const { discountedPrice } = require('../api/order/services/checkout-pricing');
-const { resolveItem, assertOwnership } = require('./chapterCatalog');
+const { resolveItem, assertOwnership, quoteChapteredCourse } = require('./chapterCatalog');
 const stock = require('./stockReservation');
 const shipping = require('./cartShipping');
 const shippingOrigins = require('./shippingOrigins');
@@ -135,10 +135,26 @@ async function quote(strapi, input, items, buyer, address) {
         throw error;
       }
       record = resolved.chapter || resolved.course;
-      basePrice = resolved.chapter ? Number(record.price) : Number(
-        buyer.is_foreigner && Number(record.internationalPrice) > 0 ? record.internationalPrice : record.price,
-      );
-      price = resolved.chapter ? basePrice : discountedPrice(record, buyer.is_foreigner === true);
+      if (
+        !resolved.chapter &&
+        resolved.course.isChaptered === true &&
+        Array.isArray(resolved.course.chapters) &&
+        resolved.course.chapters.length > 0
+      ) {
+        const quoted = await quoteChapteredCourse(
+          strapi,
+          buyer,
+          resolved.course,
+          buyer.is_foreigner === true,
+        );
+        basePrice = quoted.basePrice;
+        price = quoted.price;
+      } else {
+        basePrice = resolved.chapter ? Number(record.price) : Number(
+          buyer.is_foreigner && Number(record.internationalPrice) > 0 ? record.internationalPrice : record.price,
+        );
+        price = resolved.chapter ? basePrice : discountedPrice(record, buyer.is_foreigner === true);
+      }
     }
     if (record.price == null || String(record.price).trim() === '' || basePrice < price) {
       invalid('قیمت پایهٔ قلم معتبر نیست.');

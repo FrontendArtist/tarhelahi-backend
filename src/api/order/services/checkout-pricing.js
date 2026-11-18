@@ -3,7 +3,7 @@
 const { errors: { ValidationError } } = require('@strapi/utils');
 const invalid = message => { throw new ValidationError(message); };
 const { lockPendingCheckout, findPendingCheckout, cancelSupersededCheckouts } = require('./pending-checkout');
-const { calculateChapteredCoursePrice, createAlreadyOwnedError } = require('../../../services/chapteredCoursePricing');
+const { quoteChapteredCourse } = require('../../../services/chapterCatalog');
 
 function validPrice(value) {
   if (value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0) {
@@ -53,28 +53,17 @@ async function priceCart(strapi, cartItems, context = {}) {
       key = `course:${course.documentId}`;
       let finalCoursePrice = discountedPrice(course, context.isForeign === true);
 
-      // محاسبه قیمت هوشمند دوره فصلی بر اساس فصل‌های باقیمانده کاربر
-      if (context.userId && course.isChaptered && Array.isArray(course.chapters) && course.chapters.length > 0) {
+      if (context.userId && course.isChaptered === true && Array.isArray(course.chapters) && course.chapters.length > 0) {
         const userRepo = strapi.db?.query?.('plugin::users-permissions.user');
-        const buyer = userRepo ? await userRepo.findOne({
-          where: /^\d+$/.test(String(context.userId))
-            ? { id: Number(context.userId) }
-            : { documentId: String(context.userId) },
-        }) : null;
-
+        const buyer = userRepo && typeof userRepo.findOne === 'function'
+          ? await userRepo.findOne({
+            where: /^\d+$/.test(String(context.userId))
+              ? { id: Number(context.userId) }
+              : { documentId: String(context.userId) },
+          })
+          : null;
         if (buyer) {
-          const pricingResult = calculateChapteredCoursePrice({
-            course,
-            userEnrolledChapterIds: buyer.enrolledChapters || [],
-            userEnrolledChapterUuids: buyer.enrolledChapterIntegrationIds || [],
-            isForeign: context.isForeign === true,
-          });
-
-          if (pricingResult.isFullyOwned) {
-            throw createAlreadyOwnedError('شما قبلاً تمام فصل‌های این دوره را خریداری کرده‌اید.');
-          }
-
-          finalCoursePrice = pricingResult.price;
+          finalCoursePrice = (await quoteChapteredCourse(strapi, buyer, course, context.isForeign === true)).price;
         }
       }
 

@@ -1,7 +1,11 @@
 'use strict';
 
+const { calculateChapteredCoursePrice } = require('./chapteredCoursePricing');
+
 const COURSE_UID = 'api::course.course';
 const CHAPTER_TYPE = 'course_chapter';
+const LOG_UID = 'api::byemoney-purchase-log.byemoney-purchase-log';
+const ORDER_UID = 'api::order.order';
 
 function unavailable(message, status = 409, reason = 'SALE_STOPPED') {
   const error = new Error(message);
@@ -11,6 +15,117 @@ function unavailable(message, status = 409, reason = 'SALE_STOPPED') {
   throw error;
 }
 
+function addId(target, value) {
+  const id = Number(value);
+  if (Number.isSafeInteger(id) && id > 0) target.add(id);
+}
+
+function addUuid(target, value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (text) target.add(text);
+}
+
+// شناسهٔ عددی و UUID فصل‌های پرداخت‌شده از پروفایل، لاگ کیف پول و سفارش درگاه.
+async function collectUserOwnedChapters(strapi, buyer, courseDocId) {
+  const ids = new Set();
+  const uuids = new Set();
+  for (const id of buyer?.enrolledChapters || []) addId(ids, id);
+  for (const uuid of buyer?.enrolledChapterIntegrationIds || []) addUuid(uuids, uuid);
+
+  const buyerDocId = buyer?.documentId;
+  const buyerId = Number(buyer?.id);
+  const userIds = [buyerDocId, buyerId ? String(buyerId) : null].filter(Boolean);
+  try {
+    const logRepo = strapi.db?.query?.(LOG_UID);
+    if (logRepo && typeof logRepo.findMany === 'function' && userIds.length > 0) {
+      const logs = (await logRepo.findMany({
+        where: {
+          strapiUserId: userIds.length === 1 ? userIds[0] : { $in: userIds },
+          status: 'processed',
+          itemType: CHAPTER_TYPE,
+        },
+      })) || [];
+      for (const log of logs) addUuid(uuids, log.chapterExternalId);
+    }
+  } catch {
+    // نبودن مخزن در آزمون یا قطع خواندن، منابع دیگر را حذف نمی‌کند.
+  }
+
+  const confirmedStatuses = ['paid', 'confirmed', 'processing', 'shipped', 'delivered'];
+  try {
+    const orderRepo = strapi.db?.query?.(ORDER_UID);
+    if (orderRepo && typeof orderRepo.findMany === 'function' && (buyerId || buyerDocId)) {
+      const orders = (await orderRepo.findMany({
+        where: {
+          user: buyerId ? { id: buyerId } : { documentId: buyerDocId },
+          $or: [
+            { orderStatus: { $in: confirmedStatuses } },
+            { paymentStatus: 'paid' },
+          ],
+        },
+        populate: ['items'],
+      })) || [];
+      for (const order of orders) {
+        if (order.orderStatus === 'canceled' && order.paymentStatus !== 'paid') continue;
+        for (const item of order.items || []) {
+          if (item.__component !== 'order.course-order-item') continue;
+          addId(ids, item.chapterId);
+          addUuid(uuids, item.chapterIntegrationId);
+        }
+      }
+    }
+  } catch {
+    // همانند لاگ.
+  }
+
+  // شناسهٔ عددی نسخهٔ پیش‌نویس همان فصل، با UUID نسخهٔ منتشرشده یکی می‌شود.
+  try {
+    const courseRepo = strapi.db?.query?.(COURSE_UID);
+    if (courseRepo && typeof courseRepo.findMany === 'function' && courseDocId) {
+      const versions = (await courseRepo.findMany({
+        where: { documentId: courseDocId },
+        populate: ['chapters'],
+      })) || [];
+      for (const version of versions) {
+        for (const chapter of version.chapters || []) {
+          if (ids.has(Number(chapter.id))) addUuid(uuids, chapter.integrationId);
+        }
+      }
+    }
+  } catch {
+    // نگاشت نسخه اختیاری است؛ UUIDهای ذخیره‌شده همچنان معتبرند.
+  }
+
+  return { enrolledChapterIds: [...ids], enrolledChapterUuids: [...uuids] };
+}
+
+async function priceOwnedChapters(strapi, buyer, course, isForeign) {
+  const owned = await collectUserOwnedChapters(strapi, buyer, course.documentId);
+  return calculateChapteredCoursePrice({
+    course,
+    userEnrolledChapterIds: owned.enrolledChapterIds,
+    userEnrolledChapterUuids: owned.enrolledChapterUuids,
+    isForeign: isForeign === true,
+  });
+}
+
+async function quoteChapteredCourse(strapi, buyer, course, isForeign) {
+  let pricing;
+  try {
+    pricing = await priceOwnedChapters(strapi, buyer, course, isForeign);
+  } catch (error) {
+    unavailable(error.message, 400, 'INVALID_PRICE');
+  }
+  if (pricing.isFullyOwned) {
+    unavailable('این دوره یا تمام فصل‌های آن قبلاً خریداری شده است.', 409, 'ALREADY_OWNED');
+  }
+  const price = Number(pricing.price);
+  const remaining = Number(pricing.remainingBasePrice);
+  // قیمت خارجی از قبل مبلغ قابل‌پرداخت است؛ پایهٔ تومان نباید به‌شکل تخفیف نور نشان داده شود.
+  const basePrice = isForeign === true ? price : Math.max(remaining, price);
+  return { basePrice, price };
+}
+
 async function resolveItem(strapi, externalId, { missingStatus = 400 } = {}) {
   const course = await strapi.documents(COURSE_UID).findOne({
     documentId: externalId,
@@ -18,9 +133,6 @@ async function resolveItem(strapi, externalId, { missingStatus = 400 } = {}) {
     populate: ['chapters'],
   });
   if (course) {
-    if (course.isChaptered === true) {
-      unavailable('این دوره به‌صورت فصلی فروخته می‌شود؛ فصل موردنظر را انتخاب کنید.');
-    }
     return { course, chapter: null, type: 'course', parentExternalId: null };
   }
 
@@ -154,8 +266,19 @@ async function assertOwnership(strapi, buyer, resolved) {
     unavailable('این دوره یا دورهٔ والد فصل قبلاً خریداری شده است.', 409, 'ALREADY_OWNED');
   }
 
-  // اگر قلم مدنظر دورهٔ کامل باشد، بررسی پایان یافته است
+  // دورهٔ فصلی کامل فقط وقتی ممنوع است که خریدار همهٔ فصل‌ها را داشته باشد.
   if (!chapter) {
+    if (course.isChaptered === true && Array.isArray(course.chapters) && course.chapters.length > 0) {
+      let pricing;
+      try {
+        pricing = await priceOwnedChapters(strapi, buyer, course, false);
+      } catch (error) {
+        unavailable(error.message, 400, 'INVALID_PRICE');
+      }
+      if (pricing.isFullyOwned) {
+        unavailable('این دوره یا تمام فصل‌های آن قبلاً خریداری شده است.', 409, 'ALREADY_OWNED');
+      }
+    }
     return;
   }
 
@@ -206,4 +329,12 @@ async function assertOwnership(strapi, buyer, resolved) {
   }
 }
 
-module.exports = { COURSE_UID, CHAPTER_TYPE, resolveItem, assertOwnership, unavailable };
+module.exports = {
+  COURSE_UID,
+  CHAPTER_TYPE,
+  resolveItem,
+  assertOwnership,
+  unavailable,
+  collectUserOwnedChapters,
+  quoteChapteredCourse,
+};

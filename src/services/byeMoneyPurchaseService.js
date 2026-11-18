@@ -265,6 +265,15 @@ async function confirmPurchase(payload, { strapiInstance } = {}) {
       .map((ch) => (typeof ch === 'object' && ch !== null ? Number(ch.id) : Number(ch)))
       .filter(Boolean);
     userUpdateData.enrolledChapters = [...new Set([...existingChapters, ...courseChapterIds])];
+    const existingUuids = Array.isArray(user.enrolledChapterIntegrationIds)
+      ? user.enrolledChapterIntegrationIds.map((id) => String(id).toLowerCase())
+      : [];
+    const courseUuids = course.chapters
+      .map((ch) => (ch && ch.integrationId ? String(ch.integrationId).trim().toLowerCase() : ''))
+      .filter(Boolean);
+    if (courseUuids.length > 0 || existingUuids.length > 0) {
+      userUpdateData.enrolledChapterIntegrationIds = [...new Set([...existingUuids, ...courseUuids])];
+    }
   }
 
   await strapiObj.db.query('plugin::users-permissions.user').update({

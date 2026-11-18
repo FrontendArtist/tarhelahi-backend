@@ -195,6 +195,7 @@ test('مهاجرت فصل روی PostgreSQL و اجرای واقعی استرپ�
                 populate: ['courses'],
               });
               assert.deepEqual(actual.enrolledChapters, [published.chapters[0].id]);
+              assert.deepEqual(actual.enrolledChapterIntegrationIds, [firstId]);
               assert.equal(actual.courses.length, 0);
               await assert.rejects(
                 service.prepare(app, { ...request, cartId: randomUUID() }),
