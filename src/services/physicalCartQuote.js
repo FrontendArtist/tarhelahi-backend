@@ -164,7 +164,7 @@ async function quote(strapi, input, items, buyer, address) {
       // قیمت واحد پس از تخفیف کاتالوگ فقط ورودی سرویس ارسال است؛ تخفیف سفارش تقسیم نمی‌شود.
       discountedUnitPriceInNoor: price,
       ...(item.type === 'product'
-        ? { parcelFactors: shipping.readParcelFactors(record, item.quantity) }
+        ? { parcelFactors: shipping.requireProductParcelOrConflict(record, item.quantity) }
         : {}),
     });
   }
@@ -216,6 +216,7 @@ async function quote(strapi, input, items, buyer, address) {
         lengthCm: quotedParcel.lengthCm,
         widthCm: quotedParcel.widthCm,
         heightCm: quotedParcel.heightCm,
+        boxTypeId: quotedParcel.boxTypeId,
         declaredValueIrr: quotedParcel.declaredValueIrr,
         isFragile: quotedParcel.isFragile === true,
       }
@@ -225,6 +226,7 @@ async function quote(strapi, input, items, buyer, address) {
           lengthCm: parcelFactors.lengthCm,
           widthCm: parcelFactors.widthCm,
           heightCm: parcelFactors.heightCm,
+          boxTypeId: parcelFactors.boxTypeId,
           declaredValueIrr: null,
           isFragile: parcelFactors.isFragile === true,
         }

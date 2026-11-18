@@ -3,7 +3,7 @@
 /**
  * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE / SHIP-PARCEL-FACTORS).
  * نگاشت شهر از cities/all؛ from_city از مبدأ کالای سبد می‌آید (نه ثابت اپ).
- * وزن، ابعاد و ارزش از کالای واقعی می‌آید؛ box_type_id و اعداد ثابت جعبه حذف شده‌اند.
+ * وزن، ابعاد، box_type_id و ارزش از عوامل فریزشدنی کالا می‌آید (ابعاد از جعبهٔ استاندارد).
  */
 
 const DEFAULT_BASE_URL = 'https://api.postex.ir';
@@ -218,6 +218,7 @@ async function quoteTotalCostIrr(input, overrides = {}) {
   const length = assertPositiveInt('طول', input.lengthCm);
   const width = assertPositiveInt('عرض', input.widthCm);
   const height = assertPositiveInt('ارتفاع', input.heightCm);
+  const boxTypeId = assertPositiveInt('جعبه', input.boxTypeId);
   const value = assertPositiveInt('ارزش', input.parcelValueIrr);
   const isFragile = input.isFragile === true;
 
@@ -234,6 +235,7 @@ async function quoteTotalCostIrr(input, overrides = {}) {
         to_city_code: toCityId,
         payment_type: 'SENDER',
         parcel_properties: {
+          box_type_id: boxTypeId,
           length,
           width,
           height,

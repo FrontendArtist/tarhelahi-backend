@@ -6,7 +6,8 @@ const parcel = {
   weightGrams: 250,
   lengthCm: 15,
   widthCm: 10,
-  heightCm: 5,
+  heightCm: 20,
+  boxTypeId: 5,
   parcelValueIrr: 100_000,
   isFragile: false,
 };
@@ -30,7 +31,7 @@ describe('postexShippingQuote', () => {
     expect(id).toBe(573);
   });
 
-  it('posts quotes body without box_type_id and returns total_cost', async () => {
+  it('posts quotes body with box_type_id and returns total_cost', async () => {
     const fetchImpl = jest.fn(async (url, init) => {
       if (String(url).includes('cities/all')) {
         return {
@@ -45,14 +46,14 @@ describe('postexShippingQuote', () => {
       expect(body.courier.courier_code).toBe(postexQuote.DEFAULT_COURIER);
       expect(body.parcels[0].to_city_code).toBe(1);
       expect(body.parcels[0].parcel_properties).toMatchObject({
+        box_type_id: 5,
         total_weight: 250,
         length: 15,
         width: 10,
-        height: 5,
+        height: 20,
         total_value: 100_000,
         is_fragile: false,
       });
-      expect(body.parcels[0].parcel_properties.box_type_id).toBeUndefined();
       return {
         ok: true,
         text: async () => JSON.stringify({ total_cost: 2_000_000 }),

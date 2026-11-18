@@ -22,7 +22,8 @@ const product = (price, quantity = 1, parcelFactors = {
   weightGrams: 250,
   lengthCm: 15,
   widthCm: 10,
-  heightCm: 5,
+  heightCm: 20,
+  boxTypeId: 5,
   isFragile: false,
 }) => ({
   type: 'product',
@@ -32,7 +33,7 @@ const product = (price, quantity = 1, parcelFactors = {
   parcelFactors,
 });
 
-describe('cartShipping (SHIP-PARCEL-FACTORS)', () => {
+describe('cartShipping (SHIP-BOX-TYPE)', () => {
   beforeEach(() => {
     postexQuote.resetCityCacheForTests();
     delete process.env.POSTEX_API_KEY;
@@ -84,15 +85,17 @@ describe('cartShipping (SHIP-PARCEL-FACTORS)', () => {
       product(50, 2, {
         weightGrams: 500,
         lengthCm: 20,
-        widthCm: 12,
-        heightCm: 8,
+        widthCm: 15,
+        heightCm: 20,
+        boxTypeId: 6,
         isFragile: true,
       }),
       product(30, 1, {
         weightGrams: 100,
         lengthCm: 10,
         widthCm: 10,
-        heightCm: 10,
+        heightCm: 15,
+        boxTypeId: 4,
         isFragile: false,
       }),
     ];
@@ -110,19 +113,19 @@ describe('cartShipping (SHIP-PARCEL-FACTORS)', () => {
 
     const firstBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
     expect(firstBody.parcels[0].parcel_properties).toMatchObject({
+      box_type_id: 6,
       total_weight: 500,
       length: 20,
-      width: 12,
-      height: 8,
+      width: 15,
+      height: 20,
       total_value: 1_000_000,
       is_fragile: true,
     });
-    expect(firstBody.parcels[0].parcel_properties.box_type_id).toBeUndefined();
     expect(firstBody.from_city_code).toBe(573);
     expect(firstBody.parcels[0].to_city_code).toBe(100);
   });
 
-  it('rejects postex cart when parcel factors are missing', async () => {
+  it('rejects postex cart when box type is missing', async () => {
     process.env.POSTEX_API_KEY = 'test-key';
     const strapi = settingsQuery({ costMode: 'postex', rialPerNoorForShipping: 10000 });
     await expect(
@@ -132,7 +135,11 @@ describe('cartShipping (SHIP-PARCEL-FACTORS)', () => {
         { city: 'تهران', cityDocumentId: 'city-tehran' },
         { fromCityId: 573 },
       ),
-    ).rejects.toMatchObject({ code: 'CART_CONFLICT', status: 409 });
+    ).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'جعبهٔ کالا تعیین نشده',
+    });
   });
 
   it('retries with value floor only after postex rejects lower value', async () => {
@@ -251,18 +258,21 @@ describe('cartShipping (SHIP-PARCEL-FACTORS)', () => {
     });
   });
 
-  it('reads product weight times quantity and dimensions', () => {
+  it('reads product weight times quantity and box dimensions', () => {
     const factors = cartShipping.readParcelFactors(
-      { weight: 125.4, length: 15.2, width: 10, height: 5, isFragile: true },
+      { weight: 125.4, boxTypeId: 'box5: جعبه سایز 2 (15×10×20)', isFragile: true },
       2,
     );
     expect(factors).toEqual({
       weightGrams: 251,
       lengthCm: 15,
       widthCm: 10,
-      heightCm: 5,
+      heightCm: 20,
+      boxTypeId: 5,
       isFragile: true,
     });
     expect(cartShipping.readParcelFactors({ weight: 10 }, 1)).toBeNull();
+    expect(() => cartShipping.requireProductParcelOrConflict({ weight: 10 }, 1))
+      .toThrow('جعبهٔ کالا تعیین نشده');
   });
 });

@@ -3,6 +3,7 @@
 const { conflict } = require('./stockReservation');
 const postexQuote = require('./postexShippingQuote');
 const localities = require('./localities');
+const postexBoxes = require('./postexBoxes');
 
 const MODE_FIXED = 'fixed';
 const MODE_POSTEX = 'postex';
@@ -36,21 +37,19 @@ function positiveMeasure(value) {
 }
 
 /**
- * عوامل مرسوله از رکورد کالا؛ وزن گرم × تعداد، ابعاد سانتی‌متر.
- * @returns {null|{ weightGrams: number, lengthCm: number, widthCm: number, heightCm: number, isFragile: boolean }}
+ * عوامل مرسوله از رکورد کالا؛ وزن گرم × تعداد؛ ابعاد از جعبهٔ استاندارد پستکس.
+ * @returns {null|{ weightGrams: number, lengthCm: number, widthCm: number, heightCm: number, boxTypeId: number, isFragile: boolean }}
  */
 function readParcelFactors(product, quantity) {
   if (!product || !Number.isSafeInteger(quantity) || quantity < 1) {
     return null;
   }
+  const box = postexBoxes.resolve(product.boxTypeId);
+  if (!box) {
+    return null;
+  }
   const unitWeight = positiveMeasure(product.weight);
-  const lengthCm = Math.round(positiveMeasure(product.length) ?? 0);
-  const widthCm = Math.round(positiveMeasure(product.width) ?? 0);
-  const heightCm = Math.round(positiveMeasure(product.height) ?? 0);
-  if (unitWeight == null
-    || !Number.isSafeInteger(lengthCm) || lengthCm < 1
-    || !Number.isSafeInteger(widthCm) || widthCm < 1
-    || !Number.isSafeInteger(heightCm) || heightCm < 1) {
+  if (unitWeight == null) {
     return null;
   }
   const weightGrams = Math.round(unitWeight * quantity);
@@ -59,27 +58,43 @@ function readParcelFactors(product, quantity) {
   }
   return {
     weightGrams,
-    lengthCm,
-    widthCm,
-    heightCm,
+    lengthCm: box.lengthCm,
+    widthCm: box.widthCm,
+    heightCm: box.heightCm,
+    boxTypeId: box.id,
     isFragile: product.isFragile === true,
   };
 }
 
+/** نبود جعبه پیام جدا دارد؛ وزن ناقص پیام خودش را دارد. */
+function requireProductParcelOrConflict(product, quantity) {
+  if (!postexBoxes.resolve(product?.boxTypeId)) {
+    conflict('جعبهٔ کالا تعیین نشده');
+  }
+  const factors = readParcelFactors(product, quantity);
+  if (!factors) {
+    conflict('وزن کالای فیزیکی برای ارسال ثبت نشده است.');
+  }
+  return factors;
+}
+
 function requireParcelFactors(item) {
   const factors = item.parcelFactors;
-  if (!factors
-    || !Number.isSafeInteger(factors.weightGrams) || factors.weightGrams < 1
+  if (!factors || !Number.isSafeInteger(factors.boxTypeId) || factors.boxTypeId < 1) {
+    conflict('جعبهٔ کالا تعیین نشده');
+  }
+  if (!Number.isSafeInteger(factors.weightGrams) || factors.weightGrams < 1
     || !Number.isSafeInteger(factors.lengthCm) || factors.lengthCm < 1
     || !Number.isSafeInteger(factors.widthCm) || factors.widthCm < 1
     || !Number.isSafeInteger(factors.heightCm) || factors.heightCm < 1) {
-    conflict('وزن یا ابعاد کالای فیزیکی برای برآورد پستکس ثبت نشده است.');
+    conflict('وزن کالای فیزیکی برای ارسال ثبت نشده است.');
   }
   return {
     weightGrams: factors.weightGrams,
     lengthCm: factors.lengthCm,
     widthCm: factors.widthCm,
     heightCm: factors.heightCm,
+    boxTypeId: factors.boxTypeId,
     isFragile: factors.isFragile === true,
   };
 }
@@ -103,10 +118,10 @@ async function calculateFixed(settings, subtotal, physicalItems) {
   const rate = settings?.rialPerNoorForShipping != null
     ? settings.rialPerNoorForShipping
     : DEFAULT_RIAL_PER_NOOR;
-  const parcelQuotes = attachDeclaredValues(
-    physicalItems.filter((item) => item.parcelFactors),
-    rate,
-  );
+  for (const item of physicalItems) {
+    requireParcelFactors(item);
+  }
+  const parcelQuotes = attachDeclaredValues(physicalItems, rate);
   if (threshold != null && subtotal >= Number(threshold)) {
     return { shippingAmountInNoor: 0, shippingRuleLabel: 'ارسال رایگان', parcelQuotes };
   }
@@ -129,6 +144,7 @@ function attachDeclaredValues(physicalItems, rate) {
       lengthCm: factors.lengthCm,
       widthCm: factors.widthCm,
       heightCm: factors.heightCm,
+      boxTypeId: factors.boxTypeId,
       isFragile: factors.isFragile === true,
       declaredValueIrr: lineValueIrr(item, rate),
     };
@@ -186,6 +202,7 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
           lengthCm: factors.lengthCm,
           widthCm: factors.widthCm,
           heightCm: factors.heightCm,
+          boxTypeId: factors.boxTypeId,
           isFragile: factors.isFragile,
           customParcelId: `item-${item.externalId}`,
         },
@@ -202,6 +219,7 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
       lengthCm: factors.lengthCm,
       widthCm: factors.widthCm,
       heightCm: factors.heightCm,
+      boxTypeId: factors.boxTypeId,
       isFragile: factors.isFragile,
       declaredValueIrr: quoted.declaredValueIrr,
     });
@@ -240,6 +258,7 @@ async function calculate(strapi, items, addressSnapshot, overrides = {}) {
 module.exports = {
   calculate,
   readParcelFactors,
+  requireProductParcelOrConflict,
   MODE_FIXED,
   MODE_POSTEX,
   DEFAULT_RIAL_PER_NOOR,

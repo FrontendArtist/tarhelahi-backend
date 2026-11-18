@@ -1483,6 +1483,22 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    boxTypeId: Schema.Attribute.Enumeration<
+      [
+        'box1: \u067E\u0627\u06A9\u062A \u0646\u0627\u0645\u0647 A5 (22\u00D711\u00D72)',
+        'box2: \u067E\u0627\u06A9\u062A \u0646\u0627\u0645\u0647 A4 (31\u00D722\u00D72)',
+        'box3: \u067E\u0627\u06A9\u062A \u0646\u0627\u0645\u0647 A3 (45\u00D730\u00D72)',
+        'box4: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 1 (10\u00D710\u00D715)',
+        'box5: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 2 (15\u00D710\u00D720)',
+        'box6: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 3 (20\u00D715\u00D720)',
+        'box7: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 4 (20\u00D720\u00D730)',
+        'box8: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 5 (25\u00D725\u00D735)',
+        'box9: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 6 (25\u00D720\u00D745)',
+        'box10: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 7 (30\u00D725\u00D740)',
+        'box11: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 8 (40\u00D730\u00D745)',
+        'box12: \u062C\u0639\u0628\u0647 \u0633\u0627\u06CC\u0632 9 (45\u00D735\u00D750)',
+      ]
+    >;
     categories: Schema.Attribute.Relation<
       'manyToMany',
       'api::category.category'
@@ -1503,7 +1519,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       > &
       Schema.Attribute.DefaultTo<0>;
     discountUntil: Schema.Attribute.DateTime;
-    height: Schema.Attribute.Decimal;
     images: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios',
       true
@@ -1511,7 +1526,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       Schema.Attribute.Required;
     isAvailable: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
     isFragile: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
-    length: Schema.Attribute.Decimal;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -1535,7 +1549,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     weight: Schema.Attribute.Decimal;
-    width: Schema.Attribute.Decimal;
   };
 }
 

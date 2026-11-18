@@ -160,6 +160,7 @@ module.exports = {
   register({ strapi }) {
     strapi.documents.use(require('./services/physicalStockMiddleware').documentMiddleware(strapi));
     strapi.documents.use(require('./services/chapterIdentity').documentMiddleware(strapi));
+    strapi.documents.use(require('./services/productBoxTypeMiddleware').documentMiddleware(strapi));
     // فقط سفارش تازه نور می‌گیرد؛ انتشار مجدد یا ویرایش سابقه، واحد قدیمی را تغییر نمی‌دهد.
     strapi.documents.use(async (context, next) => {
       if (context.uid === 'api::order.order' && ['create', 'clone'].includes(context.action)) {
