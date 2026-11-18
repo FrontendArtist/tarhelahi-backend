@@ -3,6 +3,7 @@
 const { errors: { ValidationError } } = require('@strapi/utils');
 const invalid = message => { throw new ValidationError(message); };
 const { lockPendingCheckout, findPendingCheckout, cancelSupersededCheckouts } = require('./pending-checkout');
+const { calculateChapteredCoursePrice, createAlreadyOwnedError } = require('../../../services/chapteredCoursePricing');
 
 function validPrice(value) {
   if (value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0) {
@@ -48,10 +49,37 @@ async function priceCart(strapi, cartItems, context = {}) {
     let priced, key;
     if (item.type === 'course') {
       if (item.chapterId != null) invalid('شناسهٔ فصل با نوع دوره سازگار نیست.');
-      const course = await publishedItem(strapi, 'api::course.course', item.documentId || item.id);
+      const course = await publishedItem(strapi, 'api::course.course', item.documentId || item.id, ['chapters']);
       key = `course:${course.documentId}`;
+      let finalCoursePrice = discountedPrice(course, context.isForeign === true);
+
+      // محاسبه قیمت هوشمند دوره فصلی بر اساس فصل‌های باقیمانده کاربر
+      if (context.userId && course.isChaptered && Array.isArray(course.chapters) && course.chapters.length > 0) {
+        const userRepo = strapi.db?.query?.('plugin::users-permissions.user');
+        const buyer = userRepo ? await userRepo.findOne({
+          where: /^\d+$/.test(String(context.userId))
+            ? { id: Number(context.userId) }
+            : { documentId: String(context.userId) },
+        }) : null;
+
+        if (buyer) {
+          const pricingResult = calculateChapteredCoursePrice({
+            course,
+            userEnrolledChapterIds: buyer.enrolledChapters || [],
+            userEnrolledChapterUuids: buyer.enrolledChapterIntegrationIds || [],
+            isForeign: context.isForeign === true,
+          });
+
+          if (pricingResult.isFullyOwned) {
+            throw createAlreadyOwnedError('شما قبلاً تمام فصل‌های این دوره را خریداری کرده‌اید.');
+          }
+
+          finalCoursePrice = pricingResult.price;
+        }
+      }
+
       priced = { id: course.id, documentId: course.documentId, type: 'course', courseId: course.id,
-        title: course.title, slug: course.slug, itemUrl: `/courses/${course.slug}`, price: discountedPrice(course, context.isForeign === true) };
+        title: course.title, slug: course.slug, itemUrl: `/courses/${course.slug}`, price: finalCoursePrice };
     } else if (item.type === 'chapter') {
       const course = await publishedItem(strapi, 'api::course.course', item.courseId, ['chapters']);
       const chapterId = Number(item.chapterId ?? String(item.id || '').replace(/^chapter-/, ''));
@@ -60,7 +88,8 @@ async function priceCart(strapi, cartItems, context = {}) {
       if (!chapter) invalid('فصل متعلق به دورهٔ انتخاب‌شده نیست.');
       key = `chapter:${course.documentId}:${chapter.id}`;
       priced = { id: `chapter-${chapter.id}`, documentId: course.documentId, type: 'chapter', courseId: course.id,
-        chapterId: chapter.id, title: `${course.title} - ${chapter.title}`, slug: `${course.slug}-chapter-${chapter.id}`,
+        chapterId: chapter.id, chapterIntegrationId: chapter.integrationId || null, courseDocumentId: course.documentId,
+        title: `${course.title} - ${chapter.title}`, slug: `${course.slug}-chapter-${chapter.id}`,
         itemUrl: `/courses/${course.slug}`, price: validPrice(chapter.price) };
     } else if (item.type === 'product') {
       const product = await publishedItem(strapi, 'api::product.product', item.documentId || item.id);
@@ -93,7 +122,11 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
       if (!Number.isSafeInteger(userId) || userId <= 0 || userId > 2147483647) invalid('شناسهٔ کاربر معتبر نیست.');
       await lockPendingCheckout(trx, userId);
     }
-    const { items, total } = await priceCart(strapi, input.cartItems, input.pricingContext);
+    const pricingCtx = {
+      ...(input.pricingContext || {}),
+      userId: input.user || null,
+    };
+    const { items, total } = await priceCart(strapi, input.cartItems, pricingCtx);
 
     // بررسی مالکیت پیشین دوره یا فصل برای کاربر جاری در مرحلهٔ checkout
     if (input.user) {
@@ -109,19 +142,20 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
       if (buyer) {
         const { assertOwnership } = require('../../../services/chapterCatalog');
         for (const item of items) {
+          if (item.type !== 'course' && item.type !== 'chapter') continue;
+          const courseRecord = await publishedItem(strapi, 'api::course.course', item.documentId, ['chapters']);
           if (item.type === 'course') {
             await assertOwnership(strapi, buyer, {
-              course: { id: item.courseId, documentId: item.documentId, slug: item.slug },
+              course: courseRecord,
               chapter: null,
               type: 'course',
               parentExternalId: null,
             });
-          } else if (item.type === 'chapter') {
-            const courseRecord = await publishedItem(strapi, 'api::course.course', item.documentId, ['chapters']);
+          } else {
             const ch = courseRecord?.chapters?.find((c) => c.id === item.chapterId);
             await assertOwnership(strapi, buyer, {
               course: courseRecord,
-              chapter: ch || { id: item.chapterId },
+              chapter: ch || { id: item.chapterId, integrationId: item.chapterIntegrationId },
               type: 'course_chapter',
               parentExternalId: courseRecord.documentId,
             });
@@ -160,8 +194,14 @@ async function createCheckout(strapi, input, save, reuse = order => order) {
       items: items.map(item => ({
         __component: item.type === 'course' || item.type === 'chapter' ? 'order.course-order-item' : 'order.product-order-item',
         title: item.title, slug: item.slug, price: item.price, itemUrl: item.itemUrl,
-        ...(item.type === 'course' || item.type === 'chapter' ? { courseId: item.courseId,
-          ...(item.type === 'chapter' ? { chapterId: item.chapterId } : {}) } : { productId: item.productId, quantity: item.quantity }),
+        ...(item.type === 'course' || item.type === 'chapter' ? {
+          courseId: item.courseId,
+          courseDocumentId: item.courseDocumentId || item.documentId || null,
+          ...(item.type === 'chapter' ? {
+            chapterId: item.chapterId,
+            chapterIntegrationId: item.chapterIntegrationId || null,
+          } : {})
+        } : { productId: item.productId, quantity: item.quantity }),
       })),
     };
     if (reusable && !isFree) {

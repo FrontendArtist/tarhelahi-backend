@@ -59,6 +59,7 @@ async function syncUserPurchases(orderIdentifier) {
 
     const courseIdsToConnect = new Set();
     const chapterIdsToConnect = new Set();
+    const chapterIntegrationIdsToConnect = new Set();
     const coursesToCheck = new Map();
 
     for (const item of items) {
@@ -66,8 +67,13 @@ async function syncUserPurchases(orderIdentifier) {
       if (item.__component !== 'order.course-order-item') continue;
 
       // Chapter purchase
-      if (item.chapterId) {
-        chapterIdsToConnect.add(Number(item.chapterId));
+      if (item.chapterId || item.chapterIntegrationId) {
+        if (item.chapterId) {
+          chapterIdsToConnect.add(Number(item.chapterId));
+        }
+        if (item.chapterIntegrationId) {
+          chapterIntegrationIdsToConnect.add(String(item.chapterIntegrationId).toLowerCase());
+        }
 
         if (item.courseId) {
           const cId = Number(item.courseId);
@@ -122,6 +128,22 @@ async function syncUserPurchases(orderIdentifier) {
         if (targetCourse && targetCourse.id) {
           courseIdsToConnect.add(targetCourse.id);
           coursesToCheck.set(targetCourse.id, targetCourse);
+
+          // در صورت خرید کل دوره، تمامی فصل‌های آن نیز به دسترسی‌های کاربر متصل می‌شوند
+          try {
+            const courseWithChapters = await strapi.db.query('api::course.course').findOne({
+              where: { id: targetCourse.id },
+              populate: ['chapters'],
+            });
+            if (Array.isArray(courseWithChapters?.chapters)) {
+              for (const ch of courseWithChapters.chapters) {
+                if (ch.id) chapterIdsToConnect.add(Number(ch.id));
+                if (ch.integrationId) chapterIntegrationIdsToConnect.add(String(ch.integrationId).toLowerCase());
+              }
+            }
+          } catch (err) {
+            console.error('[Order Lifecycle] Error populating course chapters for bulk purchase:', err.message);
+          }
         }
       }
     }
@@ -156,22 +178,29 @@ async function syncUserPurchases(orderIdentifier) {
       console.log(`[Order Lifecycle] ✅ Connected courses [${Array.from(courseIdsToConnect)}] to user ${userId} from Course (Owner) side`);
     }
 
-    // 5. Sync enrolledChapters JSON field
-    if (chapterIdsToConnect.size > 0) {
+    // 5. Sync enrolledChapters and enrolledChapterIntegrationIds JSON fields
+    if (chapterIdsToConnect.size > 0 || chapterIntegrationIdsToConnect.size > 0) {
       const existingChapters = Array.isArray(user.enrolledChapters)
         ? user.enrolledChapters.map(Number)
         : [];
       const newChapterIds = Array.from(chapterIdsToConnect);
       const mergedChapters = [...new Set([...existingChapters, ...newChapterIds])];
 
+      const existingUuids = Array.isArray(user.enrolledChapterIntegrationIds)
+        ? user.enrolledChapterIntegrationIds.map(id => String(id).toLowerCase())
+        : [];
+      const newUuids = Array.from(chapterIntegrationIdsToConnect);
+      const mergedUuids = [...new Set([...existingUuids, ...newUuids])];
+
       await strapi.db.query('plugin::users-permissions.user').update({
         where: { id: userId },
         data: {
           enrolledChapters: mergedChapters,
+          enrolledChapterIntegrationIds: mergedUuids,
         },
       });
 
-      console.log(`[Order Lifecycle] ✅ Connected chapters [${mergedChapters}] to user ${userId}`);
+      console.log(`[Order Lifecycle] ✅ Connected chapters [${mergedChapters}] and UUIDs [${mergedUuids}] to user ${userId}`);
     }
 
     console.log(`[Order Lifecycle] ✅ Synced user ${userId} purchases successfully`);

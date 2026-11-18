@@ -18,6 +18,12 @@
     "chapterId": {
       "type": "integer"
     },
+    "chapterIntegrationId": {
+      "type": "string"
+    },
+    "courseDocumentId": {
+      "type": "string"
+    },
     "slug": {
       "type": "string"
     },

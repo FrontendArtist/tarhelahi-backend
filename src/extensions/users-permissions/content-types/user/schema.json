@@ -140,6 +140,9 @@
     },
     "enrolledChapters": {
       "type": "json"
+    },
+    "enrolledChapterIntegrationIds": {
+      "type": "json"
     }
   }
 }
