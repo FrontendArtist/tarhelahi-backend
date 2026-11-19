@@ -14,7 +14,7 @@
     "export:excel": "node scripts/export_orders_excel.js",
     "test": "jest && npm run test:node",
     "test:jest": "jest",
-    "test:node": "node --test tests/abandoned-order.test.js tests/notification-lifecycle.test.js tests/order-price-hotfix.test.js tests/pending-checkout.test.js",
+    "test:node": "node --test tests/abandoned-order.test.js tests/chaptered-course-pricing.test.js tests/notification-lifecycle.test.js tests/order-price-hotfix.test.js tests/pending-checkout.test.js",
     "test:pg": "node --test tests/order-price-hotfix.pg.test.js tests/pending-checkout.pg.test.js tests/physicalStock.pg.cjs tests/lateSuccessPayment.pg.cjs",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
@@ -50,7 +50,7 @@
     "installId": "024532a4be5e4cd722972caa28a5a2ea274467db7016a80744efb62de43ced2e"
   },
   "jest": {
-    "testPathIgnorePatterns": ["/node_modules/", "/tests/(abandoned-order|notification-lifecycle|order-price-hotfix|pending-checkout)([.]pg)?[.]test[.]js$"]
+    "testPathIgnorePatterns": ["/node_modules/", "/tests/(abandoned-order|chaptered-course-pricing|notification-lifecycle|order-price-hotfix|pending-checkout)([.]pg)?[.]test[.]js$"]
   },
   "devDependencies": {
     "baseline-browser-mapping": "^2.10.38",

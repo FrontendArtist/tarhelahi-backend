@@ -6,6 +6,8 @@
  * وزن، ابعاد، box_type_id و ارزش از عوامل فریزشدنی کالا می‌آید (ابعاد از جعبهٔ استاندارد).
  */
 
+const { createHash } = require('node:crypto');
+
 const DEFAULT_BASE_URL = 'https://api.postex.ir';
 /** فقط برای آزمون‌های قدیمی؛ مسیر زنده باید fromCityId مبدأ کالا را بدهد. */
 const DEFAULT_FROM_CITY_ID = 573;
@@ -43,6 +45,23 @@ function configFromEnv(overrides = {}) {
 
 function isConfigured(overrides = {}) {
   return Boolean(configFromEnv(overrides).apiKey);
+}
+
+/**
+ * اثرانگشت راه‌اندازی پستکس. فقط در bootstrap لاگ می‌شود و روی هیچ مسیر HTTP نیست.
+ * مادهٔ هش: normalizedBaseUrl + "|" + apiKey. اسلش‌های انتهای نشانی حذف می‌شوند.
+ * کلید خالی هش نمی‌شود.
+ */
+function logConfigFingerprint(strapi, overrides = {}) {
+  const { apiKey, baseUrl } = configFromEnv(overrides);
+  const log = strapi?.log;
+  if (!apiKey) {
+    log?.warn?.('[Postex] API key is not configured.');
+    return null;
+  }
+  const fingerprint = createHash('sha256').update(`${baseUrl}|${apiKey}`).digest('hex');
+  log?.info?.(`[Postex] config fingerprint: ${fingerprint}`);
+  return fingerprint;
 }
 
 async function loadCityMap(cfg) {
@@ -313,6 +332,7 @@ function resetCityCacheForTests() {
 
 module.exports = {
   isConfigured,
+  logConfigFingerprint,
   quoteTotalCostIrr,
   quoteParcelCostIrr,
   resolveCityId,

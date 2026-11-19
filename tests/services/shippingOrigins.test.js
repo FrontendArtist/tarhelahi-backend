@@ -52,23 +52,61 @@ describe('shippingOrigins (SHIP-MULTI-ORIGIN)', () => {
     expect(shippingOrigins.resolveCartOrigin([])).toBeNull();
   });
 
-  it('defaults to ramsar when a product has no origin', () => {
-    const origin = shippingOrigins.resolveCartOrigin([{ title: 'کالا' }]);
-    expect(origin).toEqual(shippingOrigins.FALLBACK_RAMSAR);
+  it('conflicts when a physical product has no origin', () => {
+    expect(() => shippingOrigins.resolveCartOrigin([{ title: 'کالا' }])).toThrow(expect.objectContaining({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: shippingOrigins.MISSING_ORIGIN_MESSAGE,
+    }));
   });
 
-  it('uses bootstrapped default origin when product has no origin', () => {
-    const origin = shippingOrigins.resolveCartOrigin(
-      [{ title: 'کالا' }],
+  it('does not fall back when origin is null even if a default is supplied', () => {
+    expect(() => shippingOrigins.resolveCartOrigin(
+      [{ title: 'کالا', shippingOrigin: null }],
       {
         originId: 'ramsar',
         displayName: 'انبار رامسر',
         city: { externalId: 573, name: 'رامسر' },
       },
-    );
+    )).toThrow(expect.objectContaining({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: shippingOrigins.MISSING_ORIGIN_MESSAGE,
+    }));
+  });
+
+  it('conflicts on a missing origin before comparing other origins', () => {
+    expect(() =>
+      shippingOrigins.resolveCartOrigin([
+        { title: 'بدون مبدأ' },
+        {
+          shippingOrigin: {
+            originId: 'mashhad',
+            city: { externalId: 259, name: 'مشهد' },
+          },
+        },
+      ]),
+    ).toThrow(expect.objectContaining({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: shippingOrigins.MISSING_ORIGIN_MESSAGE,
+    }));
+  });
+
+  it('still resolves an explicit ramsar origin on the product', () => {
+    const origin = shippingOrigins.resolveCartOrigin([
+      {
+        shippingOrigin: {
+          originId: 'ramsar',
+          displayName: 'رامسر',
+          city: { externalId: 573, name: 'رامسر' },
+        },
+      },
+    ]);
+
     expect(origin).toEqual({
       originId: 'ramsar',
-      displayName: 'انبار رامسر',
+      displayName: 'رامسر',
       cityId: 573,
       cityName: 'رامسر',
     });
@@ -90,7 +128,11 @@ describe('shippingOrigins (SHIP-MULTI-ORIGIN)', () => {
           },
         },
       ]),
-    ).toThrow(expect.objectContaining({ code: 'CART_CONFLICT', status: 409 }));
+    ).toThrow(expect.objectContaining({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'اقلام فیزیکی سبد باید از یک مبدأ ارسال باشند.',
+    }));
   });
 
   it('conflicts when origin city is missing or invalid', () => {
@@ -98,6 +140,10 @@ describe('shippingOrigins (SHIP-MULTI-ORIGIN)', () => {
       shippingOrigins.resolveCartOrigin([
         { shippingOrigin: { originId: 'ramsar', displayName: 'رامسر' } },
       ]),
-    ).toThrow(expect.objectContaining({ code: 'CART_CONFLICT', status: 409 }));
+    ).toThrow(expect.objectContaining({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'مبدأ ارسال کالای فیزیکی ناقص است.',
+    }));
   });
 });

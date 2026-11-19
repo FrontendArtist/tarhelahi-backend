@@ -211,8 +211,7 @@ async function quote(strapi, input, items, buyer, address) {
       }
     }
   }
-  const defaultOrigin = await shippingOrigins.loadDefaultOrigin(strapi);
-  const origin = shippingOrigins.resolveCartOrigin(productRecords, defaultOrigin);
+  const origin = shippingOrigins.resolveCartOrigin(productRecords);
   const delivery = await shipping.calculate(
     strapi,
     rows,
@@ -277,6 +276,7 @@ async function quote(strapi, input, items, buyer, address) {
     ...address,
     shippingOriginId: origin?.originId ?? null,
     shippingOriginLabel: origin?.displayName ?? null,
+    shippingOriginCityId: origin?.cityId ?? null,
     priceInNoor,
   };
 }

@@ -190,6 +190,9 @@ module.exports = {
     const { getThresholdMinutes } = require('./services/gatewayReviewRecovery');
     await getThresholdMinutes(strapi);
 
+    // فقط اثرانگشت؛ کلید و نشانی خام لاگ نمی‌شوند و مسیر HTTP ندارند.
+    require('./services/postexShippingQuote').logConfigFingerprint(strapi);
+
     try {
       const postexLocality = require('./services/postexLocalitySync');
       const { ensureDefaultOrigin } = require('./services/shippingOrigins');

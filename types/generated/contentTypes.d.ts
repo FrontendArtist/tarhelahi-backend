@@ -1538,7 +1538,8 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     shippingOrigin: Schema.Attribute.Relation<
       'manyToOne',
       'api::shipping-origin.shipping-origin'
-    >;
+    > &
+      Schema.Attribute.Required;
     shortDescription: Schema.Attribute.Text;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     specifications: Schema.Attribute.JSON;
