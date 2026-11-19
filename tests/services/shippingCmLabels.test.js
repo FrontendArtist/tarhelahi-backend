@@ -31,4 +31,25 @@ describe('shippingCmLabels', () => {
     );
     expect(changed).toBe(false);
   });
+
+  it('sets editable false and description for readonly fields such as rialPerNoorForShipping', () => {
+    const { changed, metadatas } = applyLabels(
+      {
+        rialPerNoorForShipping: {
+          edit: { editable: true, label: 'rialPerNoorForShipping' },
+          list: { label: 'rialPerNoorForShipping' },
+        },
+      },
+      { rialPerNoorForShipping: 'نرخ ریال به نور برای ارسال' },
+      ['rialPerNoorForShipping'],
+      { rialPerNoorForShipping: 'تنها به صورت نمایشی از دیتابیس بای‌مانی خوانده می‌شود.' },
+    );
+
+    expect(changed).toBe(true);
+    expect(metadatas.rialPerNoorForShipping.edit).toEqual({
+      editable: false,
+      label: 'نرخ ریال به نور برای ارسال',
+      description: 'تنها به صورت نمایشی از دیتابیس بای‌مانی خوانده می‌شود.',
+    });
+  });
 });

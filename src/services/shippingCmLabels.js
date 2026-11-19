@@ -35,13 +35,20 @@ const LABEL_PATCHES = {
   },
 };
 
-/** شناسهٔ محل پس از همگام‌سازی در پنل فقط خواندنی. */
+/** فیلدهای فقط خواندنی در پنل ادمین (شناسه‌های محل و نرخ ارسال بای‌مانی). */
 const READONLY_FIELDS = {
+  'api::shipping-setting.shipping-setting': ['rialPerNoorForShipping'],
   'api::province.province': ['externalId'],
   'api::city.city': ['externalId'],
 };
 
-function applyLabels(metadatas, labels, readonlyFields = []) {
+const FIELD_DESCRIPTIONS = {
+  'api::shipping-setting.shipping-setting': {
+    rialPerNoorForShipping: 'تنها به صورت نمایشی از دیتابیس بای‌مانی خوانده می‌شود.',
+  },
+};
+
+function applyLabels(metadatas, labels, readonlyFields = [], descriptions = {}) {
   if (!metadatas || typeof metadatas !== 'object') {
     return { changed: false, metadatas };
   }
@@ -49,15 +56,18 @@ function applyLabels(metadatas, labels, readonlyFields = []) {
   const next = { ...metadatas };
   for (const [field, label] of Object.entries(labels)) {
     const current = next[field] || {};
+    const descPatch = descriptions[field] !== undefined ? { description: descriptions[field] } : {};
     const edit = {
       ...(current.edit || {}),
       label,
+      ...descPatch,
       ...(readonlyFields.includes(field) ? { editable: false } : {}),
     };
     const list = { ...(current.list || {}), label };
     if (
       current.edit?.label !== label
       || current.list?.label !== label
+      || (descriptions[field] !== undefined && current.edit?.description !== descriptions[field])
       || (readonlyFields.includes(field) && current.edit?.editable !== false)
     ) {
       changed = true;
@@ -79,6 +89,7 @@ async function ensureShippingCmLabels(strapi) {
       conf.metadatas,
       labels,
       READONLY_FIELDS[uid] || [],
+      FIELD_DESCRIPTIONS[uid] || {},
     );
     if (!changed) {
       continue;
@@ -89,6 +100,8 @@ async function ensureShippingCmLabels(strapi) {
 
 module.exports = {
   LABEL_PATCHES,
+  READONLY_FIELDS,
+  FIELD_DESCRIPTIONS,
   applyLabels,
   ensureShippingCmLabels,
 };

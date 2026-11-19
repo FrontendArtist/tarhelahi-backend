@@ -162,6 +162,7 @@ module.exports = {
     strapi.documents.use(require('./services/chapterIdentity').documentMiddleware(strapi));
     strapi.documents.use(require('./services/chapterDeletionGuard').documentMiddleware(strapi));
     strapi.documents.use(require('./services/productBoxTypeMiddleware').documentMiddleware(strapi));
+    strapi.documents.use(require('./services/shippingSettingMiddleware').documentMiddleware(strapi));
     // فقط سفارش تازه نور می‌گیرد؛ انتشار مجدد یا ویرایش سابقه، واحد قدیمی را تغییر نمی‌دهد.
     strapi.documents.use(async (context, next) => {
       if (context.uid === 'api::order.order' && ['create', 'clone'].includes(context.action)) {
@@ -193,8 +194,10 @@ module.exports = {
       const postexLocality = require('./services/postexLocalitySync');
       const { ensureDefaultOrigin } = require('./services/shippingOrigins');
       const { ensureShippingCmLabels } = require('./services/shippingCmLabels');
+      const { syncShippingSettingRate } = require('./services/byeMoneySettingsService');
       await postexLocality.ensureLocalityBootstrap(strapi);
       await ensureDefaultOrigin(strapi);
+      await syncShippingSettingRate(strapi);
       await ensureShippingCmLabels(strapi);
     } catch (error) {
       strapi.log.warn(
