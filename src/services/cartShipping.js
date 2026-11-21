@@ -107,15 +107,19 @@ function shippingRate(settings) {
   return rate;
 }
 
-function lineValueIrr(item, rate) {
-  const noor = Number(item.discountedUnitPriceInNoor) * Number(item.quantity);
-  const value = Math.round(noor * Number(rate));
+function assertParcelValueCap(value) {
   if (!Number.isSafeInteger(value) || value < 1) {
     conflict('ارزش ریالی قلم برای برآورد پستکس معتبر نیست.');
   }
   if (value > IR_POST_MAX_DECLARED_VALUE_IRR) {
     conflict('ارزش ریالی کالا از سقف شرکت پست (۵ میلیارد ریال) بیشتر است.');
   }
+}
+
+function lineValueIrr(item, rate) {
+  const noor = Number(item.discountedUnitPriceInNoor) * Number(item.quantity);
+  const value = Math.round(noor * Number(rate));
+  assertParcelValueCap(value);
   return value;
 }
 
@@ -160,15 +164,54 @@ function attachDeclaredValues(physicalItems, rate) {
   }).filter(Boolean);
 }
 
+/**
+ * یک مرسولهٔ تجمیعی برای کل سبد فیزیکی: وزن و ارزش جمع اقلام، جعبه طبق shipmentBoxTypeId
+ * (ابعاد از جدول postexBoxes) و شکنندگی اگر یکی از اقلام شکننده باشد.
+ * @returns {{ weightGrams: number, lengthCm: number, widthCm: number, heightCm: number, boxTypeId: number, isFragile: boolean, totalValueIrr: number }}
+ */
+function cartParcel(physicalItems, rate) {
+  let weightGrams = 0;
+  let totalValueIrr = 0;
+  let baseBoxTypeId = 0;
+  let unitCount = 0;
+  let isFragile = false;
+
+  for (const item of physicalItems) {
+    const factors = requireParcelFactors(item);
+    weightGrams += factors.weightGrams;
+    totalValueIrr += lineValueIrr(item, rate);
+    baseBoxTypeId = Math.max(baseBoxTypeId, factors.boxTypeId);
+    unitCount += Number(item.quantity);
+    isFragile = isFragile || factors.isFragile;
+  }
+
+  if (!Number.isSafeInteger(weightGrams) || weightGrams < 1) {
+    conflict('وزن کالای فیزیکی برای ارسال ثبت نشده است.');
+  }
+
+  const boxTypeId = postexBoxes.shipmentBoxTypeId(baseBoxTypeId, unitCount);
+  const box = postexBoxes.resolve(boxTypeId);
+  if (!box) {
+    conflict('جعبهٔ کالا تعیین نشده');
+  }
+
+  return {
+    weightGrams,
+    lengthCm: box.lengthCm,
+    widthCm: box.widthCm,
+    heightCm: box.heightCm,
+    boxTypeId: box.id,
+    isFragile,
+    totalValueIrr,
+  };
+}
+
 async function calculatePostex(strapi, settings, subtotal, addressSnapshot, physicalItems, overrides = {}) {
   const threshold = settings?.freeShippingThresholdInNoor;
   assertThreshold(threshold);
 
   const rate = shippingRate(settings);
-
-  for (const item of physicalItems) {
-    requireParcelFactors(item);
-  }
+  const parcel = cartParcel(physicalItems, rate);
 
   if (threshold != null && subtotal >= Number(threshold)) {
     return {
@@ -194,53 +237,38 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
     conflict('شهر گیرنده در جدول محل یافت نشد.');
   }
 
-  let totalIrr = 0;
-  const parcelQuotes = [];
-  for (const item of physicalItems) {
-    const factors = requireParcelFactors(item);
-    const actualValue = lineValueIrr(item, rate);
-    let quoted;
-    try {
-      quoted = await postexQuote.quoteParcelCostIrr(
-        {
-          toCityCode,
-          parcelValueIrr: actualValue,
-          weightGrams: factors.weightGrams,
-          lengthCm: factors.lengthCm,
-          widthCm: factors.widthCm,
-          heightCm: factors.heightCm,
-          boxTypeId: factors.boxTypeId,
-          isFragile: factors.isFragile,
-          customParcelId: `item-${item.externalId}`,
-        },
-        overrides,
-      );
-    } catch (error) {
-      const detail = error instanceof Error && error.message ? ` ${error.message}` : '';
-      conflict(`برآورد هزینهٔ ارسال از پستکس ممکن نیست.${detail}`);
-    }
-    totalIrr += quoted.totalIrr;
-    parcelQuotes.push({
-      externalId: item.externalId,
-      weightGrams: factors.weightGrams,
-      lengthCm: factors.lengthCm,
-      widthCm: factors.widthCm,
-      heightCm: factors.heightCm,
-      boxTypeId: factors.boxTypeId,
-      isFragile: factors.isFragile,
-      declaredValueIrr: quoted.declaredValueIrr,
-    });
+  assertParcelValueCap(parcel.totalValueIrr);
+
+  let quoted;
+  try {
+    quoted = await postexQuote.quoteParcelCostIrr(
+      {
+        toCityCode,
+        parcelValueIrr: parcel.totalValueIrr,
+        weightGrams: parcel.weightGrams,
+        lengthCm: parcel.lengthCm,
+        widthCm: parcel.widthCm,
+        heightCm: parcel.heightCm,
+        boxTypeId: parcel.boxTypeId,
+        isFragile: parcel.isFragile,
+      },
+      overrides,
+    );
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? ` ${error.message}` : '';
+    conflict(`برآورد هزینهٔ ارسال از پستکس ممکن نیست.${detail}`);
   }
 
-  if (!Number.isSafeInteger(totalIrr) || totalIrr < 0) {
-    conflict('مبلغ برآورد ارسال معتبر نیست.');
-  }
-
-  const amount = rialToWholeNoor(totalIrr, rate);
+  const amount = rialToWholeNoor(quoted.totalIrr, rate);
   if (!Number.isSafeInteger(amount) || amount < 0) {
     conflict('مبلغ برآورد ارسال معتبر نیست.');
   }
-  return { shippingAmountInNoor: amount, shippingRuleLabel: 'برآورد پستکس', parcelQuotes };
+
+  return {
+    shippingAmountInNoor: amount,
+    shippingRuleLabel: 'برآورد پستکس',
+    parcelQuotes: attachDeclaredValues(physicalItems, rate),
+  };
 }
 
 async function calculate(strapi, items, addressSnapshot, overrides = {}) {

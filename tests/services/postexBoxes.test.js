@@ -16,4 +16,16 @@ describe('postexBoxes', () => {
     expect(postexBoxes.resolve(null)).toBeNull();
     expect(postexBoxes.enumerationValues()).toHaveLength(12);
   });
+
+  it('chooses the shipment box from the cart rule', () => {
+    expect(postexBoxes.shipmentBoxTypeId(7, 1)).toBe(7);
+    expect(postexBoxes.shipmentBoxTypeId(7, 2)).toBe(8);
+    expect(postexBoxes.shipmentBoxTypeId(12, 4)).toBe(12);
+    expect(postexBoxes.shipmentBoxTypeId(11, 2)).toBe(12);
+    expect(postexBoxes.shipmentBoxTypeId(1, 3)).toBe(1);
+    expect(postexBoxes.shipmentBoxTypeId(2, 2)).toBe(2);
+    expect(postexBoxes.shipmentBoxTypeId(3, 5)).toBe(3);
+    expect(postexBoxes.shipmentBoxTypeId(7, 4, 7)).toBe(7);
+    expect(postexBoxes.shipmentBoxTypeId(7, 4, 13)).toBeNull();
+  });
 });

@@ -4,7 +4,8 @@
  * مبدأ ارسال مشترک استرپی/بای‌مانی (SHIP-MULTI-ORIGIN).
  * شناسهٔ پایدار (مثلاً ramsar) روی کالا و پاسخ prepare می‌آید؛
  * شناسهٔ محل برای quote از city.externalId خوانده می‌شود (نه اسنپ‌شات روی مبدأ).
- * کالای بدون مبدأ → مبدأ bootstrapشدهٔ ramsar (نه تعارض).
+ * کالای بدون مبدأ، مبدأ ناقص، یا چند مبدأ متفاوت → CART_CONFLICT.
+ * رامسر فقط مبدأ قابل‌انتخاب است و دیگر جایگزین خاموش کالای بی‌مبدأ نیست.
  */
 
 const { conflict } = require('./stockReservation');
@@ -59,22 +60,22 @@ function normalizeOrigin(raw) {
   return { originId, displayName, cityId, cityName };
 }
 
+const MISSING_ORIGIN_MESSAGE = 'مبدأ ارسال کالای فیزیکی تعیین نشده است.';
+
 /**
  * مبدأ واحد سبد فیزیکی را از رکوردهای محصول resolve می‌کند.
- * نبود مبدأ روی کالا → پیش‌فرض ramsar؛ چند مبدأ متفاوت → CART_CONFLICT.
+ * نبود مبدأ، مبدأ ناقص، یا چند مبدأ متفاوت → CART_CONFLICT.
  */
-function resolveCartOrigin(productRecords, defaultOrigin = null) {
+function resolveCartOrigin(productRecords) {
   if (!Array.isArray(productRecords) || productRecords.length === 0) {
     return null;
   }
 
-  const fallback = normalizeOrigin(defaultOrigin) || { ...FALLBACK_RAMSAR };
   const origins = [];
   for (const record of productRecords) {
     const raw = record?.shippingOrigin;
     if (raw == null) {
-      origins.push(fallback);
-      continue;
+      conflict(MISSING_ORIGIN_MESSAGE);
     }
     const origin = normalizeOrigin(raw);
     if (!origin) {
@@ -138,6 +139,7 @@ module.exports = {
   UID,
   DEFAULT_ORIGIN_ID,
   FALLBACK_RAMSAR,
+  MISSING_ORIGIN_MESSAGE,
   normalizeOrigin,
   resolveCartOrigin,
   loadDefaultOrigin,

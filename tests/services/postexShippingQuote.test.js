@@ -1,5 +1,6 @@
 'use strict';
 
+const { createHash } = require('node:crypto');
 const postexQuote = require('../../src/services/postexShippingQuote');
 
 const parcel = {
@@ -76,28 +77,107 @@ describe('postexShippingQuote', () => {
     expect(message).toContain('One or more validation errors occurred.');
   });
 
-  it('retries with value floor when lower value is rejected', async () => {
-    const fetchImpl = jest.fn(async (_url, init) => {
-      const body = JSON.parse(init.body);
-      const value = body.parcels[0].parcel_properties.total_value;
-      if (value < postexQuote.VALUE_FLOOR_IRR) {
-        return {
-          ok: false,
-          status: 400,
-          text: async () => JSON.stringify({ message: 'value too low' }),
-        };
-      }
-      return { ok: true, text: async () => JSON.stringify({ total_cost: 3_000_000 }) };
-    });
+  it('does not send a second quote when postex rejects the declared value', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: 'minimum value is 50000000' }),
+    }));
 
-    const result = await postexQuote.quoteParcelCostIrr(
-      { toCityCode: 1, ...parcel, parcelValueIrr: 100_000 },
-      { apiKey: 'secret', fetchImpl, fromCityId: 573 },
+    await expect(
+      postexQuote.quoteParcelCostIrr(
+        { toCityCode: 1, ...parcel, parcelValueIrr: 100_000 },
+        { apiKey: 'secret', fetchImpl, fromCityId: 573 },
+      ),
+    ).rejects.toThrow('minimum value is 50000000');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a rejection that is not a low declared value', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: 'city is closed' }),
+    }));
+
+    await expect(
+      postexQuote.quoteParcelCostIrr(
+        { toCityCode: 1, ...parcel, parcelValueIrr: 100_000 },
+        { apiKey: 'secret', fetchImpl, fromCityId: 573 },
+      ),
+    ).rejects.toThrow('city is closed');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('postex config fingerprint (S5-04)', () => {
+  const previousKey = process.env.POSTEX_API_KEY;
+  const previousUrl = process.env.POSTEX_BASE_URL;
+
+  afterEach(() => {
+    if (previousKey === undefined) {
+      delete process.env.POSTEX_API_KEY;
+    } else {
+      process.env.POSTEX_API_KEY = previousKey;
+    }
+    if (previousUrl === undefined) {
+      delete process.env.POSTEX_BASE_URL;
+    } else {
+      process.env.POSTEX_BASE_URL = previousUrl;
+    }
+  });
+
+  it('logs only the sha256 hex of normalized base url and key', () => {
+    const info = jest.fn();
+    const warn = jest.fn();
+    const apiKey = 'super-secret-postex-key';
+    const fingerprint = postexQuote.logConfigFingerprint(
+      { log: { info, warn } },
+      { apiKey, baseUrl: 'https://api.postex.ir///' },
     );
-    expect(result).toEqual({
-      totalIrr: 3_000_000,
-      declaredValueIrr: postexQuote.VALUE_FLOOR_IRR,
-    });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const expected = createHash('sha256')
+      .update(`https://api.postex.ir|${apiKey}`)
+      .digest('hex');
+
+    expect(fingerprint).toBe(expected);
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledWith(`[Postex] config fingerprint: ${expected}`);
+    expect(warn).not.toHaveBeenCalled();
+    const logged = JSON.stringify(info.mock.calls);
+    expect(logged).not.toContain(apiKey);
+    expect(logged).not.toContain('api.postex.ir');
+  });
+
+  it('reads env at startup and still omits the raw key', () => {
+    process.env.POSTEX_API_KEY = 'env-only-secret';
+    process.env.POSTEX_BASE_URL = 'https://example.test/postex/';
+    const info = jest.fn();
+    const warn = jest.fn();
+
+    postexQuote.logConfigFingerprint({ log: { info, warn } });
+
+    const expected = createHash('sha256')
+      .update('https://example.test/postex|env-only-secret')
+      .digest('hex');
+    expect(info).toHaveBeenCalledWith(`[Postex] config fingerprint: ${expected}`);
+    const logged = JSON.stringify(info.mock.calls);
+    expect(logged).not.toContain('env-only-secret');
+    expect(logged).not.toContain('example.test');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('logs that the key is not configured when the key is empty', () => {
+    const info = jest.fn();
+    const warn = jest.fn();
+
+    const fingerprint = postexQuote.logConfigFingerprint(
+      { log: { info, warn } },
+      { apiKey: '   ', baseUrl: 'https://api.postex.ir/' },
+    );
+
+    expect(fingerprint).toBeNull();
+    expect(info).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith('[Postex] API key is not configured.');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('api.postex.ir');
   });
 });

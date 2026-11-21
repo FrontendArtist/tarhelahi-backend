@@ -60,10 +60,33 @@ function resolve(value) {
   return id == null ? null : BY_ID.get(id);
 }
 
+/**
+ * جعبهٔ مرسولهٔ تجمیعی سبد.
+ * پایه بزرگ‌ترین شناسهٔ اقلام است. شناسهٔ ۴ تا ۱۱ با بیش از یک واحد کالا یک پله بزرگ می‌شود
+ * و از ۱۲ بالاتر نمی‌رود. پاکت‌های ۱ تا ۳ افزایش نمی‌گیرند. شناسهٔ ۱۳ استفاده نمی‌شود.
+ * اگر شناسهٔ دستی معتبر باشد، همان بدون افزایش برمی‌گردد.
+ * @returns {number|null}
+ */
+function shipmentBoxTypeId(baseBoxTypeId, unitCount, manualBoxTypeId) {
+  if (manualBoxTypeId != null && manualBoxTypeId !== '') {
+    return parseBoxTypeId(manualBoxTypeId);
+  }
+  const base = parseBoxTypeId(baseBoxTypeId);
+  if (base == null) {
+    return null;
+  }
+  const units = Number(unitCount);
+  if (base >= 4 && base <= 11 && Number.isSafeInteger(units) && units > 1) {
+    return base + 1;
+  }
+  return base;
+}
+
 module.exports = {
   BOXES,
   enumerationValue,
   enumerationValues,
   parseBoxTypeId,
   resolve,
+  shipmentBoxTypeId,
 };

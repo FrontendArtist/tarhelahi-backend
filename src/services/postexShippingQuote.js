@@ -3,8 +3,11 @@
 /**
  * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE / SHIP-PARCEL-FACTORS).
  * نگاشت شهر از cities/all؛ from_city از مبدأ کالای سبد می‌آید (نه ثابت اپ).
- * وزن، ابعاد، box_type_id و ارزش از عوامل فریزشدنی کالا می‌آید (ابعاد از جعبهٔ استاندارد).
+ * وزن، ابعاد، box_type_id و ارزش یک مرسولهٔ تجمیعی سبد را می‌گیرد
+ * (ابعاد از جعبهٔ استاندارد؛ تجمیع اقلام در cartShipping انجام می‌شود).
  */
+
+const { createHash } = require('node:crypto');
 
 const DEFAULT_BASE_URL = 'https://api.postex.ir';
 /** فقط برای آزمون‌های قدیمی؛ مسیر زنده باید fromCityId مبدأ کالا را بدهد. */
@@ -12,7 +15,6 @@ const DEFAULT_FROM_CITY_ID = 573;
 const DEFAULT_COURIER = 'IR_POST';
 const DEFAULT_SERVICE_TYPE = 'EXPRESS';
 const DEFAULT_TIMEOUT_MS = 12_000;
-const VALUE_FLOOR_IRR = 50_000_000;
 
 let cityCache = null;
 let cityCachePromise = null;
@@ -43,6 +45,23 @@ function configFromEnv(overrides = {}) {
 
 function isConfigured(overrides = {}) {
   return Boolean(configFromEnv(overrides).apiKey);
+}
+
+/**
+ * اثرانگشت راه‌اندازی پستکس. فقط در bootstrap لاگ می‌شود و روی هیچ مسیر HTTP نیست.
+ * مادهٔ هش: normalizedBaseUrl + "|" + apiKey. اسلش‌های انتهای نشانی حذف می‌شوند.
+ * کلید خالی هش نمی‌شود.
+ */
+function logConfigFingerprint(strapi, overrides = {}) {
+  const { apiKey, baseUrl } = configFromEnv(overrides);
+  const log = strapi?.log;
+  if (!apiKey) {
+    log?.warn?.('[Postex] API key is not configured.');
+    return null;
+  }
+  const fingerprint = createHash('sha256').update(`${baseUrl}|${apiKey}`).digest('hex');
+  log?.info?.(`[Postex] config fingerprint: ${fingerprint}`);
+  return fingerprint;
 }
 
 async function loadCityMap(cfg) {
@@ -281,28 +300,14 @@ async function quoteTotalCostIrr(input, overrides = {}) {
 }
 
 /**
- * ارزش واقعی را می‌فرستد؛ فقط اگر پستکس رد کرد و ارزش زیر کف بود، با کف ۵۰ میلیون تکرار می‌کند.
+ * یک استعلام با ارزش واقعی مرسوله. ارزش اعلامی همان ارزش ورودی است.
+ * خطای پستکس تکرار نمی‌شود و بالا نمی‌رود.
  * @returns {Promise<{ totalIrr: number, declaredValueIrr: number }>}
  */
 async function quoteParcelCostIrr(input, overrides = {}) {
   const actual = assertPositiveInt('ارزش', input.parcelValueIrr);
-  try {
-    const totalIrr = await quoteTotalCostIrr({ ...input, parcelValueIrr: actual }, overrides);
-    return { totalIrr, declaredValueIrr: actual };
-  } catch (firstError) {
-    if (actual >= VALUE_FLOOR_IRR) {
-      throw firstError;
-    }
-    try {
-      const totalIrr = await quoteTotalCostIrr(
-        { ...input, parcelValueIrr: VALUE_FLOOR_IRR },
-        overrides,
-      );
-      return { totalIrr, declaredValueIrr: VALUE_FLOOR_IRR };
-    } catch {
-      throw firstError;
-    }
-  }
+  const totalIrr = await quoteTotalCostIrr({ ...input, parcelValueIrr: actual }, overrides);
+  return { totalIrr, declaredValueIrr: actual };
 }
 
 /** فقط برای آزمون. */
@@ -313,6 +318,7 @@ function resetCityCacheForTests() {
 
 module.exports = {
   isConfigured,
+  logConfigFingerprint,
   quoteTotalCostIrr,
   quoteParcelCostIrr,
   resolveCityId,
@@ -322,5 +328,4 @@ module.exports = {
   DEFAULT_FROM_CITY_ID,
   DEFAULT_COURIER,
   DEFAULT_SERVICE_TYPE,
-  VALUE_FLOOR_IRR,
 };

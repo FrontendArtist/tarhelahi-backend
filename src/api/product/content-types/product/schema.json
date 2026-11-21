@@ -97,7 +97,8 @@
     "shippingOrigin": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::shipping-origin.shipping-origin"
+      "target": "api::shipping-origin.shipping-origin",
+      "required": true
     },
     "categories": {
       "type": "relation",
