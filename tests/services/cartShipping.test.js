@@ -2,6 +2,7 @@
 
 const cartShipping = require('../../src/services/cartShipping');
 const postexQuote = require('../../src/services/postexShippingQuote');
+const postexBoxes = require('../../src/services/postexBoxes');
 
 function settingsQuery(settings, cities = []) {
   return {
@@ -94,11 +95,11 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
     expect(result.shippingRuleLabel).toBe('ارسال ثابت داخلی');
   });
 
-  it('quotes each physical item and sums total_cost', async () => {
+  it('quotes the whole cart as one aggregated parcel', async () => {
     process.env.POSTEX_API_KEY = 'test-key';
     const fetchImpl = jest.fn(async () => ({
       ok: true,
-      text: async () => JSON.stringify({ total_cost: 1_000_000 }),
+      text: async () => JSON.stringify({ total_cost: 1_049_001 }),
     }));
 
     const strapi = settingsQuery({
@@ -133,24 +134,110 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
       { fetchImpl, fromCityId: 573 },
     );
 
-    expect(result).toMatchObject({ shippingAmountInNoor: 200, shippingRuleLabel: 'برآورد پستکس' });
-    expect(result.parcelQuotes).toHaveLength(2);
-    expect(result.parcelQuotes[0].declaredValueIrr).toBe(1_000_000);
-    expect(result.parcelQuotes[1].declaredValueIrr).toBe(300_000);
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ shippingAmountInNoor: 105, shippingRuleLabel: 'برآورد پستکس' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
 
-    const firstBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
-    expect(firstBody.parcels[0].parcel_properties).toMatchObject({
-      box_type_id: 6,
-      total_weight: 500,
-      length: 20,
-      width: 15,
-      height: 20,
-      total_value: 1_000_000,
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.parcels).toHaveLength(1);
+    const box = postexBoxes.resolve(7);
+    expect(body.parcels[0].parcel_properties).toMatchObject({
+      box_type_id: 7,
+      total_weight: 600,
+      length: box.lengthCm,
+      width: box.widthCm,
+      height: box.heightCm,
+      total_value: 1_300_000,
       is_fragile: true,
     });
-    expect(firstBody.from_city_code).toBe(573);
-    expect(firstBody.parcels[0].to_city_code).toBe(100);
+    expect(body.from_city_code).toBe(573);
+    expect(body.parcels[0].to_city_code).toBe(100);
+
+    expect(result.parcelQuotes).toEqual([
+      {
+        externalId: 'p-50-2',
+        weightGrams: 500,
+        lengthCm: 20,
+        widthCm: 15,
+        heightCm: 20,
+        boxTypeId: 6,
+        isFragile: true,
+        declaredValueIrr: 1_000_000,
+      },
+      {
+        externalId: 'p-30-1',
+        weightGrams: 100,
+        lengthCm: 10,
+        widthCm: 10,
+        heightCm: 15,
+        boxTypeId: 4,
+        isFragile: false,
+        declaredValueIrr: 300_000,
+      },
+    ]);
+  });
+
+  it('steps the shipment box up from the largest item box and quotes once', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ total_cost: 900_000 }),
+    }));
+
+    const strapi = settingsQuery({
+      costMode: 'postex',
+      rialPerNoorForShipping: 10000,
+    }, [{ documentId: 'city-tehran', externalId: 100 }]);
+
+    const items = [
+      product(10, 1, {
+        weightGrams: 100,
+        lengthCm: 15,
+        widthCm: 10,
+        heightCm: 20,
+        boxTypeId: 5,
+        isFragile: false,
+      }),
+      product(20, 1, {
+        weightGrams: 200,
+        lengthCm: 11,
+        widthCm: 12,
+        heightCm: 13,
+        boxTypeId: 9,
+        isFragile: false,
+      }),
+      product(40, 1, {
+        weightGrams: 300,
+        lengthCm: 10,
+        widthCm: 10,
+        heightCm: 15,
+        boxTypeId: 4,
+        isFragile: false,
+      }),
+    ];
+
+    const result = await cartShipping.calculate(
+      strapi,
+      items,
+      { city: 'تهران', province: 'تهران', cityDocumentId: 'city-tehran' },
+      { fetchImpl, fromCityId: 573, apiKey: 'test-key' },
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const box = postexBoxes.resolve(10);
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.parcels).toHaveLength(1);
+    expect(body.parcels[0].parcel_properties).toMatchObject({
+      box_type_id: 10,
+      total_weight: 600,
+      length: box.lengthCm,
+      width: box.widthCm,
+      height: box.heightCm,
+      total_value: 700_000,
+      is_fragile: false,
+    });
+    expect(result.shippingAmountInNoor).toBe(90);
+    expect(result.parcelQuotes).toHaveLength(3);
+    expect(result.parcelQuotes.map((quote) => quote.boxTypeId)).toEqual([5, 9, 4]);
+    expect(result.parcelQuotes[1]).toMatchObject({ lengthCm: 11, widthCm: 12, heightCm: 13 });
   });
 
   it('rejects postex cart when box type is missing', async () => {
@@ -170,38 +257,27 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
     });
   });
 
-  it('returns the first quote error once and keeps the declared value', async () => {
+  it('rejects the physical cart after one postex error without a second quote', async () => {
     process.env.POSTEX_API_KEY = 'test-key';
-    const declared = 100_000;
-    const fetchImpl = jest.fn(async (_url, init) => {
-      const body = JSON.parse(init.body);
-      expect(body.parcels[0].parcel_properties.total_value).toBe(declared);
-      return {
-        ok: false,
-        status: 400,
-        text: async () => JSON.stringify({
-          title: 'One or more validation errors occurred.',
-          errors: { 'Parcels[0].ParcelProperties.TotalValue': ['minimum value is 50000000'] },
-        }),
-      };
-    });
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: 'minimum value is 50000000' }),
+    }));
 
     const strapi = settingsQuery({
       costMode: 'postex',
       rialPerNoorForShipping: 10000,
     }, [{ documentId: 'city-tehran', externalId: 100 }]);
 
-    await expect(
-      cartShipping.calculate(
-        strapi,
-        [product(10, 1)],
-        { city: 'تهران', cityDocumentId: 'city-tehran' },
-        { fetchImpl, fromCityId: 573 },
-      ),
-    ).rejects.toMatchObject({
+    await expect(cartShipping.calculate(
+      strapi,
+      [product(10, 1)],
+      { city: 'تهران', cityDocumentId: 'city-tehran' },
+      { fetchImpl, fromCityId: 573 },
+    )).rejects.toMatchObject({
       code: 'CART_CONFLICT',
       status: 409,
-      message: expect.stringContaining('minimum value is 50000000'),
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
@@ -283,6 +359,7 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
       status: 409,
       message: expect.stringContaining('Length'),
     });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('reads product weight times quantity and box dimensions', () => {

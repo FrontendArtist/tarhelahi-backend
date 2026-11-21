@@ -77,24 +77,35 @@ describe('postexShippingQuote', () => {
     expect(message).toContain('One or more validation errors occurred.');
   });
 
-  it('does not resend a rejected quote and keeps the declared value', async () => {
-    const declared = 100_000;
-    const fetchImpl = jest.fn(async (_url, init) => {
-      const body = JSON.parse(init.body);
-      expect(body.parcels[0].parcel_properties.total_value).toBe(declared);
-      return {
-        ok: false,
-        status: 400,
-        text: async () => JSON.stringify({ message: 'value too low' }),
-      };
-    });
+  it('does not send a second quote when postex rejects the declared value', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: 'minimum value is 50000000' }),
+    }));
 
     await expect(
       postexQuote.quoteParcelCostIrr(
-        { toCityCode: 1, ...parcel, parcelValueIrr: declared },
+        { toCityCode: 1, ...parcel, parcelValueIrr: 100_000 },
         { apiKey: 'secret', fetchImpl, fromCityId: 573 },
       ),
-    ).rejects.toThrow('value too low');
+    ).rejects.toThrow('minimum value is 50000000');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a rejection that is not a low declared value', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: 'city is closed' }),
+    }));
+
+    await expect(
+      postexQuote.quoteParcelCostIrr(
+        { toCityCode: 1, ...parcel, parcelValueIrr: 100_000 },
+        { apiKey: 'secret', fetchImpl, fromCityId: 573 },
+      ),
+    ).rejects.toThrow('city is closed');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

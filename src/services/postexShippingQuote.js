@@ -3,7 +3,8 @@
 /**
  * استعلام هزینهٔ ارسال از پستکس برای سبد فیزیکی (SHIP-COST-MODE / SHIP-PARCEL-FACTORS).
  * نگاشت شهر از cities/all؛ from_city از مبدأ کالای سبد می‌آید (نه ثابت اپ).
- * وزن، ابعاد، box_type_id و ارزش از عوامل فریزشدنی کالا می‌آید (ابعاد از جعبهٔ استاندارد).
+ * وزن، ابعاد، box_type_id و ارزش یک مرسولهٔ تجمیعی سبد را می‌گیرد
+ * (ابعاد از جعبهٔ استاندارد؛ تجمیع اقلام در cartShipping انجام می‌شود).
  */
 
 const { createHash } = require('node:crypto');
@@ -299,8 +300,8 @@ async function quoteTotalCostIrr(input, overrides = {}) {
 }
 
 /**
- * ارزش واقعی قلم را می‌فرستد و همان را ارزش اعلامی برمی‌گرداند.
- * خطای استعلام همان خطای اول است و دوباره فرستاده نمی‌شود.
+ * یک استعلام با ارزش واقعی مرسوله. ارزش اعلامی همان ارزش ورودی است.
+ * خطای پستکس تکرار نمی‌شود و بالا نمی‌رود.
  * @returns {Promise<{ totalIrr: number, declaredValueIrr: number }>}
  */
 async function quoteParcelCostIrr(input, overrides = {}) {

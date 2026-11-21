@@ -187,6 +187,40 @@ describe('physical cart quote origin (SHIP-FIX-3)', () => {
     expect(body.from_city_code).toBe(result.shippingOriginCityId);
   });
 
+  it('keeps each prepare parcel value equal to the real line and ignores the quote amount', async () => {
+    process.env.POSTEX_API_KEY = 'test-key';
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ total_cost: 9_999_999 }),
+    }));
+
+    const expensive = { ...catalogProduct('prod-a', mashhadOrigin()), price: 50 };
+    const cheap = { ...catalogProduct('prod-b', mashhadOrigin()), price: 30 };
+    const person = buyer();
+    const items = [
+      { type: 'product', externalId: 'prod-a', quantity: 2 },
+      { type: 'product', externalId: 'prod-b', quantity: 1 },
+    ];
+    const result = await quote(
+      strapiFor([expensive, cheap], settingsFor('postex')),
+      { cartId: '11111111-1111-4111-8111-111111111111' },
+      items,
+      person,
+      addressOf(person, items, false),
+    );
+
+    const declared = Object.fromEntries(result.items.map((item) => [
+      item.externalId,
+      item.parcel.declaredValueIrr,
+    ]));
+    expect(declared['prod-a']).toBe(50 * 2 * 10000);
+    expect(declared['prod-b']).toBe(30 * 10000);
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(body.parcels).toHaveLength(1);
+    expect(body.parcels[0].parcel_properties.total_value).toBe(50 * 2 * 10000 + 30 * 10000);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('conflicts when physical products use different origins', async () => {
     await expect(prepareQuote([
       catalogProduct('prod-ramsar', {
