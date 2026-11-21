@@ -14,7 +14,6 @@ const DEFAULT_FROM_CITY_ID = 573;
 const DEFAULT_COURIER = 'IR_POST';
 const DEFAULT_SERVICE_TYPE = 'EXPRESS';
 const DEFAULT_TIMEOUT_MS = 12_000;
-const VALUE_FLOOR_IRR = 50_000_000;
 
 let cityCache = null;
 let cityCachePromise = null;
@@ -300,28 +299,14 @@ async function quoteTotalCostIrr(input, overrides = {}) {
 }
 
 /**
- * ارزش واقعی را می‌فرستد؛ فقط اگر پستکس رد کرد و ارزش زیر کف بود، با کف ۵۰ میلیون تکرار می‌کند.
+ * ارزش واقعی قلم را می‌فرستد و همان را ارزش اعلامی برمی‌گرداند.
+ * خطای استعلام همان خطای اول است و دوباره فرستاده نمی‌شود.
  * @returns {Promise<{ totalIrr: number, declaredValueIrr: number }>}
  */
 async function quoteParcelCostIrr(input, overrides = {}) {
   const actual = assertPositiveInt('ارزش', input.parcelValueIrr);
-  try {
-    const totalIrr = await quoteTotalCostIrr({ ...input, parcelValueIrr: actual }, overrides);
-    return { totalIrr, declaredValueIrr: actual };
-  } catch (firstError) {
-    if (actual >= VALUE_FLOOR_IRR) {
-      throw firstError;
-    }
-    try {
-      const totalIrr = await quoteTotalCostIrr(
-        { ...input, parcelValueIrr: VALUE_FLOOR_IRR },
-        overrides,
-      );
-      return { totalIrr, declaredValueIrr: VALUE_FLOOR_IRR };
-    } catch {
-      throw firstError;
-    }
-  }
+  const totalIrr = await quoteTotalCostIrr({ ...input, parcelValueIrr: actual }, overrides);
+  return { totalIrr, declaredValueIrr: actual };
 }
 
 /** فقط برای آزمون. */
@@ -342,5 +327,4 @@ module.exports = {
   DEFAULT_FROM_CITY_ID,
   DEFAULT_COURIER,
   DEFAULT_SERVICE_TYPE,
-  VALUE_FLOOR_IRR,
 };

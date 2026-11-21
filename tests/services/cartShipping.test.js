@@ -135,6 +135,8 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
 
     expect(result).toMatchObject({ shippingAmountInNoor: 200, shippingRuleLabel: 'برآورد پستکس' });
     expect(result.parcelQuotes).toHaveLength(2);
+    expect(result.parcelQuotes[0].declaredValueIrr).toBe(1_000_000);
+    expect(result.parcelQuotes[1].declaredValueIrr).toBe(300_000);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     const firstBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
@@ -168,24 +170,20 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
     });
   });
 
-  it('retries with value floor only after postex rejects lower value', async () => {
+  it('returns the first quote error once and keeps the declared value', async () => {
     process.env.POSTEX_API_KEY = 'test-key';
-    let calls = 0;
+    const declared = 100_000;
     const fetchImpl = jest.fn(async (_url, init) => {
-      calls += 1;
       const body = JSON.parse(init.body);
-      const value = body.parcels[0].parcel_properties.total_value;
-      if (value < postexQuote.VALUE_FLOOR_IRR) {
-        return {
-          ok: false,
-          status: 400,
-          text: async () => JSON.stringify({
-            title: 'One or more validation errors occurred.',
-            errors: { 'Parcels[0].ParcelProperties.TotalValue': ['minimum value is 50000000'] },
-          }),
-        };
-      }
-      return { ok: true, text: async () => JSON.stringify({ total_cost: 2_000_000 }) };
+      expect(body.parcels[0].parcel_properties.total_value).toBe(declared);
+      return {
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({
+          title: 'One or more validation errors occurred.',
+          errors: { 'Parcels[0].ParcelProperties.TotalValue': ['minimum value is 50000000'] },
+        }),
+      };
     });
 
     const strapi = settingsQuery({
@@ -193,16 +191,19 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
       rialPerNoorForShipping: 10000,
     }, [{ documentId: 'city-tehran', externalId: 100 }]);
 
-    const result = await cartShipping.calculate(
-      strapi,
-      [product(10, 1)],
-      { city: 'تهران', cityDocumentId: 'city-tehran' },
-      { fetchImpl, fromCityId: 573 },
-    );
-
-    expect(calls).toBe(2);
-    expect(result.shippingAmountInNoor).toBe(200);
-    expect(result.parcelQuotes[0].declaredValueIrr).toBe(postexQuote.VALUE_FLOOR_IRR);
+    await expect(
+      cartShipping.calculate(
+        strapi,
+        [product(10, 1)],
+        { city: 'تهران', cityDocumentId: 'city-tehran' },
+        { fetchImpl, fromCityId: 573 },
+      ),
+    ).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: expect.stringContaining('minimum value is 50000000'),
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('skips postex call when free-shipping threshold is met but still returns factors', async () => {

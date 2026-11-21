@@ -77,29 +77,25 @@ describe('postexShippingQuote', () => {
     expect(message).toContain('One or more validation errors occurred.');
   });
 
-  it('retries with value floor when lower value is rejected', async () => {
+  it('does not resend a rejected quote and keeps the declared value', async () => {
+    const declared = 100_000;
     const fetchImpl = jest.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
-      const value = body.parcels[0].parcel_properties.total_value;
-      if (value < postexQuote.VALUE_FLOOR_IRR) {
-        return {
-          ok: false,
-          status: 400,
-          text: async () => JSON.stringify({ message: 'value too low' }),
-        };
-      }
-      return { ok: true, text: async () => JSON.stringify({ total_cost: 3_000_000 }) };
+      expect(body.parcels[0].parcel_properties.total_value).toBe(declared);
+      return {
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ message: 'value too low' }),
+      };
     });
 
-    const result = await postexQuote.quoteParcelCostIrr(
-      { toCityCode: 1, ...parcel, parcelValueIrr: 100_000 },
-      { apiKey: 'secret', fetchImpl, fromCityId: 573 },
-    );
-    expect(result).toEqual({
-      totalIrr: 3_000_000,
-      declaredValueIrr: postexQuote.VALUE_FLOOR_IRR,
-    });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    await expect(
+      postexQuote.quoteParcelCostIrr(
+        { toCityCode: 1, ...parcel, parcelValueIrr: declared },
+        { apiKey: 'secret', fetchImpl, fromCityId: 573 },
+      ),
+    ).rejects.toThrow('value too low');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
 
