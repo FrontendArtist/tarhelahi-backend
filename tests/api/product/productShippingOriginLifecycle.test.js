@@ -1,6 +1,8 @@
 'use strict';
 
 const lifecycles = require('../../../src/api/product/content-types/product/lifecycles');
+
+const EMPTY_ORIGIN_MESSAGE = 'مبدأ ارسال کالا نمی‌تواند خالی باشد.';
 const shippingOrigins = require('../../../src/services/shippingOrigins');
 
 function createStrapi(origin) {
@@ -52,7 +54,7 @@ describe('product shipping origin lifecycle', () => {
     const data = { shippingOrigin: null };
 
     await expect(lifecycles.beforeUpdate({ params: { data } })).rejects.toMatchObject({
-      message: lifecycles.EMPTY_ORIGIN_MESSAGE,
+      message: EMPTY_ORIGIN_MESSAGE,
     });
     expect(data.shippingOrigin).toBeNull();
   });
@@ -81,7 +83,7 @@ describe('product shipping origin lifecycle', () => {
     await expect(lifecycles.beforeUpdate({
       params: { data: { shippingOrigin: { connect: [], disconnect: [{ id: 41 }] } } },
     })).rejects.toMatchObject({
-      message: lifecycles.EMPTY_ORIGIN_MESSAGE,
+      message: EMPTY_ORIGIN_MESSAGE,
     });
   });
 
@@ -90,7 +92,7 @@ describe('product shipping origin lifecycle', () => {
     await expect(lifecycles.beforeUpdate({
       params: { data: { shippingOrigin: { set: [] } } },
     })).rejects.toMatchObject({
-      message: lifecycles.EMPTY_ORIGIN_MESSAGE,
+      message: EMPTY_ORIGIN_MESSAGE,
     });
 
     const untouched = { title: 'نام تازه' };

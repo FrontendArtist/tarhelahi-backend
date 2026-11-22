@@ -36,15 +36,32 @@ async function preview(strapi, input) {
   return response;
 }
 
+const SHIPPING_CHANGED = 'قیمت یا مشخصات ارسال سبد تغییر کرده است. دوباره تلاش کنید.';
+
 async function prepare(strapi, input) {
   validate(input, true);
   const items = pricing.selection(input);
+  // استعلام پستکس بیرون از قفل است. در حالت ثابت این دروازه تماسی نمی‌گیرد.
+  const gate = await pricing.shippingGate(strapi, input, items);
+  if (gate.fingerprint) {
+    const stored = await strapi.db.query(UID).findOne({ where: { cartId: input.cartId } });
+    if (stored && stored.fingerprint === gate.fingerprint && stored.state !== 'released') {
+      return stored.snapshot;
+    }
+    if (!stored && gate.callsPostex) {
+      const totalIrr = Number(await pricing.quoteShippingIrr(strapi, gate));
+      if (!Number.isSafeInteger(totalIrr) || totalIrr < 0) {
+        stock.conflict('مبلغ برآورد ارسال معتبر نیست.');
+      }
+      gate.quotedTotalIrr = totalIrr;
+    }
+  }
   return strapi.db.transaction(async ({ trx }) => {
     await stock.lock(trx, CART_LOCK, input.cartId);
     const buyer = await pricing.buyerProfile(strapi, input.buyerExternalUserId);
     const address = pricing.addressOf(buyer, items, false);
     const code = input.couponCode?.trim().toUpperCase() || null;
-    const fingerprint = JSON.stringify([input.buyerExternalUserId, items, code, address.addressVersion]);
+    const fingerprint = await pricing.fingerprint(strapi, input, items, address);
     const repository = strapi.db.query(UID);
     const existing = await repository.findOne({ where: { cartId: input.cartId } });
     if (existing) {
@@ -53,13 +70,19 @@ async function prepare(strapi, input) {
       }
       return existing.snapshot;
     }
+    if (gate.fingerprint && fingerprint !== gate.fingerprint) {
+      stock.conflict(SHIPPING_CHANGED);
+    }
     if (code) {
       await couponLock(strapi, trx, code);
     }
     // قفل تمام کالاها پیش از قیمت‌گذاری، خواندن قیمت/انتشار و رزرو را هم‌نسخه می‌کند.
     const physicalItems = items.filter((item) => item.type === 'product');
     await stock.lockProducts(trx, [...physicalItems].sort((left, right) => left.externalId < right.externalId ? -1 : 1));
-    const snapshot = await pricing.quote(strapi, input, items, buyer, address);
+    const snapshot = await pricing.quote(
+      strapi, input, items, buyer, address,
+      gate.callsPostex ? { quotedTotalIrr: gate.quotedTotalIrr } : {},
+    );
     const reservation = await stock.reserve(strapi, trx, input.cartId, physicalItems);
     if (code) {
       const result = await strapi.service('api::coupon.coupon').consumeCoupon(code);

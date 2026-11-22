@@ -20,6 +20,13 @@ jest.mock('../../src/services/physicalCartQuote', () => ({
   }),
   assertAvailable: jest.fn(),
   invalid: (message) => { throw Object.assign(new Error(message), { status: 400 }); },
+  shippingGate: async () => ({ callsPostex: false, fingerprint: null }),
+  fingerprint: async (_strapi, input, items, address) => JSON.stringify([
+    input.buyerExternalUserId,
+    items,
+    input.couponCode?.trim().toUpperCase() || null,
+    address.addressVersion,
+  ]),
 }));
 jest.mock('../../src/services/byeMoneyPurchaseService', () => ({
   confirmPurchase: jest.fn(async () => ({ httpStatus: 200, response: {} })),

@@ -107,6 +107,25 @@ function shippingRate(settings) {
   return rate;
 }
 
+function wholeOrNull(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isSafeInteger(number) ? number : null;
+}
+
+/** حالت، نرخ، آستانه و مبلغ ثابت؛ نرخ نامعتبر همان تعارض محاسبه را می‌دهد. */
+function shippingStamp(settings) {
+  assertThreshold(settings?.freeShippingThresholdInNoor);
+  return {
+    costMode: readMode(settings),
+    rate: shippingRate(settings),
+    threshold: wholeOrNull(settings?.freeShippingThresholdInNoor),
+    fixedAmount: wholeOrNull(settings?.fixedAmountInNoor),
+  };
+}
+
 function assertParcelValueCap(value) {
   if (!Number.isSafeInteger(value) || value < 1) {
     conflict('ارزش ریالی قلم برای برآورد پستکس معتبر نیست.');
@@ -206,21 +225,15 @@ function cartParcel(physicalItems, rate) {
   };
 }
 
-async function calculatePostex(strapi, settings, subtotal, addressSnapshot, physicalItems, overrides = {}) {
-  const threshold = settings?.freeShippingThresholdInNoor;
-  assertThreshold(threshold);
-
-  const rate = shippingRate(settings);
-  const parcel = cartParcel(physicalItems, rate);
-
-  if (threshold != null && subtotal >= Number(threshold)) {
-    return {
-      shippingAmountInNoor: 0,
-      shippingRuleLabel: 'ارسال رایگان',
-      parcelQuotes: attachDeclaredValues(physicalItems, rate),
-    };
+function acceptedQuoteIrr(value) {
+  const totalIrr = Number(value);
+  if (!Number.isSafeInteger(totalIrr) || totalIrr < 0) {
+    conflict('مبلغ برآورد ارسال معتبر نیست.');
   }
+  return totalIrr;
+}
 
+async function requestPostexTotal(strapi, parcel, addressSnapshot, overrides) {
   if (!postexQuote.isConfigured(overrides)) {
     conflict('برآورد هزینهٔ ارسال از پستکس ممکن نیست؛ کلید دسترسی تنظیم نشده است.');
   }
@@ -239,9 +252,8 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
 
   assertParcelValueCap(parcel.totalValueIrr);
 
-  let quoted;
   try {
-    quoted = await postexQuote.quoteParcelCostIrr(
+    return await postexQuote.quoteParcelCostIrr(
       {
         toCityCode,
         parcelValueIrr: parcel.totalValueIrr,
@@ -258,8 +270,38 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
     const detail = error instanceof Error && error.message ? ` ${error.message}` : '';
     conflict(`برآورد هزینهٔ ارسال از پستکس ممکن نیست.${detail}`);
   }
+}
 
-  const amount = rialToWholeNoor(quoted.totalIrr, rate);
+async function postexTotalIrr(strapi, physicalItems, addressSnapshot, overrides = {}) {
+  const settings = await strapi.db.query('api::shipping-setting.shipping-setting').findOne({});
+  const rate = shippingRate(settings);
+  const parcel = cartParcel(physicalItems, rate);
+  const quoted = await requestPostexTotal(strapi, parcel, addressSnapshot, overrides);
+  return quoted.totalIrr;
+}
+
+async function calculatePostex(strapi, settings, subtotal, addressSnapshot, physicalItems, overrides = {}) {
+  const threshold = settings?.freeShippingThresholdInNoor;
+  assertThreshold(threshold);
+
+  const rate = shippingRate(settings);
+  const parcel = cartParcel(physicalItems, rate);
+
+  if (threshold != null && subtotal >= Number(threshold)) {
+    return {
+      shippingAmountInNoor: 0,
+      shippingRuleLabel: 'ارسال رایگان',
+      parcelQuotes: attachDeclaredValues(physicalItems, rate),
+    };
+  }
+
+  assertParcelValueCap(parcel.totalValueIrr);
+
+  const totalIrr = overrides.quotedTotalIrr != null
+    ? acceptedQuoteIrr(overrides.quotedTotalIrr)
+    : (await requestPostexTotal(strapi, parcel, addressSnapshot, overrides)).totalIrr;
+
+  const amount = rialToWholeNoor(totalIrr, rate);
   if (!Number.isSafeInteger(amount) || amount < 0) {
     conflict('مبلغ برآورد ارسال معتبر نیست.');
   }
@@ -294,6 +336,9 @@ module.exports = {
   calculate,
   readParcelFactors,
   requireProductParcelOrConflict,
+  readMode,
+  shippingStamp,
+  postexTotalIrr,
   MODE_FIXED,
   MODE_POSTEX,
 };

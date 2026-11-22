@@ -102,7 +102,109 @@ function money(value) {
   return value;
 }
 
-async function quote(strapi, input, items, buyer, address) {
+function couponCode(input) {
+  return input.couponCode?.trim().toUpperCase() || null;
+}
+
+async function loadSettings(strapi) {
+  return strapi.db.query('api::shipping-setting.shipping-setting').findOne({});
+}
+
+async function productFacts(strapi, items) {
+  const records = [];
+  const lines = [];
+  for (const item of items) {
+    if (item.type !== 'product') {
+      continue;
+    }
+    const record = await stock.assertPublished(strapi, item);
+    records.push(record);
+    const factors = shipping.requireProductParcelOrConflict(record, item.quantity);
+    lines.push({
+      externalId: item.externalId,
+      quantity: item.quantity,
+      price: Number(record.price),
+      discountedPrice: discountedPrice(record),
+      weightGrams: factors.weightGrams,
+      boxTypeId: factors.boxTypeId,
+      isFragile: factors.isFragile === true,
+      parcelFactors: factors,
+    });
+  }
+  return { lines, origin: shippingOrigins.resolveCartOrigin(records) };
+}
+
+function stampFingerprint(input, items, address, facts, stamp) {
+  const code = couponCode(input);
+  if (!facts) {
+    return JSON.stringify([input.buyerExternalUserId, items, code, address.addressVersion, null]);
+  }
+  return JSON.stringify([
+    input.buyerExternalUserId,
+    items,
+    code,
+    address.addressVersion,
+    facts.lines.map((row) => ({
+      externalId: row.externalId,
+      price: row.price,
+      discountedPrice: row.discountedPrice,
+      weightGrams: row.weightGrams,
+      boxTypeId: row.boxTypeId,
+      isFragile: row.isFragile,
+    })),
+    { originId: facts.origin.originId, cityId: facts.origin.cityId },
+    stamp,
+  ]);
+}
+
+async function fingerprint(strapi, input, items, address) {
+  if (!items.some((item) => item.type === 'product')) {
+    return stampFingerprint(input, items, address, null, null);
+  }
+  const facts = await productFacts(strapi, items);
+  const stamp = shipping.shippingStamp(await loadSettings(strapi));
+  return stampFingerprint(input, items, address, facts, stamp);
+}
+
+function shippingRows(lines) {
+  return lines.map((row) => ({
+    type: 'product',
+    externalId: row.externalId,
+    quantity: row.quantity,
+    discountedUnitPriceInNoor: row.discountedPrice,
+    parcelFactors: row.parcelFactors,
+  }));
+}
+
+/** خواندن اثرانگشت پستکس پیش از قفل. تماس با پستکس اینجا نیست. */
+async function shippingGate(strapi, input, items) {
+  if (!items.some((item) => item.type === 'product')) {
+    return { callsPostex: false, fingerprint: null };
+  }
+  const settings = await loadSettings(strapi);
+  if (shipping.readMode(settings) !== shipping.MODE_POSTEX) {
+    return { callsPostex: false, fingerprint: null };
+  }
+  const buyer = await buyerProfile(strapi, input.buyerExternalUserId);
+  const address = addressOf(buyer, items, false);
+  const facts = await productFacts(strapi, items);
+  const stamp = shipping.shippingStamp(settings);
+  const subtotal = facts.lines.reduce((sum, row) => sum + row.discountedPrice * row.quantity, 0);
+  const callsPostex = stamp.threshold == null || subtotal < stamp.threshold;
+  return {
+    callsPostex,
+    fingerprint: stampFingerprint(input, items, address, facts, stamp),
+    rows: shippingRows(facts.lines),
+    addressSnapshot: address.addressSnapshot,
+    fromCityId: facts.origin.cityId,
+  };
+}
+
+function quoteShippingIrr(strapi, gate) {
+  return shipping.postexTotalIrr(strapi, gate.rows, gate.addressSnapshot, { fromCityId: gate.fromCityId });
+}
+
+async function quote(strapi, input, items, buyer, address, options = {}) {
   const rows = [];
   const couponItems = [];
   const productRecords = [];
@@ -216,7 +318,10 @@ async function quote(strapi, input, items, buyer, address) {
     strapi,
     rows,
     address.addressSnapshot,
-    origin ? { fromCityId: origin.cityId } : {},
+    {
+      ...(origin ? { fromCityId: origin.cityId } : {}),
+      ...(options.quotedTotalIrr != null ? { quotedTotalIrr: options.quotedTotalIrr } : {}),
+    },
   );
   const priceInNoor = money(originalTotalInNoor - itemDiscountInNoor - couponDiscountInNoor + delivery.shippingAmountInNoor);
   const parcelByExternalId = new Map(
@@ -299,4 +404,7 @@ async function assertAvailable(strapi, snapshot) {
   }
 }
 
-module.exports = { selection, buyerProfile, addressOf, quote, assertAvailable, invalid };
+module.exports = {
+  selection, buyerProfile, addressOf, quote, assertAvailable, invalid,
+  fingerprint, shippingGate, quoteShippingIrr,
+};
