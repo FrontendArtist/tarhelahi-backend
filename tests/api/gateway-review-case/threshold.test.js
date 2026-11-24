@@ -23,7 +23,7 @@ describe('user-facing no-callback threshold', () => {
     return ctx.body;
   };
 
-  test('returns the default 30 when admin never set it', async () => {
+  test('returns the default 15 when admin never set it', async () => {
     expect(await read(undefined)).toEqual({ noCallbackMinutes: 15 });
   });
   test('returns the admin-changed value and nothing else', async () => {
