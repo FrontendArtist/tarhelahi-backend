@@ -323,8 +323,8 @@ module.exports = {
    * Service read of the global collection method. Empty or unknown values become the approved default.
    */
   async shippingCollectionType(ctx) {
-    const { readCollectionType } = require('../../../services/shippingCollection');
-    ctx.body = { collectionType: await readCollectionType(strapi) };
+    const { readDispatch } = require('../../../services/shippingCollection');
+    ctx.body = await readDispatch(strapi);
   },
 
   /**

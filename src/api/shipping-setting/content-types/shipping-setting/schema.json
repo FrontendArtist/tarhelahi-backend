@@ -18,6 +18,16 @@
       "enum": ["pick_up", "courier_drop_off", "postex_drop_off"],
       "default": "courier_drop_off"
     },
+    "courierCode": {
+      "type": "string",
+      "default": "IR_POST",
+      "maxLength": 32
+    },
+    "serviceType": {
+      "type": "string",
+      "default": "EXPRESS",
+      "maxLength": 32
+    },
     "fixedAmountInNoor": { "type": "biginteger", "min": 0 },
     "freeShippingThresholdInNoor": { "type": "biginteger", "min": 0 },
     "rialPerNoorForShipping": {

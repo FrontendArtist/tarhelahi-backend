@@ -26,6 +26,45 @@ describe('shippingCollection', () => {
     await expect(shippingCollection.readCollectionType(strapi)).resolves.toBe('postex_drop_off');
   });
 
+  it.each([
+    ['IR_POST', 'IR_POST'],
+    ['ir_post', 'IR_POST'],
+    ['', 'IR_POST'],
+    [null, 'IR_POST'],
+    ['bad-courier', 'IR_POST'],
+    ['CHAPAR', 'CHAPAR'],
+  ])('normalizes courier %j to %s', (value, expected) => {
+    expect(shippingCollection.normalizeCourierCode(value)).toBe(expected);
+  });
+
+  it.each([
+    ['EXPRESS', 'EXPRESS'],
+    ['priority', 'PRIORITY'],
+    ['', 'EXPRESS'],
+    ['bad service', 'EXPRESS'],
+  ])('normalizes service %j to %s', (value, expected) => {
+    expect(shippingCollection.normalizeServiceType(value)).toBe(expected);
+  });
+
+  it('reads courier and service with the collection type', async () => {
+    const strapi = {
+      db: {
+        query: () => ({
+          findOne: async () => ({
+            collectionType: 'pick_up',
+            courierCode: 'chapar',
+            serviceType: '',
+          }),
+        }),
+      },
+    };
+    await expect(shippingCollection.readDispatch(strapi)).resolves.toEqual({
+      collectionType: 'pick_up',
+      courierCode: 'CHAPAR',
+      serviceType: 'EXPRESS',
+    });
+  });
+
   it('fills a blank stored value with the approved default', async () => {
     const update = jest.fn().mockResolvedValue({});
     const strapi = {
@@ -41,7 +80,11 @@ describe('shippingCollection', () => {
 
     expect(update).toHaveBeenCalledWith({
       where: { id: 4 },
-      data: { collectionType: 'courier_drop_off' },
+      data: {
+        collectionType: 'courier_drop_off',
+        courierCode: 'IR_POST',
+        serviceType: 'EXPRESS',
+      },
     });
   });
 
@@ -50,7 +93,12 @@ describe('shippingCollection', () => {
     const strapi = {
       db: {
         query: () => ({
-          findOne: async () => ({ id: 4, collectionType: 'pick_up' }),
+          findOne: async () => ({
+            id: 4,
+            collectionType: 'pick_up',
+            courierCode: 'IR_POST',
+            serviceType: 'EXPRESS',
+          }),
           update,
         }),
       },

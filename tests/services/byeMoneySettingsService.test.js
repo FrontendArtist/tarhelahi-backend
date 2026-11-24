@@ -185,6 +185,8 @@ describe('byeMoneySettingsService', () => {
         data: {
           costMode: 'fixed',
           collectionType: 'courier_drop_off',
+          courierCode: 'IR_POST',
+          serviceType: 'EXPRESS',
           rialPerNoorForShipping: '10000',
         },
       });

@@ -119,7 +119,7 @@ async function productFacts(strapi, items) {
     }
     const record = await stock.assertPublished(strapi, item);
     records.push(record);
-    const factors = shipping.requireProductParcelOrConflict(record, item.quantity);
+    const factors = shipping.requireProductParcelOrConflict(item, record);
     lines.push({
       externalId: item.externalId,
       quantity: item.quantity,
@@ -287,7 +287,7 @@ async function quote(strapi, input, items, buyer, address, options = {}) {
       // قیمت واحد پس از تخفیف کاتالوگ فقط ورودی سرویس ارسال است؛ تخفیف سفارش تقسیم نمی‌شود.
       discountedUnitPriceInNoor: price,
       ...(item.type === 'product'
-        ? { parcelFactors: shipping.requireProductParcelOrConflict(record, item.quantity) }
+        ? { parcelFactors: shipping.requireProductParcelOrConflict(item, record) }
         : {}),
     });
   }
@@ -401,6 +401,15 @@ async function assertAvailable(strapi, snapshot) {
       }
       throw error;
     }
+  }
+  for (const item of snapshot.items.filter((row) => row.type === 'product')) {
+    const line = {
+      externalId: item.externalId || item.externalCourseId,
+      type: 'product',
+      quantity: item.quantity,
+    };
+    const record = await stock.assertPublished(strapi, line);
+    shipping.requireProductParcelOrConflict(line, record);
   }
 }
 

@@ -280,8 +280,70 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
     ).rejects.toMatchObject({
       code: 'CART_CONFLICT',
       status: 409,
-      message: 'جعبهٔ کالا تعیین نشده',
+      message: 'جعبهٔ «p-10-1» برای ارسال تعیین نشده است.',
+      lineError: {
+        externalId: 'p-10-1',
+        type: 'product',
+        quantity: 1,
+        reason: 'MISSING_BOX',
+      },
     });
+  });
+
+  it('rejects a physical line with missing weight as MISSING_WEIGHT', async () => {
+    const strapi = settingsQuery({
+      costMode: 'fixed',
+      fixedAmountInNoor: 40,
+      rialPerNoorForShipping: 10000,
+    });
+    await expect(
+      cartShipping.calculate(
+        strapi,
+        [product(10, 2, {
+          weightGrams: 0,
+          lengthCm: 15,
+          widthCm: 10,
+          heightCm: 20,
+          boxTypeId: 5,
+          isFragile: false,
+        })],
+        { city: 'تهران' },
+      ),
+    ).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'وزن «p-10-2» برای ارسال ثبت نشده است.',
+      lineError: {
+        externalId: 'p-10-2',
+        type: 'product',
+        quantity: 2,
+        reason: 'MISSING_WEIGHT',
+      },
+    });
+  });
+
+  it('quotes with courier and service from shipping-setting and falls back when they are invalid', async () => {
+    process.env.POSTEX_API_KEY = 'test-key';
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ total_cost: 1000 }),
+    }));
+    const strapi = settingsQuery({
+      costMode: 'postex',
+      rialPerNoorForShipping: 10000,
+      courierCode: 'chapar',
+      serviceType: 'not a service',
+    }, [{ documentId: 'city-tehran', externalId: 100 }]);
+
+    await cartShipping.calculate(
+      strapi,
+      [product(10)],
+      { city: 'تهران', cityDocumentId: 'city-tehran' },
+      { fetchImpl, fromCityId: 573, courierCode: 'IGNORED', serviceType: 'IGNORED' },
+    );
+
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.courier).toEqual({ courier_code: 'CHAPAR', service_type: 'EXPRESS' });
   });
 
   it('rejects the physical cart after one postex error without a second quote', async () => {
@@ -403,7 +465,9 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
       isFragile: true,
     });
     expect(cartShipping.readParcelFactors({ weight: 10 }, 1)).toBeNull();
-    expect(() => cartShipping.requireProductParcelOrConflict({ weight: 10 }, 1))
-      .toThrow('جعبهٔ کالا تعیین نشده');
+    expect(() => cartShipping.requireProductParcelOrConflict(
+      { externalId: 'gold', type: 'product', quantity: 1, title: 'شمش' },
+      { weight: 10 },
+    )).toThrow('جعبهٔ «شمش» برای ارسال تعیین نشده است.');
   });
 });

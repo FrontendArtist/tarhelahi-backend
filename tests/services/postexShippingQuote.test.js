@@ -69,6 +69,21 @@ describe('postexShippingQuote', () => {
     expect(total).toBe(2_000_000);
   });
 
+  it('uses the courier and service passed from shipping settings', async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ total_cost: 1 }),
+    }));
+
+    await postexQuote.quoteTotalCostIrr(
+      { toCityCode: 1, ...parcel },
+      { apiKey: 'secret', fetchImpl, courierCode: 'chapar', serviceType: 'bad service' },
+    );
+
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.courier).toEqual({ courier_code: 'CHAPAR', service_type: 'EXPRESS' });
+  });
+
   it('extracts validation field details from postex errors', () => {
     const message = postexQuote.extractErrorMessage({
       title: 'One or more validation errors occurred.',

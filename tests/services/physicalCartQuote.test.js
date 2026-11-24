@@ -1,6 +1,6 @@
 'use strict';
 
-const { addressOf, quote } = require('../../src/services/physicalCartQuote');
+const { addressOf, assertAvailable, quote } = require('../../src/services/physicalCartQuote');
 const postexQuote = require('../../src/services/postexShippingQuote');
 
 const MULTIPLE_ORIGINS = 'اقلام فیزیکی سبد باید از یک مبدأ ارسال باشند.';
@@ -219,6 +219,61 @@ describe('physical cart quote origin (SHIP-FIX-3)', () => {
     expect(body.parcels).toHaveLength(1);
     expect(body.parcels[0].parcel_properties.total_value).toBe(50 * 2 * 10000 + 30 * 10000);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns MISSING_BOX for a product without a box on prepare', async () => {
+    const product = { ...catalogProduct('prod-box', mashhadOrigin()), boxTypeId: null, title: 'شمش' };
+    await expect(prepareQuote([product], 'fixed')).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'جعبهٔ «شمش» برای ارسال تعیین نشده است.',
+      lineError: {
+        externalId: 'prod-box',
+        type: 'product',
+        quantity: 1,
+        reason: 'MISSING_BOX',
+      },
+    });
+  });
+
+  it('returns MISSING_WEIGHT for a product without weight on prepare', async () => {
+    const product = { ...catalogProduct('prod-weight', mashhadOrigin()), weight: null, title: 'سکه' };
+    await expect(prepareQuote([product], 'fixed')).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      message: 'وزن «سکه» برای ارسال ثبت نشده است.',
+      lineError: {
+        externalId: 'prod-weight',
+        type: 'product',
+        quantity: 1,
+        reason: 'MISSING_WEIGHT',
+      },
+    });
+  });
+
+  it('returns the same line error when check re-reads a product without a box', async () => {
+    const product = { ...catalogProduct('prod-box', mashhadOrigin()), boxTypeId: null, title: 'شمش' };
+    const strapi = strapiFor([product], settingsFor('fixed'));
+    strapi.db.query = (uid) => {
+      if (uid === 'plugin::users-permissions.user') {
+        return { findOne: async () => buyer() };
+      }
+      return strapiFor([product], settingsFor('fixed')).db.query(uid);
+    };
+
+    await expect(assertAvailable(strapi, {
+      buyerExternalUserId: 'buyer-1',
+      items: [{ externalId: 'prod-box', type: 'product', quantity: 1 }],
+    })).rejects.toMatchObject({
+      code: 'CART_CONFLICT',
+      status: 409,
+      lineError: {
+        externalId: 'prod-box',
+        type: 'product',
+        quantity: 1,
+        reason: 'MISSING_BOX',
+      },
+    });
   });
 
   it('conflicts when physical products use different origins', async () => {

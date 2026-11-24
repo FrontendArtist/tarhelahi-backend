@@ -37,14 +37,18 @@ describe('GET shipping/collection-type', () => {
 
     await integration.shippingCollectionType(ctx);
 
-    expect(ctx.body).toEqual({ collectionType: 'pick_up' });
+    expect(ctx.body).toEqual({
+      collectionType: 'pick_up',
+      courierCode: 'IR_POST',
+      serviceType: 'EXPRESS',
+    });
   });
 
   it('returns the approved default when the stored value is empty', async () => {
     global.strapi = {
       db: {
         query: () => ({
-          findOne: async () => ({ collectionType: null }),
+          findOne: async () => ({ collectionType: null, courierCode: ' ', serviceType: 'nope!' }),
         }),
       },
     };
@@ -52,6 +56,33 @@ describe('GET shipping/collection-type', () => {
 
     await integration.shippingCollectionType(ctx);
 
-    expect(ctx.body).toEqual({ collectionType: 'courier_drop_off' });
+    expect(ctx.body).toEqual({
+      collectionType: 'courier_drop_off',
+      courierCode: 'IR_POST',
+      serviceType: 'EXPRESS',
+    });
+  });
+
+  it('returns a stored courier and service', async () => {
+    global.strapi = {
+      db: {
+        query: () => ({
+          findOne: async () => ({
+            collectionType: 'courier_drop_off',
+            courierCode: 'CHAPAR',
+            serviceType: 'PRIORITY',
+          }),
+        }),
+      },
+    };
+    const ctx = {};
+
+    await integration.shippingCollectionType(ctx);
+
+    expect(ctx.body).toEqual({
+      collectionType: 'courier_drop_off',
+      courierCode: 'CHAPAR',
+      serviceType: 'PRIORITY',
+    });
   });
 });

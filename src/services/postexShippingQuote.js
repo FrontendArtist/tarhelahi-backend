@@ -8,12 +8,13 @@
  */
 
 const { createHash } = require('node:crypto');
+const shippingDispatch = require('./shippingCollection');
 
 const DEFAULT_BASE_URL = 'https://api.postex.ir';
 /** فقط برای آزمون‌های قدیمی؛ مسیر زنده باید fromCityId مبدأ کالا را بدهد. */
 const DEFAULT_FROM_CITY_ID = 573;
-const DEFAULT_COURIER = 'IR_POST';
-const DEFAULT_SERVICE_TYPE = 'EXPRESS';
+const DEFAULT_COURIER = shippingDispatch.DEFAULT_COURIER;
+const DEFAULT_SERVICE_TYPE = shippingDispatch.DEFAULT_SERVICE_TYPE;
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 let cityCache = null;
@@ -35,8 +36,8 @@ function configFromEnv(overrides = {}) {
     apiKey: String(apiKey).trim(),
     baseUrl,
     fromCityId: Number(overrides.fromCityId) || DEFAULT_FROM_CITY_ID,
-    courierCode: overrides.courierCode || DEFAULT_COURIER,
-    serviceType: overrides.serviceType || DEFAULT_SERVICE_TYPE,
+    courierCode: shippingDispatch.normalizeCourierCode(overrides.courierCode),
+    serviceType: shippingDispatch.normalizeServiceType(overrides.serviceType),
     collectionType: overrides.collectionType || 'courier_drop_off',
     timeoutMs: Number(overrides.timeoutMs) || DEFAULT_TIMEOUT_MS,
     fetchImpl: overrides.fetchImpl || globalThis.fetch,

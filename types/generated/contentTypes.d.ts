@@ -1786,6 +1786,11 @@ export interface ApiShippingSettingShippingSetting
       Schema.Attribute.DefaultTo<'courier_drop_off'>;
     costMode: Schema.Attribute.Enumeration<['fixed', 'postex']> &
       Schema.Attribute.DefaultTo<'fixed'>;
+    courierCode: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 32;
+      }> &
+      Schema.Attribute.DefaultTo<'IR_POST'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1818,6 +1823,11 @@ export interface ApiShippingSettingShippingSetting
         },
         number
       >;
+    serviceType: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 32;
+      }> &
+      Schema.Attribute.DefaultTo<'EXPRESS'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

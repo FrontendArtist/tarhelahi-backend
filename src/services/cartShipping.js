@@ -67,28 +67,70 @@ function readParcelFactors(product, quantity) {
   };
 }
 
-/** نبود جعبه پیام جدا دارد؛ وزن ناقص پیام خودش را دارد. */
-function requireProductParcelOrConflict(product, quantity) {
-  if (!postexBoxes.resolve(product?.boxTypeId)) {
-    conflict('جعبهٔ کالا تعیین نشده');
+const MISSING_BOX = 'MISSING_BOX';
+const MISSING_WEIGHT = 'MISSING_WEIGHT';
+
+function parcelSubject(item) {
+  const title = typeof item?.title === 'string' ? item.title.trim() : '';
+  if (title) {
+    return `«${title}»`;
   }
-  const factors = readParcelFactors(product, quantity);
+  const externalId = typeof item?.externalId === 'string' ? item.externalId.trim() : '';
+  return externalId ? `«${externalId}»` : 'کالا';
+}
+
+/** ۴۰۹ و CART_CONFLICT می‌مانند؛ قلم و علت در lineError است. */
+function parcelLineConflict(item, reason) {
+  const subject = parcelSubject(item);
+  const message = reason === MISSING_BOX
+    ? `جعبهٔ ${subject} برای ارسال تعیین نشده است.`
+    : `وزن ${subject} برای ارسال ثبت نشده است.`;
+  const error = new Error(message);
+  error.status = 409;
+  error.code = 'CART_CONFLICT';
+  error.lineError = {
+    externalId: item?.externalId,
+    type: item?.type || 'product',
+    quantity: item?.quantity,
+    reason,
+  };
+  throw error;
+}
+
+/** نبود جعبه پیام جدا دارد؛ وزن ناقص پیام خودش را دارد. */
+function requireProductParcelOrConflict(item, product) {
+  const line = {
+    externalId: item?.externalId,
+    type: item?.type || 'product',
+    quantity: item?.quantity,
+    title: product?.title || item?.title,
+  };
+  if (!postexBoxes.resolve(product?.boxTypeId)) {
+    parcelLineConflict(line, MISSING_BOX);
+  }
+  const factors = readParcelFactors(product, item?.quantity);
   if (!factors) {
-    conflict('وزن کالای فیزیکی برای ارسال ثبت نشده است.');
+    parcelLineConflict(line, MISSING_WEIGHT);
   }
   return factors;
 }
 
 function requireParcelFactors(item) {
   const factors = item.parcelFactors;
+  const line = {
+    externalId: item.externalId,
+    type: item.type || 'product',
+    quantity: item.quantity,
+    title: item.title,
+  };
   if (!factors || !Number.isSafeInteger(factors.boxTypeId) || factors.boxTypeId < 1) {
-    conflict('جعبهٔ کالا تعیین نشده');
+    parcelLineConflict(line, MISSING_BOX);
   }
   if (!Number.isSafeInteger(factors.weightGrams) || factors.weightGrams < 1
     || !Number.isSafeInteger(factors.lengthCm) || factors.lengthCm < 1
     || !Number.isSafeInteger(factors.widthCm) || factors.widthCm < 1
     || !Number.isSafeInteger(factors.heightCm) || factors.heightCm < 1) {
-    conflict('وزن کالای فیزیکی برای ارسال ثبت نشده است.');
+    parcelLineConflict(line, MISSING_WEIGHT);
   }
   return {
     weightGrams: factors.weightGrams,
@@ -278,6 +320,12 @@ function withCollectionType(overrides, settings) {
     ...overrides,
     collectionType: shippingCollection.normalizeCollectionType(
       settings?.collectionType ?? overrides?.collectionType,
+    ),
+    courierCode: shippingCollection.normalizeCourierCode(
+      settings?.courierCode ?? overrides?.courierCode,
+    ),
+    serviceType: shippingCollection.normalizeServiceType(
+      settings?.serviceType ?? overrides?.serviceType,
     ),
   };
 }

@@ -1,7 +1,11 @@
 'use strict';
 
 const { Pool } = require('pg');
-const { DEFAULT_COLLECTION_TYPE } = require('./shippingCollection');
+const {
+  DEFAULT_COLLECTION_TYPE,
+  DEFAULT_COURIER,
+  DEFAULT_SERVICE_TYPE,
+} = require('./shippingCollection');
 
 let pool = null;
 let cachedRate = null;
@@ -182,6 +186,8 @@ async function syncShippingSettingRate(strapi, options = {}) {
       data: {
         costMode: 'fixed',
         collectionType: DEFAULT_COLLECTION_TYPE,
+        courierCode: DEFAULT_COURIER,
+        serviceType: DEFAULT_SERVICE_TYPE,
         rialPerNoorForShipping: rateStr,
       },
     });
