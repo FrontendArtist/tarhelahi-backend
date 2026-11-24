@@ -169,9 +169,12 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
 
       ctx.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       ctx.set('Content-Disposition', `attachment; filename="${fileName}"`);
+      ctx.set('Cache-Control', 'no-store, private');
+      ctx.set('X-Content-Type-Options', 'nosniff');
       ctx.body = buffer;
     } catch (err) {
-      ctx.throw(500, `خطا در تولید فایل اکسل سفارش‌ها: ${err.message}`);
+      strapi.log.error('[exportExcel] Error:', err);
+      ctx.throw(500, 'خطا در تولید فایل اکسل سفارش‌ها');
     }
   },
 
@@ -189,23 +192,26 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       const stats = excelService.calculateRevenueMetrics(orders || []);
       return ctx.send(stats);
     } catch (err) {
-      ctx.throw(500, `خطا در محاسبه آمار درآمد: ${err.message}`);
+      strapi.log.error('[revenueStats] Error:', err);
+      ctx.throw(500, 'خطا در محاسبه آمار درآمد');
     }
   },
 
   /**
-   * Manually trigger Excel file regeneration on disk (public/exports/orders_revenue_report.xlsx)
+   * Manually trigger Excel file regeneration on disk (storage/exports/orders_revenue_report.xlsx)
    * POST /api/orders/sync-excel
    */
   async syncExcel(ctx) {
     try {
       const result = await excelService.generateAndSaveExcelReport();
+      const { filePath: _hiddenPath, ...safeResult } = result;
       return ctx.send({
         message: 'فایل اکسل سفارش‌ها و گزارش درآمد با موفقیت بر روی سرور بروزرسانی شد',
-        ...result,
+        ...safeResult,
       });
     } catch (err) {
-      ctx.throw(500, `خطا در ذخیره فایل اکسل: ${err.message}`);
+      strapi.log.error('[syncExcel] Error:', err);
+      ctx.throw(500, 'خطا در ذخیره فایل اکسل');
     }
   },
 
@@ -282,7 +288,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       return ctx.send({ settled: updatedCount });
     } catch (err) {
       strapi.log.error('[bulkSettle] Error:', err);
-      ctx.throw(500, `خطا در تسویه دسته‌ای: ${err.message}`);
+      ctx.throw(500, 'خطا در تسویه دسته‌ای سفارش‌ها');
     }
   },
 }));

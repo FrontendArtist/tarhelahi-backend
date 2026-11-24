@@ -187,6 +187,8 @@ module.exports = {
    * Bootstrap: آماده‌سازی upload provider و اعمال مسیر اختصاصی
    */
   async bootstrap({ strapi }) {
+    require('./utils/validateProductionEnv').validateProductionEnv();
+
     const { getThresholdMinutes } = require('./services/gatewayReviewRecovery');
     await getThresholdMinutes(strapi);
 
