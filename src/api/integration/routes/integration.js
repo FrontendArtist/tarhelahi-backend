@@ -62,6 +62,15 @@ module.exports = {
       },
     },
     {
+      method: 'GET',
+      path: '/integrations/byemoney/v1/shipping/collection-type',
+      handler: 'integration.shippingCollectionType',
+      config: {
+        auth: false,
+        policies: ['global::is-service-authenticated'],
+      },
+    },
+    {
       method: 'POST',
       path: '/integrations/byemoney/v1/localities/carrier-code',
       handler: 'integration.carrierCityCode',

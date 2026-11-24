@@ -37,7 +37,7 @@ function configFromEnv(overrides = {}) {
     fromCityId: Number(overrides.fromCityId) || DEFAULT_FROM_CITY_ID,
     courierCode: overrides.courierCode || DEFAULT_COURIER,
     serviceType: overrides.serviceType || DEFAULT_SERVICE_TYPE,
-    collectionType: overrides.collectionType || 'pick_up',
+    collectionType: overrides.collectionType || 'courier_drop_off',
     timeoutMs: Number(overrides.timeoutMs) || DEFAULT_TIMEOUT_MS,
     fetchImpl: overrides.fetchImpl || globalThis.fetch,
   };

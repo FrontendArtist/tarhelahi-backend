@@ -319,6 +319,15 @@ module.exports = {
   },
 
   /**
+   * GET /api/integrations/byemoney/v1/shipping/collection-type
+   * Service read of the global collection method. Empty or unknown values become the approved default.
+   */
+  async shippingCollectionType(ctx) {
+    const { readCollectionType } = require('../../../services/shippingCollection');
+    ctx.body = { collectionType: await readCollectionType(strapi) };
+  },
+
+  /**
    * POST /api/integrations/byemoney/v1/localities/carrier-code
    * Service read: our city documentId, or an exact stored name pair, to the carrier code on that row.
    */

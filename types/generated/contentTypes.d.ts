@@ -1780,6 +1780,10 @@ export interface ApiShippingSettingShippingSetting
     draftAndPublish: false;
   };
   attributes: {
+    collectionType: Schema.Attribute.Enumeration<
+      ['pick_up', 'courier_drop_off', 'postex_drop_off']
+    > &
+      Schema.Attribute.DefaultTo<'courier_drop_off'>;
     costMode: Schema.Attribute.Enumeration<['fixed', 'postex']> &
       Schema.Attribute.DefaultTo<'fixed'>;
     createdAt: Schema.Attribute.DateTime;

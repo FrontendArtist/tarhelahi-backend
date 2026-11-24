@@ -149,6 +149,7 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
       total_value: 1_300_000,
       is_fragile: true,
     });
+    expect(body.collection_type).toBe('courier_drop_off');
     expect(body.from_city_code).toBe(573);
     expect(body.parcels[0].to_city_code).toBe(100);
 
@@ -175,6 +176,32 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
       },
     ]);
   });
+
+  it.each(['pick_up', 'postex_drop_off'])(
+    'quotes with collection type %s from shipping-setting',
+    async (collectionType) => {
+      process.env.POSTEX_API_KEY = 'test-key';
+      const fetchImpl = jest.fn(async () => ({
+        ok: true,
+        text: async () => JSON.stringify({ total_cost: 1000 }),
+      }));
+      const strapi = settingsQuery({
+        costMode: 'postex',
+        rialPerNoorForShipping: 10000,
+        collectionType,
+      }, [{ documentId: 'city-tehran', externalId: 100 }]);
+
+      await cartShipping.calculate(
+        strapi,
+        [product(10)],
+        { city: 'تهران', cityDocumentId: 'city-tehran' },
+        { fetchImpl, fromCityId: 573, collectionType: 'courier_drop_off' },
+      );
+
+      const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+      expect(body.collection_type).toBe(collectionType);
+    },
+  );
 
   it('steps the shipment box up from the largest item box and quotes once', async () => {
     const fetchImpl = jest.fn(async () => ({

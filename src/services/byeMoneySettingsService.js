@@ -1,6 +1,7 @@
 'use strict';
 
 const { Pool } = require('pg');
+const { DEFAULT_COLLECTION_TYPE } = require('./shippingCollection');
 
 let pool = null;
 let cachedRate = null;
@@ -180,6 +181,7 @@ async function syncShippingSettingRate(strapi, options = {}) {
     await strapi.db.query(uid).create({
       data: {
         costMode: 'fixed',
+        collectionType: DEFAULT_COLLECTION_TYPE,
         rialPerNoorForShipping: rateStr,
       },
     });

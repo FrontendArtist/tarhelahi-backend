@@ -8,6 +8,7 @@
 const LABEL_PATCHES = {
   'api::shipping-setting.shipping-setting': {
     costMode: 'حالت هزینه ارسال',
+    collectionType: 'روش جمع‌آوری',
     fixedAmountInNoor: 'مبلغ ثابت ارسال (نور)',
     freeShippingThresholdInNoor: 'آستانهٔ ارسال رایگان (نور)',
     rialPerNoorForShipping: 'نرخ ریال به نور برای ارسال',
@@ -45,6 +46,7 @@ const READONLY_FIELDS = {
 const FIELD_DESCRIPTIONS = {
   'api::shipping-setting.shipping-setting': {
     rialPerNoorForShipping: 'تنها به صورت نمایشی از دیتابیس بای‌مانی خوانده می‌شود.',
+    collectionType: 'پیک (pick_up)، تحویل توسط خودمان (courier_drop_off، پیش‌فرض)، تحویل در دفتر پست (postex_drop_off). استعلام و ساخت مرسوله همین مقدار را می‌خوانند. تحویل در دفتر تا ثبت شناسهٔ دفتر در فاز بعد قابل استفاده نیست و ساخت مرسوله را رد می‌کند.',
   },
 };
 

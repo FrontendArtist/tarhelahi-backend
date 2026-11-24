@@ -43,6 +43,7 @@ describe('postexShippingQuote', () => {
       expect(init.method).toBe('POST');
       expect(init.headers['x-api-key']).toBe('secret');
       const body = JSON.parse(init.body);
+      expect(body.collection_type).toBe('courier_drop_off');
       expect(body.from_city_code).toBe(postexQuote.DEFAULT_FROM_CITY_ID);
       expect(body.courier.courier_code).toBe(postexQuote.DEFAULT_COURIER);
       expect(body.parcels[0].to_city_code).toBe(1);

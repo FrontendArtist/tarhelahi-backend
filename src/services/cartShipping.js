@@ -2,6 +2,7 @@
 
 const { conflict } = require('./stockReservation');
 const postexQuote = require('./postexShippingQuote');
+const shippingCollection = require('./shippingCollection');
 const localities = require('./localities');
 const postexBoxes = require('./postexBoxes');
 
@@ -272,11 +273,22 @@ async function requestPostexTotal(strapi, parcel, addressSnapshot, overrides) {
   }
 }
 
+function withCollectionType(overrides, settings) {
+  return {
+    ...overrides,
+    collectionType: shippingCollection.normalizeCollectionType(
+      settings?.collectionType ?? overrides?.collectionType,
+    ),
+  };
+}
+
 async function postexTotalIrr(strapi, physicalItems, addressSnapshot, overrides = {}) {
   const settings = await strapi.db.query('api::shipping-setting.shipping-setting').findOne({});
   const rate = shippingRate(settings);
   const parcel = cartParcel(physicalItems, rate);
-  const quoted = await requestPostexTotal(strapi, parcel, addressSnapshot, overrides);
+  const quoted = await requestPostexTotal(
+    strapi, parcel, addressSnapshot, withCollectionType(overrides, settings),
+  );
   return quoted.totalIrr;
 }
 
@@ -297,9 +309,10 @@ async function calculatePostex(strapi, settings, subtotal, addressSnapshot, phys
 
   assertParcelValueCap(parcel.totalValueIrr);
 
+  const quoteOverrides = withCollectionType(overrides, settings);
   const totalIrr = overrides.quotedTotalIrr != null
     ? acceptedQuoteIrr(overrides.quotedTotalIrr)
-    : (await requestPostexTotal(strapi, parcel, addressSnapshot, overrides)).totalIrr;
+    : (await requestPostexTotal(strapi, parcel, addressSnapshot, quoteOverrides)).totalIrr;
 
   const amount = rialToWholeNoor(totalIrr, rate);
   if (!Number.isSafeInteger(amount) || amount < 0) {

@@ -198,9 +198,11 @@ module.exports = {
       const { ensureDefaultOrigin } = require('./services/shippingOrigins');
       const { ensureShippingCmLabels } = require('./services/shippingCmLabels');
       const { syncShippingSettingRate } = require('./services/byeMoneySettingsService');
+      const { ensureCollectionType } = require('./services/shippingCollection');
       await postexLocality.ensureLocalityBootstrap(strapi);
       await ensureDefaultOrigin(strapi);
       await syncShippingSettingRate(strapi);
+      await ensureCollectionType(strapi);
       await ensureShippingCmLabels(strapi);
     } catch (error) {
       strapi.log.warn(

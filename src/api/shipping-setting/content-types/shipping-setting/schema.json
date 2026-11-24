@@ -13,6 +13,11 @@
       "enum": ["fixed", "postex"],
       "default": "fixed"
     },
+    "collectionType": {
+      "type": "enumeration",
+      "enum": ["pick_up", "courier_drop_off", "postex_drop_off"],
+      "default": "courier_drop_off"
+    },
     "fixedAmountInNoor": { "type": "biginteger", "min": 0 },
     "freeShippingThresholdInNoor": { "type": "biginteger", "min": 0 },
     "rialPerNoorForShipping": {

@@ -184,6 +184,7 @@ describe('byeMoneySettingsService', () => {
       expect(createMock).toHaveBeenCalledWith({
         data: {
           costMode: 'fixed',
+          collectionType: 'courier_drop_off',
           rialPerNoorForShipping: '10000',
         },
       });
