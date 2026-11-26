@@ -93,7 +93,7 @@ async function sendPendingEvents(strapi) {
         await strapi.db.query(EVENT).update({ where: { eventId: event.eventId },
           data: { deliveryStatus: response.status === 409 ? 'review' : 'pending',
             deliveryError: body.code || `HTTP_${response.status}` } });
-        if (response.status === 409)
+        if (response.status === 409 && !['confirmed', 'reversed'].includes(attempt?.status))
           await strapi.db.query(ATTEMPT).update({ where: { resNum: event.resNum },
             data: { status: 'financial_review', lastError: body.code || 'BYEMONEY_CONFLICT' } });
         continue;
