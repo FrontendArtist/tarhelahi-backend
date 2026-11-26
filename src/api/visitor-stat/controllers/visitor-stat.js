@@ -12,10 +12,13 @@ const { createCoreController } = require('@strapi/strapi').factories;
 const activeSessions = new Map();
 const ONLINE_THRESHOLD_MS = 3 * 60 * 1000; // ۳ دقیقه
 const CLEANUP_THRESHOLD_MS = 10 * 60 * 1000; // ۱۰ دقیقه
+const MAX_ACTIVE_SESSIONS = 10000;
 
-// ۲. جلوگیری از شمارش مجدد یک فرد در طول همان روز در حافظه رم
+// ۲. جلوگیری از شمارش مجدد یک فرد در طول همان روز در حافظه رم (با سقف و LRU)
 let currentActiveDay = '';
-const todayVisitorsSet = new Set();
+const todayVisitorsMap = new Map();
+const MAX_DAILY_VISITORS = 50000;
+const VISITOR_ID_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
 
 /**
  * محاسبه تاریخ امروز به وقت تهران (YYYY-MM-DD)
@@ -29,13 +32,54 @@ function getTehranDateString(d = new Date()) {
 /**
  * بازنشانی لیست کاربران امروز در صورت تغییر روز
  */
-function checkAndResetDailySet() {
+function checkAndResetDailyMap() {
   const today = getTehranDateString();
   if (currentActiveDay !== today) {
     currentActiveDay = today;
-    todayVisitorsSet.clear();
+    todayVisitorsMap.clear();
   }
   return today;
+}
+
+/**
+ * ثبت یا تازه‌سازی نشست آنلاین با رعایت سقف حافظه و حذف قدیمی‌ترین ورودی‌ها (LRU)
+ */
+function touchActiveSession(visitorId, now = Date.now()) {
+  if (activeSessions.has(visitorId)) {
+    activeSessions.delete(visitorId);
+  } else if (activeSessions.size >= MAX_ACTIVE_SESSIONS) {
+    for (const [id, lastSeen] of activeSessions.entries()) {
+      if (now - lastSeen > CLEANUP_THRESHOLD_MS) {
+        activeSessions.delete(id);
+      }
+    }
+    while (activeSessions.size >= MAX_ACTIVE_SESSIONS) {
+      const oldestKey = activeSessions.keys().next().value;
+      if (oldestKey === undefined) break;
+      activeSessions.delete(oldestKey);
+    }
+  }
+  activeSessions.set(visitorId, now);
+}
+
+/**
+ * ثبت بازدید یکتای روزانه با سقف حافظه و LRU (برگشت true اگر قبلاً شمرده شده باشد)
+ */
+function markTodayVisitor(visitorId, now = Date.now()) {
+  if (todayVisitorsMap.has(visitorId)) {
+    todayVisitorsMap.delete(visitorId);
+    todayVisitorsMap.set(visitorId, now);
+    return true;
+  }
+
+  while (todayVisitorsMap.size >= MAX_DAILY_VISITORS) {
+    const oldestKey = todayVisitorsMap.keys().next().value;
+    if (oldestKey === undefined) break;
+    todayVisitorsMap.delete(oldestKey);
+  }
+
+  todayVisitorsMap.set(visitorId, now);
+  return false;
 }
 
 /**
@@ -57,7 +101,7 @@ function getOnlineUsersCount() {
   return Math.max(1, onlineCount);
 }
 
-module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strapi }) => ({
+const controller = createCoreController('api::visitor-stat.visitor-stat', ({ strapi }) => ({
 
   /**
    * POST /api/visitor-stat/track
@@ -66,38 +110,36 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
   async track(ctx) {
     try {
       const body = ctx.request.body || {};
-      const visitorId = (body.visitorId || '').trim();
-      const type = body.type || 'heartbeat'; // 'enter' یا 'heartbeat'
+      const rawVisitorId = typeof body.visitorId === 'string' ? body.visitorId.trim() : '';
+      const type = body.type === undefined ? 'heartbeat' : body.type;
 
-      if (!visitorId) {
-        return ctx.badRequest('visitorId is required');
+      if (!rawVisitorId || !VISITOR_ID_REGEX.test(rawVisitorId)) {
+        return ctx.badRequest('شناسه بازدیدکننده نامعتبر است');
       }
 
-      // همیشه زمان آخرین فعالیت در رم به‌روزرسانی می‌شود (برای آنلاین‌ها)
-      activeSessions.set(visitorId, Date.now());
+      if (type !== 'enter' && type !== 'heartbeat') {
+        return ctx.badRequest('نوع رویداد نامعتبر است');
+      }
 
-      const todayDate = checkAndResetDailySet();
+      const now = Date.now();
+      touchActiveSession(rawVisitorId, now);
 
-      // اگر رویداد ورود به سایت است (اولین بار در روز)
+      const todayDate = checkAndResetDailyMap();
+
       if (type === 'enter') {
-        // اگر این کاربر امروز قبلاً در سرور شمرده شده، هیچ کاری نکن! (صفر عملیات دیتابیس)
-        if (todayVisitorsSet.has(visitorId)) {
+        const alreadyCounted = markTodayVisitor(rawVisitorId, now);
+        if (alreadyCounted) {
           return ctx.send({ success: true, onlineCount: getOnlineUsersCount(), alreadyCounted: true });
         }
 
-        // علامت‌گذاری در حافظه رم سرور
-        todayVisitorsSet.add(visitorId);
-
-        // افزایش شمارنده در دیتابیس (فقط ۱ سطر برای هر روز)
         const knex = strapi.db.connection;
         const hasTable = await knex.schema.hasTable('daily_visitor_stats');
-        
+
         if (hasTable) {
           const row = await knex('daily_visitor_stats').where({ date: todayDate }).first();
           if (row) {
             await knex('daily_visitor_stats').where({ id: row.id }).increment('count', 1);
           } else {
-            // ایجاد سطر برای روز جدید
             await knex('daily_visitor_stats').insert({
               date: todayDate,
               count: 1,
@@ -115,7 +157,7 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
       });
     } catch (err) {
       strapi.log.error('[visitor-stat track error]: ' + err.message);
-      return ctx.send({ success: false, error: err.message }, 500);
+      return ctx.send({ success: false, error: 'خطای داخلی سرور' }, 500);
     }
   },
 
@@ -127,7 +169,7 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
     try {
       const knex = strapi.db.connection;
       const onlineUsers = getOnlineUsersCount();
-      const todayDate = checkAndResetDailySet();
+      const todayDate = checkAndResetDailyMap();
 
       const hasTable = await knex.schema.hasTable('daily_visitor_stats');
       if (!hasTable) {
@@ -207,7 +249,20 @@ module.exports = createCoreController('api::visitor-stat.visitor-stat', ({ strap
       });
     } catch (err) {
       strapi.log.error('[visitor-stat stats error]: ' + err.message);
-      return ctx.send({ error: err.message }, 500);
+      return ctx.send({ error: 'خطای داخلی سرور' }, 500);
     }
   },
 }));
+
+controller._internal = {
+  activeSessions,
+  todayVisitorsMap,
+  MAX_ACTIVE_SESSIONS,
+  MAX_DAILY_VISITORS,
+  VISITOR_ID_REGEX,
+  touchActiveSession,
+  markTodayVisitor,
+  checkAndResetDailyMap,
+};
+
+module.exports = controller;

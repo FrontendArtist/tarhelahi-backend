@@ -10,7 +10,19 @@ module.exports = {
       method: 'POST', path: '/course-carts/preview',
       // تابع مانع افزودن خودکار scope نقش توسط Strapi می‌شود؛ کنترلر JWT کاربر را الزام می‌کند.
       handler: ctx => strapi.controller('api::integration.integration').previewCart(ctx),
-      config: { auth: { scope: [] } },
+      config: {
+        auth: { scope: [] },
+        middlewares: [
+          {
+            name: 'global::rate-limit',
+            config: {
+              keyPrefix: 'cart-preview',
+              windowMs: 60 * 1000,
+              max: 60,
+            },
+          },
+        ],
+      },
     },
     {
       method: 'POST', path: '/course-carts/admin-preview',

@@ -31,7 +31,8 @@ module.exports = createCoreController('api::coupon.coupon', ({ strapi }) => ({
 
       return ctx.send(result);
     } catch (err) {
-      ctx.throw(500, `خطا در بررسی کد تخفیف: ${err.message}`);
+      strapi.log?.error?.('[coupon validate error]:', err);
+      ctx.throw(500, 'خطا در بررسی کد تخفیف');
     }
   },
 
@@ -54,7 +55,8 @@ module.exports = createCoreController('api::coupon.coupon', ({ strapi }) => ({
       }
       return ctx.send(result);
     } catch (err) {
-      ctx.throw(500, `خطا در ثبت استفاده از کد تخفیف: ${err.message}`);
+      strapi.log?.error?.('[coupon consume error]:', err);
+      ctx.throw(500, 'خطا در ثبت استفاده از کد تخفیف');
     }
   },
 }));

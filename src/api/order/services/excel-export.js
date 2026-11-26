@@ -4,6 +4,20 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
 
+const DEFAULT_EXPORTS_DIR = path.join(process.cwd(), 'storage', 'exports');
+
+/**
+ * Prevent Excel formula injection (=, +, -, @, tab, CR) on user-supplied cells
+ */
+function sanitizeExcelCell(value) {
+  if (typeof value !== 'string') return value;
+  if (value === '-') return value;
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
 /**
  * Persian Months names mapping
  */
@@ -507,22 +521,22 @@ async function buildOrdersWorkbook(orders = []) {
       purchaseId: purchaseIdVal,
       currency: currencyLabel,
       trackingNumber: order.trackingNumber || '-',
-      fullName: order.fullName || '-',
-      phone: order.phone || '-',
-      email: order.email || '-',
+      fullName: sanitizeExcelCell(order.fullName || '-'),
+      phone: sanitizeExcelCell(order.phone || '-'),
+      email: sanitizeExcelCell(order.email || '-'),
       typeLabel: itemsInfo.typeLabel,
-      itemsSummary: itemsInfo.summaryText,
+      itemsSummary: sanitizeExcelCell(itemsInfo.summaryText),
       itemsCount: itemsInfo.totalCount,
       totalPrice: Number(order.totalPrice) || 0,
       paymentStatus: getPaymentStatusLabel(order.paymentStatus),
       orderStatus: getOrderStatusLabel(order.orderStatus),
       paymentMethod: getPaymentMethodLabel(order.paymentMethod),
-      cardHolderName: order.cardHolderName || '-',
-      address: order.address || '-',
-      postalCode: order.postalCode || '-',
+      cardHolderName: sanitizeExcelCell(order.cardHolderName || '-'),
+      address: sanitizeExcelCell(order.address || '-'),
+      postalCode: sanitizeExcelCell(order.postalCode || '-'),
       createdDateFa: createdFa.dateStr,
       createdTimeFa: createdFa.timeStr,
-      notes: order.notes || '-',
+      notes: sanitizeExcelCell(order.notes || '-'),
     });
 
     row.height = 28;
@@ -838,8 +852,8 @@ async function generateAndSaveExcelReport(customFilePath = null) {
     // 2. Build Workbook
     const { workbook, stats } = await buildOrdersWorkbook(orders || []);
 
-    // 3. Define output path outside public/ so reports are not served anonymously
-    const exportsDir = path.join(process.cwd(), 'storage', 'exports');
+    // 3. Define output path strictly outside public/ so reports are not served anonymously
+    const exportsDir = DEFAULT_EXPORTS_DIR;
     if (!fs.existsSync(exportsDir)) {
       fs.mkdirSync(exportsDir, { recursive: true });
     }
@@ -853,6 +867,7 @@ async function generateAndSaveExcelReport(customFilePath = null) {
 
     return {
       success: true,
+      fileName: path.basename(targetPath),
       filePath: targetPath,
       ordersCount: orders.length,
       stats,
@@ -878,6 +893,8 @@ async function generateExcelBuffer() {
 }
 
 module.exports = {
+  DEFAULT_EXPORTS_DIR,
+  sanitizeExcelCell,
   getPersianDateDetails,
   calculateRevenueMetrics,
   buildOrdersWorkbook,

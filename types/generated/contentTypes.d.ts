@@ -2596,8 +2596,12 @@ export interface PluginUsersPermissionsUser
       'api::notification.notification'
     >;
     orders: Schema.Attribute.Relation<'oneToMany', 'api::order.order'>;
+    otpAttempts: Schema.Attribute.Integer &
+      Schema.Attribute.Private &
+      Schema.Attribute.DefaultTo<0>;
     otpCode: Schema.Attribute.String & Schema.Attribute.Private;
     otpExpiresAt: Schema.Attribute.DateTime & Schema.Attribute.Private;
+    otpLastSentAt: Schema.Attribute.DateTime & Schema.Attribute.Private;
     password: Schema.Attribute.Password &
       Schema.Attribute.Private &
       Schema.Attribute.SetMinMaxLength<{

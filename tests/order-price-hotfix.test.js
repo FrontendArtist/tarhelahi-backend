@@ -240,7 +240,7 @@ test('خرید کالا با اسلاگ مشابه دوره، دسترسی دو�
     order.orderStatus = 'paid';
     await lifecycle.afterUpdate({ result: { id: 1 } });
     assert.equal(updates[0].uid, 'api::course.course');
-    assert.deepEqual(updates[0].data.data.users_permissions_users, [5]);
+    assert.deepEqual(updates[0].data.data.users_permissions_users, { connect: [5] });
     updates = [];
     order.items = [{ __component: 'order.course-order-item', courseId: 7, chapterId: 22 }];
     await lifecycle.afterCreate({ result: { id: 1 } });

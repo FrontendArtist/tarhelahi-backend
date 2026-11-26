@@ -1,9 +1,9 @@
 'use strict';
 
 const lifecycles = require('../../../src/api/product/content-types/product/lifecycles');
+const shippingOrigins = require('../../../src/services/shippingOrigins');
 
 const EMPTY_ORIGIN_MESSAGE = 'مبدأ ارسال کالا نمی‌تواند خالی باشد.';
-const shippingOrigins = require('../../../src/services/shippingOrigins');
 
 function createStrapi(origin) {
   return {

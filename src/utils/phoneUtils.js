@@ -19,12 +19,39 @@ function normalizeDigits(str) {
 }
 
 /**
- * بررسی حالت تست ادمین (شماره با T یا t شروع می‌شود)
+ * فهرست شماره‌های تست مجاز در محیط غیرپروداکشن از env (جداشده با ویرگول)
+ */
+function getAllowedTestPhones() {
+  const raw = process.env.OTP_TEST_PHONES || '';
+  const set = new Set();
+  for (const entry of raw.split(',')) {
+    const cleaned = normalizeDigits(entry).replace(/^[Tt]/, '').replace(/[^\d+]/g, '');
+    if (!cleaned) continue;
+    let normalized = cleaned.replace(/^(?:\+98|0098|98)/, '');
+    if (!normalized.startsWith('0')) {
+      normalized = '0' + normalized;
+    }
+    if (/^09\d{9}$/.test(normalized)) {
+      set.add(normalized);
+    }
+  }
+  return set;
+}
+
+/**
+ * بررسی حالت تست ادمین (در production همیشه غیرفعال؛ در غیر production فقط برای فهرست صریح OTP_TEST_PHONES)
  */
 function isTestPhoneNumber(rawPhone) {
+  if (process.env.NODE_ENV === 'production') return false;
   if (!rawPhone) return false;
   const digits = normalizeDigits(rawPhone);
-  return /^[Tt]/.test(digits);
+  if (!/^[Tt]/.test(digits)) return false;
+
+  const target = extractTestPhone(digits)
+    .replace(/[^\d+]/g, '')
+    .replace(/^(?:\+98|0098|98)/, '');
+  const normalizedTarget = target.startsWith('0') ? target : '0' + target;
+  return getAllowedTestPhones().has(normalizedTarget);
 }
 
 /**
@@ -45,9 +72,9 @@ function isIranianPhoneNumber(rawPhone) {
   if (!rawPhone) return false;
   const cleaned = normalizeDigits(rawPhone);
 
-  // شماره‌های تستی ادمین همیشه ایرانی فرض می‌شوند
+  // شماره‌های تستی مجاز فقط در غیر پروداکشن ایرانی فرض می‌شوند؛ پیشوند T در غیر این صورت نامعتبر است
   if (/^[Tt]/.test(cleaned)) {
-    return true;
+    return isTestPhoneNumber(cleaned);
   }
 
   const digitsOnly = cleaned.replace(/[^\d+]/g, '');
@@ -122,7 +149,10 @@ function validatePhoneNumber(rawPhone) {
   if (!rawPhone) return { valid: false, message: 'شماره تلفن الزامی است.' };
   
   const cleaned = normalizeDigits(rawPhone);
-  if (isTestPhoneNumber(cleaned)) {
+  if (/^[Tt]/.test(cleaned)) {
+    if (!isTestPhoneNumber(cleaned)) {
+      return { valid: false, message: 'فرمت شماره تلفن صحیح نیست.' };
+    }
     return { valid: true, isIranian: true, isTest: true, formatted: standardizePhoneNumber(cleaned) };
   }
 

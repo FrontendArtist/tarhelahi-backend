@@ -2,15 +2,83 @@
 
 const byeMoneySyncService = require('../../services/byeMoneySyncService');
 
+const ALLOWED_SELF_UPDATE_FIELDS = new Set(['firstName', 'lastName', 'email']);
+const SENSITIVE_USER_FIELDS = new Set([
+  'courses',
+  'enrolledChapters',
+  'enrolledChapterIntegrationIds',
+  'role',
+  'password',
+  'phoneNumber',
+  'blocked',
+  'confirmed',
+  'isMobileVerified',
+  'username',
+  'provider',
+  'resetPasswordToken',
+  'confirmationToken',
+  'otpCode',
+  'otpExpiresAt',
+  'otpAttempts',
+  'otpLastSentAt',
+  'cartData',
+  'is_foreigner',
+  'orders',
+  'address',
+  'comments',
+  'messages',
+  'notifications',
+  'items',
+]);
+
+function isAdminUser(user) {
+  const roleType = String(user?.role?.type || user?.role?.name || user?.role || '')
+    .trim()
+    .toLowerCase();
+  return roleType === 'administrator' || roleType === 'admin';
+}
+
+function isPrivilegedRequest(ctx) {
+  return (
+    ctx?.state?.auth?.strategy?.name === 'api-token' ||
+    isAdminUser(ctx?.state?.user)
+  );
+}
+
 module.exports = (plugin) => {
   const originalUpdate = plugin.controllers.user.update;
 
   plugin.controllers.user.update = async function (ctx) {
     const { id } = ctx.params;
-    const requestBody = ctx.request?.body;
+    let requestBody = ctx.request?.body;
 
     if (requestBody && Object.prototype.hasOwnProperty.call(requestBody, 'light')) {
       return ctx.badRequest('The "light" field on Users-Permissions is deprecated and blocked.');
+    }
+
+    if (!isPrivilegedRequest(ctx)) {
+      const currentUserId = ctx.state?.user?.id;
+      if (!currentUserId || String(id) !== String(currentUserId)) {
+        return ctx.forbidden('شما فقط مجاز به ویرایش پروفایل خودتان هستید.');
+      }
+
+      if (requestBody && typeof requestBody === 'object' && !Array.isArray(requestBody)) {
+        const keys = Object.keys(requestBody);
+        for (const key of keys) {
+          if (SENSITIVE_USER_FIELDS.has(key) || !ALLOWED_SELF_UPDATE_FIELDS.has(key)) {
+            return ctx.forbidden('ویرایش فیلدهای حساس کاربر مجاز نیست.');
+          }
+        }
+
+        const sanitizedBody = {};
+        for (const key of keys) {
+          if (ALLOWED_SELF_UPDATE_FIELDS.has(key)) {
+            sanitizedBody[key] = requestBody[key];
+          }
+        }
+        ctx.request.body = sanitizedBody;
+        requestBody = sanitizedBody;
+      }
     }
 
     const hasIdentityField = byeMoneySyncService.hasIdentityFieldsInPayload(requestBody);
@@ -48,7 +116,30 @@ module.exports = (plugin) => {
       if (requestBody && Object.prototype.hasOwnProperty.call(requestBody, 'light')) {
         return ctx.badRequest('The "light" field on Users-Permissions is deprecated and blocked.');
       }
+      if (!isPrivilegedRequest(ctx)) {
+        return ctx.forbidden('ایجاد کاربر فقط برای مدیر مجاز است.');
+      }
       return originalCreate.call(this, ctx);
+    };
+  }
+
+  if (plugin.controllers.user?.destroy) {
+    const originalDestroy = plugin.controllers.user.destroy;
+    plugin.controllers.user.destroy = async function (ctx) {
+      if (!isPrivilegedRequest(ctx)) {
+        return ctx.forbidden('حذف کاربر فقط برای مدیر مجاز است.');
+      }
+      return originalDestroy.call(this, ctx);
+    };
+  }
+
+  if (plugin.controllers.user?.count) {
+    const originalCount = plugin.controllers.user.count;
+    plugin.controllers.user.count = async function (ctx) {
+      if (!isPrivilegedRequest(ctx)) {
+        return ctx.forbidden('دسترسی به شمارش کاربران فقط برای مدیر مجاز است.');
+      }
+      return originalCount.call(this, ctx);
     };
   }
 
@@ -86,6 +177,10 @@ module.exports = (plugin) => {
   const originalFind = plugin.controllers.user.find;
 
   plugin.controllers.user.find = async function (ctx) {
+    if (!isPrivilegedRequest(ctx)) {
+      return ctx.forbidden('دسترسی به فهرست کاربران فقط برای مدیر مجاز است.');
+    }
+
     const query = { ...ctx.query };
 
     let page = query.page;
@@ -156,6 +251,12 @@ module.exports = (plugin) => {
   if (plugin.controllers.user?.findOne) {
     const originalFindOne = plugin.controllers.user.findOne;
     plugin.controllers.user.findOne = async function (ctx) {
+      if (!isPrivilegedRequest(ctx)) {
+        const currentUserId = ctx.state?.user?.id;
+        if (!currentUserId || String(ctx.params?.id) !== String(currentUserId)) {
+          return ctx.forbidden('دسترسی به اطلاعات کاربر دیگر مجاز نیست.');
+        }
+      }
       await originalFindOne.call(this, ctx);
       await attachEnrolledChapterIntegrationIds(ctx.body);
     };

@@ -20,7 +20,7 @@ module.exports = {
       handler: 'order.exportExcel',
       config: {
         auth: { scope: [] },
-        policies: [],
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
@@ -30,7 +30,7 @@ module.exports = {
       handler: 'order.revenueStats',
       config: {
         auth: { scope: [] },
-        policies: [],
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
@@ -40,7 +40,7 @@ module.exports = {
       handler: 'order.syncExcel',
       config: {
         auth: { scope: [] },
-        policies: [],
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
@@ -50,7 +50,7 @@ module.exports = {
       handler: 'order.bulkSettle',
       config: {
         auth: { scope: [] },
-        policies: [],
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
