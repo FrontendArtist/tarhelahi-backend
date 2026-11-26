@@ -21,6 +21,23 @@ const CONTENT_TYPE_FOLDER_MAP = {
   'api::order.order': 'receipts',
 };
 
+const ALLOWED_UPLOAD_PATHS = new Set([
+  'media',
+  ...Object.values(CONTENT_TYPE_FOLDER_MAP),
+]);
+
+/**
+ * اعتبارسنجی و محدودسازی مسیر ذخیره در Object Storage به فهرست ثابت مجاز (M14)
+ */
+function sanitizeUploadPath(rawPath) {
+  if (typeof rawPath !== 'string') return null;
+  const cleaned = rawPath.trim().replace(/^\/+|\/+$/g, '');
+  if (!cleaned || cleaned.includes('..') || cleaned.includes('\\') || cleaned.includes('\0')) {
+    return null;
+  }
+  return ALLOWED_UPLOAD_PATHS.has(cleaned) ? cleaned : null;
+}
+
 /**
  * بررسی اینکه آیا فایل صوتی / وویس مربوط به صفحه mentor یا چت است
  */
@@ -93,9 +110,13 @@ async function getPathFromFolder(folderId, strapi) {
  * مسیر نهایی ذخیره فایل در Object Storage را تعیین می‌کند.
  */
 async function resolveFilePath(file, strapi) {
-  // ۱. اگر فایل از قبل path مشخص دارد (مثلاً receipt)، دست نزن
+  // ۱. اگر فایل از قبل path معتبر از فهرست مجاز دارد، حفظ شود؛ در غیر این صورت نادیده گرفته شود
   if (file.path) {
-    return file.path;
+    const safeFilePath = sanitizeUploadPath(file.path);
+    if (safeFilePath) {
+      return safeFilePath;
+    }
+    strapi?.log?.warn?.(`[Storage] Ignored disallowed file.path: "${String(file.path).slice(0, 120)}"`);
   }
 
   // ۲. اگر فایل صوتی / وویس منتور است
@@ -106,10 +127,14 @@ async function resolveFilePath(file, strapi) {
   // ۳. بررسی اطلاعات درخواست جاری (Koa ctx)
   const ctx = asyncLocalStorage.getStore();
   if (ctx) {
-    // ۳.۱ فیلد مستقیم path در FormData
+    // ۳.۱ فیلد مستقیم path در FormData (فقط از فهرست ثابت پیشوندهای مجاز)
     const bodyPath = ctx.request?.body?.path;
     if (typeof bodyPath === 'string' && bodyPath.trim()) {
-      return bodyPath.trim();
+      const safeBodyPath = sanitizeUploadPath(bodyPath);
+      if (safeBodyPath) {
+        return safeBodyPath;
+      }
+      strapi?.log?.warn?.(`[Storage] Ignored disallowed upload path from request: "${bodyPath.trim().slice(0, 120)}"`);
     }
 
     // ۳.۲ تشخیص از هدر Referer در ادمین پنل استراپی
@@ -250,5 +275,12 @@ module.exports = {
     }
 
     strapi.log.info('[Storage] Enhanced upload path middleware registered with referer & voice detection.');
+  },
+
+  _internal: {
+    ALLOWED_UPLOAD_PATHS,
+    sanitizeUploadPath,
+    resolveFilePath,
+    asyncLocalStorage,
   },
 };
