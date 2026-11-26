@@ -69,8 +69,12 @@ describe('Excel Export Security (M6)', () => {
 
     const headers = {};
     const ctx = {
+      state: { auth: { strategy: { name: 'api-token' } } },
       set: jest.fn((k, v) => {
         headers[k] = v;
+      }),
+      forbidden: jest.fn((msg) => {
+        throw new Error(`403:${msg}`);
       }),
       throw: jest.fn((status, msg) => {
         throw new Error(`${status}:${msg}`);

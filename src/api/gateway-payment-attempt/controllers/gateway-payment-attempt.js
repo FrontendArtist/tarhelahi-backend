@@ -99,8 +99,7 @@ module.exports = createCoreController('api::gateway-payment-attempt.gateway-paym
         bankDateRaw: input.bankDateRaw || null,
         rawPayload: input.rawPayload || {},
         occurredAtUtc: new Date().toISOString(),
-        deliveryStatus: stage === 'reverse_intent' || stage === 'callback' && kind === 'Unknown'
-          ? 'delivered' : 'pending',
+        deliveryStatus: stage === 'reverse_intent' ? 'delivered' : 'pending',
       };
       try {
         event = await events.create({ data });

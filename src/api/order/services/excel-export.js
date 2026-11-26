@@ -854,7 +854,7 @@ async function generateAndSaveExcelReport(customFilePath = null) {
     // 2. Build Workbook
     const { workbook, stats } = await buildOrdersWorkbook(orders || []);
 
-    // 3. Define output path strictly outside public/
+    // 3. Define output path strictly outside public/ so reports are not served anonymously
     const exportsDir = DEFAULT_EXPORTS_DIR;
     if (!fs.existsSync(exportsDir)) {
       fs.mkdirSync(exportsDir, { recursive: true });

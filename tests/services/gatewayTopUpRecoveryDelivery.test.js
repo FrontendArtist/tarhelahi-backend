@@ -76,3 +76,41 @@ test('قطع پاسخ Verify، تلاش مجدد و تحویل نتیجه بدو
     jest.useRealTimers();
   }
 });
+
+test('خطای ۴۰۹ برای رویداد کهنه، وضعیت confirmed تلاش را به financial_review برنمی‌گرداند (LOG-005)', async () => {
+  const originalFetch = global.fetch;
+  const savedEnv = { ...process.env };
+  process.env.BYEMONEY_API_URL = 'http://byemoney.test';
+  process.env.STRAPI_TO_BYEMONEY_SERVICE_KEY = 'x'.repeat(32);
+  let row = { resNum: 'TR-409-CONFIRMED', status: 'confirmed', topUpRequestId: 'topup-409', lastError: null };
+  const stored = [{
+    eventId: 'evt-stale-unpaid', resNum: 'TR-409-CONFIRMED', stage: 'callback', kind: 'Unpaid',
+    deliveryStatus: 'pending', occurredAtUtc: new Date().toISOString(),
+  }];
+  const attempts = {
+    findMany: async () => [],
+    findOne: async () => row,
+    update: async ({ data }) => (row = { ...row, ...data }),
+  };
+  const events = {
+    findMany: async ({ where }) => stored.filter(e =>
+      (!where.deliveryStatus || e.deliveryStatus === where.deliveryStatus) &&
+      (!where.stage || e.stage === where.stage)),
+    findOne: async () => null,
+    update: async ({ where, data }) => Object.assign(stored.find(e => e.eventId === where.eventId), data),
+  };
+  const history = { findOne: async () => null, create: async () => ({}) };
+  const strapi = { db: { query: uid => uid.includes('gateway-payment-attempt') ? attempts :
+    uid.includes('gateway-payment-event') ? events : history }, log: { error: jest.fn() } };
+  global.fetch = jest.fn(async () => ({
+    ok: false, status: 409, json: async () => ({ code: 'TOPUP_ALREADY_CONFIRMED' }),
+  }));
+  try {
+    await recoverGatewayTopUps(strapi);
+    expect(row.status).toBe('confirmed');
+    expect(stored[0].deliveryStatus).toBe('review');
+  } finally {
+    global.fetch = originalFetch;
+    process.env = savedEnv;
+  }
+});

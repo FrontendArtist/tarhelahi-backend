@@ -124,4 +124,29 @@ describe('gateway outcomes after a review case has opened', () => {
     expect(strapi.log.error).toHaveBeenCalledWith(expect.stringContaining('ByeMoney network unavailable'));
     expect(attemptQuery.update).not.toHaveBeenCalled();
   });
+
+  it('رویداد callback با kind برابر Unknown را تا تحویل واقعی در وضعیت pending نگه می‌دارد (LOG-003)', async () => {
+    const attempt = { resNum: 'TR-00000006', topUpRequestId: 'topup-6', amountRial: 50000, status: 'failed' };
+    let createdData = null;
+    const eventQuery = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation(async ({ data }) => {
+        createdData = data;
+        return { ...data };
+      }),
+    };
+    const strapi = { db: { query: jest.fn(uid => uid.includes('gateway-payment-event') ? eventQuery : {
+      findOne: jest.fn().mockResolvedValue(attempt),
+    }) } };
+    const controller = controllerFactory({ strapi });
+    const ctx = { request: { body: {
+      resNum: attempt.resNum, eventId: 'evt-cb-unknown', stage: 'callback', kind: 'Unknown',
+      bankTransactionId: 'SEP-REF-6', rawPayload: { State: 'OK', Status: 2 },
+    } } };
+
+    await controller.recordOutcome(ctx);
+
+    expect(createdData.deliveryStatus).toBe('pending');
+    expect(ctx.body.deliveryStatus).toBe('pending');
+  });
 });
