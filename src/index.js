@@ -40,6 +40,9 @@ module.exports = {
   async bootstrap({ strapi }) {
     require('./utils/validateProductionEnv').validateProductionEnv();
 
+    const { revokeSensitivePublicPermissions } = require('./services/securityPermissions');
+    await revokeSensitivePublicPermissions(strapi);
+
     const { migrateFinancialEnums, registerDbLifecycles } = require('./services/financialEnums');
     await migrateFinancialEnums(strapi);
     registerDbLifecycles(strapi);

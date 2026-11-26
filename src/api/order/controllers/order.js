@@ -123,6 +123,10 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
    * GET /api/orders
    */
   async find(ctx) {
+    if (!canManageOrders(ctx)) {
+      return ctx.forbidden('دسترسی به فهرست سفارش‌ها فقط برای ادمین یا سرویس سایت مجاز است.');
+    }
+
     const isPrioritySort = ctx.query.statusPriority === 'true' || ctx.query.statusPriority === true;
 
     if (!isPrioritySort) {
@@ -174,6 +178,18 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       console.error('[OrderController find Error]:', err);
       return super.find(ctx);
     }
+  },
+
+  /**
+   * Find single order by id/documentId (admin or service token only)
+   * GET /api/orders/:id
+   */
+  async findOne(ctx) {
+    if (!canManageOrders(ctx)) {
+      return ctx.forbidden('دسترسی به جزئیات سفارش فقط برای ادمین یا سرویس سایت مجاز است.');
+    }
+
+    return super.findOne(ctx);
   },
 
   /**
