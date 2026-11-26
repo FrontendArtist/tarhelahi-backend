@@ -155,52 +155,69 @@ async function syncUserPurchases(orderIdentifier) {
 
     if (!user) return;
 
-    // 4. Sync courses relation (Update from Course side to ensure Admin UI registers the join)
+    // 4. Sync courses relation atomically via connect (no full-list overwrite race)
     if (courseIdsToConnect.size > 0) {
       for (const courseId of courseIdsToConnect) {
-        const course = await strapi.db.query('api::course.course').findOne({
+        await strapi.db.query('api::course.course').update({
           where: { id: courseId },
-          populate: ['users_permissions_users'],
+          data: {
+            users_permissions_users: { connect: [userId] },
+          },
         });
-
-        if (course) {
-          const existingUserIds = (course.users_permissions_users || []).map((u) => u.id).filter(Boolean);
-          const mergedUserIds = [...new Set([...existingUserIds, userId])];
-
-          await strapi.db.query('api::course.course').update({
-            where: { id: courseId },
-            data: {
-              users_permissions_users: mergedUserIds,
-            },
-          });
-        }
       }
       console.log(`[Order Lifecycle] ✅ Connected courses [${Array.from(courseIdsToConnect)}] to user ${userId} from Course (Owner) side`);
     }
 
-    // 5. Sync enrolledChapters and enrolledChapterIntegrationIds JSON fields
+    // 5. Sync enrolledChapters and enrolledChapterIntegrationIds JSON fields inside a row-locked transaction
     if (chapterIdsToConnect.size > 0 || chapterIntegrationIdsToConnect.size > 0) {
-      const existingChapters = Array.isArray(user.enrolledChapters)
-        ? user.enrolledChapters.map(Number)
-        : [];
-      const newChapterIds = Array.from(chapterIdsToConnect);
-      const mergedChapters = [...new Set([...existingChapters, ...newChapterIds])];
+      const applyChapterMerge = async () => {
+        const freshUser = await strapi.db.query('plugin::users-permissions.user').findOne({
+          where: { id: userId },
+        });
+        if (!freshUser) return null;
 
-      const existingUuids = Array.isArray(user.enrolledChapterIntegrationIds)
-        ? user.enrolledChapterIntegrationIds.map(id => String(id).toLowerCase())
-        : [];
-      const newUuids = Array.from(chapterIntegrationIdsToConnect);
-      const mergedUuids = [...new Set([...existingUuids, ...newUuids])];
+        const existingChapters = Array.isArray(freshUser.enrolledChapters)
+          ? freshUser.enrolledChapters.map(Number).filter(Boolean)
+          : [];
+        const newChapterIds = Array.from(chapterIdsToConnect);
+        const mergedChapters = [...new Set([...existingChapters, ...newChapterIds])];
 
-      await strapi.db.query('plugin::users-permissions.user').update({
-        where: { id: userId },
-        data: {
-          enrolledChapters: mergedChapters,
-          enrolledChapterIntegrationIds: mergedUuids,
-        },
-      });
+        const existingUuids = Array.isArray(freshUser.enrolledChapterIntegrationIds)
+          ? freshUser.enrolledChapterIntegrationIds.map((id) => String(id).toLowerCase())
+          : [];
+        const newUuids = Array.from(chapterIntegrationIdsToConnect);
+        const mergedUuids = [...new Set([...existingUuids, ...newUuids])];
 
-      console.log(`[Order Lifecycle] ✅ Connected chapters [${mergedChapters}] and UUIDs [${mergedUuids}] to user ${userId}`);
+        await strapi.db.query('plugin::users-permissions.user').update({
+          where: { id: userId },
+          data: {
+            enrolledChapters: mergedChapters,
+            enrolledChapterIntegrationIds: mergedUuids,
+          },
+        });
+
+        return { mergedChapters, mergedUuids };
+      };
+
+      let mergeResult = null;
+      if (typeof strapi.db.transaction === 'function') {
+        mergeResult = await strapi.db.transaction(async ({ trx }) => {
+          if (trx) {
+            const userMeta = strapi.db.metadata?.get?.('plugin::users-permissions.user');
+            const tableName = userMeta?.tableName || 'up_users';
+            await trx(tableName).where({ id: userId }).forUpdate().select('id');
+          }
+          return applyChapterMerge();
+        });
+      } else {
+        mergeResult = await applyChapterMerge();
+      }
+
+      if (mergeResult) {
+        console.log(
+          `[Order Lifecycle] ✅ Connected chapters [${mergeResult.mergedChapters}] and UUIDs [${mergeResult.mergedUuids}] to user ${userId}`
+        );
+      }
     }
 
     console.log(`[Order Lifecycle] ✅ Synced user ${userId} purchases successfully`);

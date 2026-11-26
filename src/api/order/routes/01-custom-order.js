@@ -19,8 +19,8 @@ module.exports = {
       path: '/orders/export-excel',
       handler: 'order.exportExcel',
       config: {
-        auth: false,
-        policies: [],
+        auth: { scope: [] },
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
@@ -29,8 +29,8 @@ module.exports = {
       path: '/orders/revenue-stats',
       handler: 'order.revenueStats',
       config: {
-        auth: false,
-        policies: [],
+        auth: { scope: [] },
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
@@ -39,8 +39,8 @@ module.exports = {
       path: '/orders/sync-excel',
       handler: 'order.syncExcel',
       config: {
-        auth: false,
-        policies: [],
+        auth: { scope: [] },
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },
@@ -49,8 +49,8 @@ module.exports = {
       path: '/orders/bulk-settle',
       handler: 'order.bulkSettle',
       config: {
-        auth: false,
-        policies: [],
+        auth: { scope: [] },
+        policies: ['global::is-admin-or-api-token'],
         middlewares: [],
       },
     },

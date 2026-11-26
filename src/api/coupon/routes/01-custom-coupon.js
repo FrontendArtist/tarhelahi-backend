@@ -13,7 +13,16 @@ module.exports = {
       config: {
         auth: false, // اجازه اعتبارسنجی هم برای کاربران لاگین‌شده و هم مهمان
         policies: [],
-        middlewares: [],
+        middlewares: [
+          {
+            name: 'global::rate-limit',
+            config: {
+              keyPrefix: 'coupon-validate',
+              windowMs: 15 * 60 * 1000,
+              max: 20,
+            },
+          },
+        ],
       },
     },
     {

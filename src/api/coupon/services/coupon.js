@@ -336,8 +336,8 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
         };
       });
     } catch (err) {
-      console.error('[consumeCoupon Error]:', err);
-      return { success: false, message: `خطا در پردازش کد تخفیف: ${err.message}` };
+      strapi.log?.error?.('[consumeCoupon Error]:', err);
+      return { success: false, message: 'خطا در پردازش کد تخفیف.' };
     }
   },
 

@@ -6,30 +6,51 @@
 'use strict';
 
 const { Smsir } = require('smsir-js');
+const phoneUtils = require('../utils/phoneUtils');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // تنظیمات محیطی SMS.ir
 // ─────────────────────────────────────────────────────────────────────────────
-const apiKey = process.env.SMSIR_API_KEY;
-const templateId = Number(process.env.SMSIR_TEMPLATE_ID) || 852164;
-const lineNumber = process.env.SMSIR_LINE_NUMBER ? Number(process.env.SMSIR_LINE_NUMBER) : 30002108033951;
-
-/**
- * ایجاد کلاینت SMS.ir
- */
+let cachedApiKey = null;
 let smsirClient = null;
 
-if (apiKey) {
-  smsirClient = new Smsir(apiKey, lineNumber);
+function getSmsConfig() {
+  return {
+    apiKey: process.env.SMSIR_API_KEY || '',
+    templateId: Number(process.env.SMSIR_TEMPLATE_ID) || 852164,
+    lineNumber: process.env.SMSIR_LINE_NUMBER ? Number(process.env.SMSIR_LINE_NUMBER) : 30002108033951,
+  };
+}
+
+function getSmsirClient() {
+  const { apiKey, lineNumber } = getSmsConfig();
+  if (!apiKey) {
+    smsirClient = null;
+    cachedApiKey = null;
+    return null;
+  }
+  if (!smsirClient || cachedApiKey !== apiKey) {
+    smsirClient = new Smsir(apiKey, lineNumber);
+    cachedApiKey = apiKey;
+  }
+  return smsirClient;
+}
+
+if (process.env.SMSIR_API_KEY) {
+  getSmsirClient();
   console.log('[SMS Service] SMS.ir client initialized successfully.');
-} else {
-  console.warn('[SMS Service] SMSIR_API_KEY is not set. Running in MOCK mode.');
+} else if (process.env.NODE_ENV !== 'production') {
+  console.warn('[SMS Service] SMSIR_API_KEY is not set. Running in MOCK mode (non-production only).');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// تابع کمکی برای حالت Mock (توسعه محلی بدون اتصال واقعی)
+// تابع کمکی برای حالت Mock (فقط توسعه محلی بدون اتصال واقعی)
 // ─────────────────────────────────────────────────────────────────────────────
 function mockFallback(label, receptor, extra = {}) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SMS mock fallback is disabled in production; SMSIR_API_KEY is required.');
+  }
+
   const logFn = (typeof strapi !== 'undefined' && strapi.log)
     ? strapi.log.warn.bind(strapi.log)
     : console.warn;
@@ -50,18 +71,24 @@ function mockFallback(label, receptor, extra = {}) {
  * @returns {Promise<{success: boolean, mocked?: boolean, result?: any}>}
  */
 async function sendOtp(receptor, token, paramName = 'CODE') {
-  // حالت تست و دیباگ: اگر شماره با T شروع شود، پیامک ارسال نمی‌شود
-  if (typeof receptor === 'string' && /^[Tt]/.test(receptor.trim())) {
-    const realReceptor = receptor.trim().replace(/^[Tt]0?/, '0');
+  // حالت تست و دیباگ: فقط در غیر production و برای شماره‌های تست مجاز
+  if (process.env.NODE_ENV !== 'production' && phoneUtils.isTestPhoneNumber(receptor)) {
+    const realReceptor = phoneUtils.extractTestPhone(receptor);
     const logFn = (typeof strapi !== 'undefined' && strapi.log)
       ? strapi.log.warn.bind(strapi.log)
       : console.warn;
-    logFn(`[SMS Service - TEST BYPASS] No SMS sent for test number: ${receptor} (Target: ${realReceptor}) | OTP: ${token}`);
+    logFn(`[SMS Service - TEST BYPASS] No SMS sent for test number: ${receptor} (Target: ${realReceptor})`);
     return { success: true, mocked: true, testMode: true };
   }
 
-  // حالت Mock
-  if (!smsirClient) {
+  const { templateId } = getSmsConfig();
+  const client = getSmsirClient();
+
+  // حالت Mock (فقط غیر production)
+  if (!client) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMSIR_API_KEY is not configured in production.');
+    }
     return mockFallback('sendOtp', receptor, { token, templateId, paramName });
   }
 
@@ -74,7 +101,7 @@ async function sendOtp(receptor, token, paramName = 'CODE') {
       },
     ];
 
-    const response = await smsirClient.SendVerifyCode(receptor, templateId, parameters);
+    const response = await client.SendVerifyCode(receptor, templateId, parameters);
 
     if (response && response.data && (response.data.status === 1 || response.status === 200)) {
       return { success: true, result: response.data };
@@ -104,12 +131,18 @@ async function sendOtp(receptor, token, paramName = 'CODE') {
  * @returns {Promise<{success: boolean, mocked?: boolean, result?: any}>}
  */
 async function sendDirectSms(receptor, message) {
-  if (!smsirClient) {
+  const { lineNumber } = getSmsConfig();
+  const client = getSmsirClient();
+
+  if (!client) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SMSIR_API_KEY is not configured in production.');
+    }
     return mockFallback('sendDirectSms', receptor, { message, lineNumber });
   }
 
   try {
-    const response = await smsirClient.SendBulk(message, [receptor], null, lineNumber);
+    const response = await client.SendBulk(message, [receptor], null, lineNumber);
     if (response && response.data && (response.data.status === 1 || response.status === 200)) {
       return { success: true, result: response.data };
     } else {
@@ -155,7 +188,8 @@ async function sendCourseTelegramLinkSms(receptor, { courseTitle, courseSlug, te
     : null;
   const paramName = process.env.SMSIR_COURSE_PARAM_NAME || 'LINK';
 
-  if (courseTemplateId && smsirClient) {
+  const client = getSmsirClient();
+  if (courseTemplateId && client) {
     try {
       const parameters = [
         {
@@ -164,7 +198,7 @@ async function sendCourseTelegramLinkSms(receptor, { courseTitle, courseSlug, te
         },
       ];
 
-      const response = await smsirClient.SendVerifyCode(receptor, courseTemplateId, parameters);
+      const response = await client.SendVerifyCode(receptor, courseTemplateId, parameters);
       if (response && response.data && (response.data.status === 1 || response.status === 200)) {
         return { success: true, result: response.data, viaTemplate: true };
       }

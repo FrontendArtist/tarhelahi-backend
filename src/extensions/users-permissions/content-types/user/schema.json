@@ -131,6 +131,15 @@
       "type": "datetime",
       "private": true
     },
+    "otpAttempts": {
+      "type": "integer",
+      "default": 0,
+      "private": true
+    },
+    "otpLastSentAt": {
+      "type": "datetime",
+      "private": true
+    },
     "isMobileVerified": {
       "type": "boolean",
       "default": false

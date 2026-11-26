@@ -13,6 +13,16 @@ module.exports = {
       config: {
         auth: false,
         policies: [],
+        middlewares: [
+          {
+            name: 'global::rate-limit',
+            config: {
+              keyPrefix: 'visitor-track',
+              windowMs: 60 * 1000,
+              max: 60,
+            },
+          },
+        ],
       },
     },
     {
@@ -20,8 +30,8 @@ module.exports = {
       path: '/visitor-stat/stats',
       handler: 'visitor-stat.stats',
       config: {
-        auth: false,
-        policies: [],
+        auth: { scope: [] },
+        policies: ['global::is-admin-or-api-token'],
       },
     },
   ],
