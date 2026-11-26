@@ -88,11 +88,25 @@ describe('cartShipping (SHIP-BOX-TYPE)', () => {
     });
   });
 
-  it('defaults missing costMode to fixed', async () => {
-    const strapi = settingsQuery({ fixedAmountInNoor: 25, rialPerNoorForShipping: 10000 });
-    const result = await cartShipping.calculate(strapi, [product(10)], { city: 'مشهد' });
+  it('defaults missing costMode to postex', async () => {
+    process.env.POSTEX_API_KEY = 'test-key';
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ total_cost: 250_000 }),
+    }));
+    const strapi = settingsQuery(
+      { fixedAmountInNoor: 25, rialPerNoorForShipping: 10000 },
+      [{ documentId: 'city-mashhad', externalId: 200 }],
+    );
+    const result = await cartShipping.calculate(
+      strapi,
+      [product(10, 1, { weightGrams: 500, lengthCm: 20, widthCm: 15, heightCm: 20, boxTypeId: 6 })],
+      { city: 'مشهد', cityDocumentId: 'city-mashhad' },
+      { fetchImpl, fromCityId: 573 },
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(result.shippingAmountInNoor).toBe(25);
-    expect(result.shippingRuleLabel).toBe('ارسال ثابت داخلی');
+    expect(result.shippingRuleLabel).toBe('برآورد پستکس');
   });
 
   it('quotes the whole cart as one aggregated parcel', async () => {

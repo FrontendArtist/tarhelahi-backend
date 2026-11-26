@@ -182,12 +182,14 @@ async function syncShippingSettingRate(strapi, options = {}) {
       strapi.log?.info?.(`[ShippingSetting] Synced rialPerNoorForShipping from ByeMoney: ${rateStr}`);
     }
   } else {
+    const {
+      adminValuesFrom,
+      DEFAULT_FIXED_AMOUNT_IN_NOOR,
+    } = require('./shippingCollection');
     await strapi.db.query(uid).create({
       data: {
-        costMode: 'fixed',
-        collectionType: DEFAULT_COLLECTION_TYPE,
-        courierCode: DEFAULT_COURIER,
-        serviceType: DEFAULT_SERVICE_TYPE,
+        ...adminValuesFrom({}),
+        fixedAmountInNoor: DEFAULT_FIXED_AMOUNT_IN_NOOR,
         rialPerNoorForShipping: rateStr,
       },
     });

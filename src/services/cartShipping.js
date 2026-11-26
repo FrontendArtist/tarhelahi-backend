@@ -11,7 +11,7 @@ const MODE_POSTEX = 'postex';
 const IR_POST_MAX_DECLARED_VALUE_IRR = 5_000_000_000;
 
 function readMode(settings) {
-  return settings?.costMode === MODE_POSTEX ? MODE_POSTEX : MODE_FIXED;
+  return shippingCollection.normalizeCostMode(settings?.costMode);
 }
 
 function physicalSubtotal(items) {

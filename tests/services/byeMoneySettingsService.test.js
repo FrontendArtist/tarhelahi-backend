@@ -183,10 +183,11 @@ describe('byeMoneySettingsService', () => {
       await syncShippingSettingRate(strapiMock, { pool: mockPool, forceFresh: true });
       expect(createMock).toHaveBeenCalledWith({
         data: {
-          costMode: 'fixed',
-          collectionType: 'courier_drop_off',
-          courierCode: 'IR_POST',
-          serviceType: 'EXPRESS',
+          costMode: 'پستکس (استعلام آنلاین)',
+          collectionType: 'تحویل توسط خودمان',
+          courierCode: 'شرکت ملی پست',
+          serviceType: 'پست پیشتاز',
+          fixedAmountInNoor: '170000',
           rialPerNoorForShipping: '10000',
         },
       });

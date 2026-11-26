@@ -48,9 +48,9 @@ const READONLY_FIELDS = {
 const FIELD_DESCRIPTIONS = {
   'api::shipping-setting.shipping-setting': {
     rialPerNoorForShipping: 'تنها به صورت نمایشی از دیتابیس بای‌مانی خوانده می‌شود.',
-    collectionType: 'پیک (pick_up)، تحویل توسط خودمان (courier_drop_off، پیش‌فرض)، تحویل در دفتر پست (postex_drop_off). استعلام و ساخت مرسوله همین مقدار را می‌خوانند. تحویل در دفتر تا ثبت شناسهٔ دفتر در فاز بعد قابل استفاده نیست و ساخت مرسوله را رد می‌کند.',
-    courierCode: 'پیش‌فرض IR_POST. استعلام و ساخت مرسوله همین مقدار را می‌خوانند. تهی یا نامعتبر به پیش‌فرض برمی‌گردد.',
-    serviceType: 'پیش‌فرض EXPRESS. استعلام و ساخت مرسوله همین مقدار را می‌خوانند. تهی یا نامعتبر به پیش‌فرض برمی‌گردد.',
+    collectionType: 'پیش‌فرض «تحویل توسط خودمان». استعلام و ساخت مرسوله همین مقدار را می‌خوانند. تحویل در دفتر پستی تا ثبت شناسهٔ دفتر قابل استفاده نیست و ساخت مرسوله را رد می‌کند.',
+    courierCode: 'پیش‌فرض «شرکت ملی پست». استعلام و ساخت مرسوله همین مقدار را می‌خوانند.',
+    serviceType: 'پیش‌فرض «پست پیشتاز». استعلام و ساخت مرسوله همین مقدار را می‌خوانند.',
   },
 };
 
@@ -84,10 +84,18 @@ function applyLabels(metadatas, labels, readonlyFields = [], descriptions = {}) 
 }
 
 async function ensureShippingCmLabels(strapi) {
+  const ctService = strapi.plugin?.('content-manager')?.service?.('content-types');
   for (const [uid, labels] of Object.entries(LABEL_PATCHES)) {
     const key = `configuration_content_types::${uid}`;
     const store = strapi.store({ type: 'plugin', name: 'content_manager', key });
-    const conf = await store.get();
+    let conf = await store.get();
+    if ((!conf || typeof conf !== 'object') && ctService) {
+      const contentType = strapi.contentType?.(uid);
+      if (contentType) {
+        await ctService.findConfiguration(contentType);
+        conf = await store.get();
+      }
+    }
     if (!conf || typeof conf !== 'object') {
       continue;
     }

@@ -1781,16 +1781,32 @@ export interface ApiShippingSettingShippingSetting
   };
   attributes: {
     collectionType: Schema.Attribute.Enumeration<
-      ['pick_up', 'courier_drop_off', 'postex_drop_off']
+      [
+        '\u062C\u0645\u0639\u200C\u0622\u0648\u0631\u06CC \u062A\u0648\u0633\u0637 \u067E\u06CC\u06A9',
+        '\u062A\u062D\u0648\u06CC\u0644 \u062A\u0648\u0633\u0637 \u062E\u0648\u062F\u0645\u0627\u0646',
+        '\u062A\u062D\u0648\u06CC\u0644 \u062F\u0631 \u062F\u0641\u062A\u0631 \u067E\u0633\u062A\u06CC',
+      ]
     > &
-      Schema.Attribute.DefaultTo<'courier_drop_off'>;
-    costMode: Schema.Attribute.Enumeration<['fixed', 'postex']> &
-      Schema.Attribute.DefaultTo<'fixed'>;
-    courierCode: Schema.Attribute.String &
-      Schema.Attribute.SetMinMaxLength<{
-        maxLength: 32;
-      }> &
-      Schema.Attribute.DefaultTo<'IR_POST'>;
+      Schema.Attribute.DefaultTo<'\u062A\u062D\u0648\u06CC\u0644 \u062A\u0648\u0633\u0637 \u062E\u0648\u062F\u0645\u0627\u0646'>;
+    costMode: Schema.Attribute.Enumeration<
+      [
+        '\u0646\u0631\u062E \u062B\u0627\u0628\u062A',
+        '\u067E\u0633\u062A\u06A9\u0633 (\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0622\u0646\u0644\u0627\u06CC\u0646)',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'\u067E\u0633\u062A\u06A9\u0633 (\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0622\u0646\u0644\u0627\u06CC\u0646)'>;
+    courierCode: Schema.Attribute.Enumeration<
+      [
+        '\u0634\u0631\u06A9\u062A \u0645\u0644\u06CC \u067E\u0633\u062A',
+        '\u0686\u0627\u067E\u0627\u0631',
+        '\u062F\u06A9\u0627\u067E\u0633\u062A',
+        '\u067E\u0633\u062A \u0628\u0627\u0631',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 (\u0628\u06CC\u0646\u200C\u0634\u0647\u0631\u06CC)',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 (\u062F\u0631\u0648\u0646\u200C\u0634\u0647\u0631\u06CC \u0648 \u0639\u0627\u062F\u06CC)',
+        '\u0628\u0627\u0631\u0627\u06A9\u0633\u067E\u0631\u0633',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'\u0634\u0631\u06A9\u062A \u0645\u0644\u06CC \u067E\u0633\u062A'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1800,7 +1816,8 @@ export interface ApiShippingSettingShippingSetting
           min: 0;
         },
         number
-      >;
+      > &
+      Schema.Attribute.DefaultTo<'170000'>;
     freeShippingThresholdInNoor: Schema.Attribute.BigInteger &
       Schema.Attribute.SetMinMax<
         {
@@ -1822,12 +1839,31 @@ export interface ApiShippingSettingShippingSetting
           min: 1;
         },
         number
-      >;
-    serviceType: Schema.Attribute.String &
-      Schema.Attribute.SetMinMaxLength<{
-        maxLength: 32;
-      }> &
-      Schema.Attribute.DefaultTo<'EXPRESS'>;
+      > &
+      Schema.Attribute.DefaultTo<'10'>;
+    serviceType: Schema.Attribute.Enumeration<
+      [
+        '\u067E\u0633\u062A \u067E\u06CC\u0634\u062A\u0627\u0632',
+        '\u067E\u0633\u062A \u0648\u06CC\u0698\u0647',
+        '\u067E\u0633\u062A \u0627\u06A9\u0633\u067E\u0631\u0633',
+        '\u0686\u0627\u067E\u0627\u0631',
+        '\u067E\u0633\u062A \u0628\u0627\u0631 \u0627\u06A9\u0633\u067E\u0631\u0633',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 - \u0648\u06CC\u0698\u0647 - \u0628\u06CC\u0646 \u0634\u0647\u0631\u06CC',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 - \u0627\u06A9\u0633\u067E\u0631\u0633',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 - \u0633\u0627\u0632\u0645\u0627\u0646\u06CC',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 - \u0648\u06CC\u0698\u0647 - \u062F\u0631\u0648\u0646 \u0634\u0647\u0631\u06CC',
+        '\u067E\u0633\u062A\u06A9\u0633 \u0648\u0627\u0646 - \u0639\u0627\u062F\u06CC',
+        '\u062F\u06A9\u0627\u067E\u06CC\u0634\u0631\u0648 \u0628\u06CC\u0646 \u0634\u0647\u0631\u06CC',
+        '\u062F\u06A9\u0627\u067E\u06CC\u0634\u0631\u0648 \u062F\u0631\u0648\u0646 \u0634\u0647\u0631\u06CC',
+        '\u062F\u06A9\u0627\u0628\u0627\u0631 \u0628\u06CC\u0646 \u0634\u0647\u0631\u06CC',
+        '\u062F\u06A9\u0627\u0628\u0627\u0631 \u0634\u0647\u0631\u06CC',
+        '\u067E\u0633\u062A \u0628\u0627\u0631 \u06A9\u06CC\u0633\u0647\u200C\u0627\u06CC - \u062F\u06A9\u0627\u0628\u0627\u0631 (\u0628\u06CC\u0646 \u0634\u0647\u0631\u06CC)',
+        '\u067E\u0633\u062A \u0628\u0627\u0631 \u06A9\u06CC\u0633\u0647\u200C\u0627\u06CC - \u062F\u06A9\u0627\u0628\u0627\u0631 (\u062F\u0631\u0648\u0646 \u0634\u0647\u0631\u06CC)',
+        '\u0628\u0627\u0631\u0627\u06A9\u0633\u067E\u0631\u0633 (\u062A\u0631\u0645\u06CC\u0646\u0627\u0644 \u0628\u0647 \u062F\u0631\u0628)',
+        '\u0628\u0627\u0631\u0627\u06A9\u0633\u067E\u0631\u0633 (\u062A\u0631\u0645\u06CC\u0646\u0627\u0644 \u0628\u0647 \u062A\u0631\u0645\u06CC\u0646\u0627\u0644)',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'\u067E\u0633\u062A \u067E\u06CC\u0634\u062A\u0627\u0632'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

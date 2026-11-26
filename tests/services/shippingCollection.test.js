@@ -4,9 +4,23 @@ const shippingCollection = require('../../src/services/shippingCollection');
 
 describe('shippingCollection', () => {
   it.each([
+    ['fixed', 'fixed'],
+    ['postex', 'postex'],
+    ['نرخ ثابت', 'fixed'],
+    ['پستکس (استعلام آنلاین)', 'postex'],
+    ['', 'postex'],
+    [null, 'postex'],
+  ])('normalizes costMode %j to %s', (value, expected) => {
+    expect(shippingCollection.normalizeCostMode(value)).toBe(expected);
+  });
+
+  it.each([
     ['pick_up', 'pick_up'],
     ['courier_drop_off', 'courier_drop_off'],
     ['postex_drop_off', 'postex_drop_off'],
+    ['جمع‌آوری توسط پیک', 'pick_up'],
+    ['تحویل توسط خودمان', 'courier_drop_off'],
+    ['تحویل در دفتر پستی', 'postex_drop_off'],
     ['PICK_UP', 'pick_up'],
     ['', 'courier_drop_off'],
     [null, 'courier_drop_off'],
@@ -19,7 +33,7 @@ describe('shippingCollection', () => {
     const strapi = {
       db: {
         query: () => ({
-          findOne: async () => ({ collectionType: 'postex_drop_off' }),
+          findOne: async () => ({ collectionType: 'تحویل در دفتر پستی' }),
         }),
       },
     };
@@ -29,6 +43,13 @@ describe('shippingCollection', () => {
   it.each([
     ['IR_POST', 'IR_POST'],
     ['ir_post', 'IR_POST'],
+    ['شرکت ملی پست', 'IR_POST'],
+    ['چاپار', 'CHAPAR'],
+    ['دکاپست', 'DEKAPOST'],
+    ['پست بار', 'POSTBAR'],
+    ['پستکس وان (بین‌شهری)', 'POSTEX_EXPRESS'],
+    ['پستکس وان (درون‌شهری و عادی)', 'COREPOSTING'],
+    ['باراکسپرس', 'BAREXPRESS'],
     ['', 'IR_POST'],
     [null, 'IR_POST'],
     ['bad-courier', 'IR_POST'],
@@ -40,6 +61,11 @@ describe('shippingCollection', () => {
   it.each([
     ['EXPRESS', 'EXPRESS'],
     ['priority', 'PRIORITY'],
+    ['پست پیشتاز', 'EXPRESS'],
+    ['پست ویژه', 'PRIORITY'],
+    ['پست اکسپرس', 'POSTEXPRESS'],
+    ['چاپار', 'CHAPAR'],
+    ['باراکسپرس (ترمینال به درب)', 'T2D'],
     ['', 'EXPRESS'],
     ['bad service', 'EXPRESS'],
   ])('normalizes service %j to %s', (value, expected) => {
@@ -51,8 +77,8 @@ describe('shippingCollection', () => {
       db: {
         query: () => ({
           findOne: async () => ({
-            collectionType: 'pick_up',
-            courierCode: 'chapar',
+            collectionType: 'جمع‌آوری توسط پیک',
+            courierCode: 'چاپار',
             serviceType: '',
           }),
         }),
@@ -65,7 +91,7 @@ describe('shippingCollection', () => {
     });
   });
 
-  it('fills a blank stored value with the approved default', async () => {
+  it('fills a blank or legacy stored value with the Persian enum defaults', async () => {
     const update = jest.fn().mockResolvedValue({});
     const strapi = {
       db: {
@@ -81,23 +107,25 @@ describe('shippingCollection', () => {
     expect(update).toHaveBeenCalledWith({
       where: { id: 4 },
       data: {
-        collectionType: 'courier_drop_off',
-        courierCode: 'IR_POST',
-        serviceType: 'EXPRESS',
+        costMode: 'پستکس (استعلام آنلاین)',
+        collectionType: 'تحویل توسط خودمان',
+        courierCode: 'شرکت ملی پست',
+        serviceType: 'پست پیشتاز',
       },
     });
   });
 
-  it('leaves an allowed stored value unchanged', async () => {
+  it('leaves an allowed Persian stored value unchanged', async () => {
     const update = jest.fn();
     const strapi = {
       db: {
         query: () => ({
           findOne: async () => ({
             id: 4,
-            collectionType: 'pick_up',
-            courierCode: 'IR_POST',
-            serviceType: 'EXPRESS',
+            costMode: 'نرخ ثابت',
+            collectionType: 'جمع‌آوری توسط پیک',
+            courierCode: 'شرکت ملی پست',
+            serviceType: 'پست پیشتاز',
           }),
           update,
         }),
@@ -106,5 +134,30 @@ describe('shippingCollection', () => {
 
     await shippingCollection.ensureCollectionType(strapi);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it('creates shipping-setting with approved defaults when none exists', async () => {
+    const create = jest.fn().mockResolvedValue({});
+    const strapi = {
+      db: {
+        query: () => ({
+          findOne: async () => null,
+          create,
+        }),
+      },
+    };
+
+    await shippingCollection.ensureCollectionType(strapi);
+
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        costMode: 'پستکس (استعلام آنلاین)',
+        collectionType: 'تحویل توسط خودمان',
+        courierCode: 'شرکت ملی پست',
+        serviceType: 'پست پیشتاز',
+        fixedAmountInNoor: '170000',
+        rialPerNoorForShipping: '10',
+      },
+    });
   });
 });

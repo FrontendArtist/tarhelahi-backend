@@ -10,30 +10,58 @@
   "attributes": {
     "costMode": {
       "type": "enumeration",
-      "enum": ["fixed", "postex"],
-      "default": "fixed"
+      "enum": ["نرخ ثابت", "پستکس (استعلام آنلاین)"],
+      "default": "پستکس (استعلام آنلاین)"
     },
     "collectionType": {
       "type": "enumeration",
-      "enum": ["pick_up", "courier_drop_off", "postex_drop_off"],
-      "default": "courier_drop_off"
+      "enum": ["جمع‌آوری توسط پیک", "تحویل توسط خودمان", "تحویل در دفتر پستی"],
+      "default": "تحویل توسط خودمان"
     },
     "courierCode": {
-      "type": "string",
-      "default": "IR_POST",
-      "maxLength": 32
+      "type": "enumeration",
+      "enum": [
+        "شرکت ملی پست",
+        "چاپار",
+        "دکاپست",
+        "پست بار",
+        "پستکس وان (بین‌شهری)",
+        "پستکس وان (درون‌شهری و عادی)",
+        "باراکسپرس"
+      ],
+      "default": "شرکت ملی پست"
     },
     "serviceType": {
-      "type": "string",
-      "default": "EXPRESS",
-      "maxLength": 32
+      "type": "enumeration",
+      "enum": [
+        "پست پیشتاز",
+        "پست ویژه",
+        "پست اکسپرس",
+        "چاپار",
+        "پست بار اکسپرس",
+        "پستکس وان - ویژه - بین شهری",
+        "پستکس وان - اکسپرس",
+        "پستکس وان - سازمانی",
+        "پستکس وان - ویژه - درون شهری",
+        "پستکس وان - عادی",
+        "دکاپیشرو بین شهری",
+        "دکاپیشرو درون شهری",
+        "دکابار بین شهری",
+        "دکابار شهری",
+        "پست بار کیسه‌ای - دکابار (بین شهری)",
+        "پست بار کیسه‌ای - دکابار (درون شهری)",
+        "باراکسپرس (ترمینال به درب)",
+        "باراکسپرس (ترمینال به ترمینال)"
+      ],
+      "default": "پست پیشتاز"
     },
-    "fixedAmountInNoor": { "type": "biginteger", "min": 0 },
+    "fixedAmountInNoor": { "type": "biginteger", "min": 0, "default": "170000" },
     "freeShippingThresholdInNoor": { "type": "biginteger", "min": 0 },
     "rialPerNoorForShipping": {
       "type": "biginteger",
       "min": 1,
-      "required": true
+      "required": true,
+      "default": "10"
     }
   }
 }
