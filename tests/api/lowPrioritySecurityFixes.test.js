@@ -2,7 +2,7 @@
 
 const path = require('path');
 const { execFileSync } = require('child_process');
-const appIndex = require('../../src/index');
+const uploadPath = require('../../src/utils/uploadPath');
 const middlewaresConfig = require('../../config/middlewares');
 
 const mockValidateAndCalculate = jest.fn();
@@ -32,7 +32,7 @@ describe('M14, M15, M16, and HF09 Security & Hygiene Fixes', () => {
   });
 
   describe('M14: S3 upload path allowlist', () => {
-    const { sanitizeUploadPath, resolveFilePath, asyncLocalStorage } = appIndex._internal;
+    const { sanitizeUploadPath, resolveFilePath, asyncLocalStorage } = uploadPath;
 
     test('allows only whitelisted folder prefixes and blocks traversal/arbitrary paths', () => {
       expect(sanitizeUploadPath('receipts')).toBe('receipts');
