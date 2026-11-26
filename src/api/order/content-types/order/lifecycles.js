@@ -284,8 +284,7 @@ module.exports = {
       const { result } = event;
       const targetId = result?.id || result?.documentId;
       if (targetId) {
-        // موجودی فقط در سرویس رزرو و middleware تراکنشی سفارش مدیریت می‌شود.
-        await syncUserPurchases(targetId);
+        // مطابق D08 (LOG-007): سفارش جدید خارج از سبد بای‌مانی نباید دسترسی دوره یا فصل به کاربر بدهد.
         await strapi.service('api::notification.notification')?.syncOrderNotification(targetId);
       }
     } catch (err) {

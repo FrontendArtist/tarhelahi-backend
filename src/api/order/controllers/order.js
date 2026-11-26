@@ -96,6 +96,24 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
       );
     }
 
+    const orderStatus = (data.orderStatus || '').trim().toLowerCase();
+    const paymentStatus = (data.paymentStatus || '').trim().toLowerCase();
+    const paidStatuses = ['paid', 'confirmed', 'processing', 'shipped', 'delivered'];
+    const hasCourseOrChapterItem = items.some(
+      (item) =>
+        item &&
+        (item.__component === 'order.course-order-item' ||
+          Boolean(item.courseId) ||
+          Boolean(item.chapterId) ||
+          Boolean(item.chapterIntegrationId))
+    );
+
+    if (hasCourseOrChapterItem || paidStatuses.includes(orderStatus) || paymentStatus === 'paid') {
+      return ctx.badRequest(
+        'ثبت سفارش دوره، فصل یا سفارش پرداخت‌شده خارج از سبد بای‌مانی مجاز نیست.'
+      );
+    }
+
     return stockResponse(ctx, () => super.create(ctx));
   },
 
@@ -162,6 +180,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
    * GET /api/orders/export-excel
    */
   async exportExcel(ctx) {
+    if (!canManageOrders(ctx)) return ctx.forbidden('دسترسی به خروجی اکسل سفارش‌ها فقط برای ادمین مجاز است.');
     try {
       const { buffer } = await excelService.generateExcelBuffer();
 
@@ -180,6 +199,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
    * GET /api/orders/revenue-stats
    */
   async revenueStats(ctx) {
+    if (!canManageOrders(ctx)) return ctx.forbidden('دسترسی به آمار درآمد سفارش‌ها فقط برای ادمین مجاز است.');
     try {
       const orders = await strapi.db.query('api::order.order').findMany({
         populate: ['user', 'items'],
@@ -198,6 +218,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
    * POST /api/orders/sync-excel
    */
   async syncExcel(ctx) {
+    if (!canManageOrders(ctx)) return ctx.forbidden('دسترسی به همگام‌سازی فایل اکسل سفارش‌ها فقط برای ادمین مجاز است.');
     try {
       const result = await excelService.generateAndSaveExcelReport();
       return ctx.send({
@@ -218,6 +239,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
    * Returns: { settled: number } — count of rows actually updated
    */
   async bulkSettle(ctx) {
+    if (!canManageOrders(ctx)) return ctx.forbidden('دسترسی به تسویه دسته‌ای سفارش‌ها فقط برای ادمین مجاز است.');
     try {
       const { orderDocumentIds, settlementDocumentId, settledAt } = ctx.request.body;
 

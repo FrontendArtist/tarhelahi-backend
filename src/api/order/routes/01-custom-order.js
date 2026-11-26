@@ -19,7 +19,7 @@ module.exports = {
       path: '/orders/export-excel',
       handler: 'order.exportExcel',
       config: {
-        auth: false,
+        auth: { scope: [] },
         policies: [],
         middlewares: [],
       },
@@ -29,7 +29,7 @@ module.exports = {
       path: '/orders/revenue-stats',
       handler: 'order.revenueStats',
       config: {
-        auth: false,
+        auth: { scope: [] },
         policies: [],
         middlewares: [],
       },
@@ -39,7 +39,7 @@ module.exports = {
       path: '/orders/sync-excel',
       handler: 'order.syncExcel',
       config: {
-        auth: false,
+        auth: { scope: [] },
         policies: [],
         middlewares: [],
       },
@@ -49,7 +49,7 @@ module.exports = {
       path: '/orders/bulk-settle',
       handler: 'order.bulkSettle',
       config: {
-        auth: false,
+        auth: { scope: [] },
         policies: [],
         middlewares: [],
       },

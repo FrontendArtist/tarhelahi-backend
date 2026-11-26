@@ -244,6 +244,8 @@ test('خرید کالا با اسلاگ مشابه دوره، دسترسی دو�
     updates = [];
     order.items = [{ __component: 'order.course-order-item', courseId: 7, chapterId: 22 }];
     await lifecycle.afterCreate({ result: { id: 1 } });
+    assert.equal(updates.length, 0);
+    await lifecycle.afterUpdate({ result: { id: 1 } });
     assert.deepEqual(updates[0].data.data.enrolledChapters, [22]);
     await new Promise(resolve => setImmediate(resolve));
   } finally { global.strapi = oldStrapi; excel.generateAndSaveExcelReport = oldExcel; }

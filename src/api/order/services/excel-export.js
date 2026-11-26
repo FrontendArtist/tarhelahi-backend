@@ -838,9 +838,8 @@ async function generateAndSaveExcelReport(customFilePath = null) {
     // 2. Build Workbook
     const { workbook, stats } = await buildOrdersWorkbook(orders || []);
 
-    // 3. Define output path (inside public/uploads/exports to persist on Liara disk)
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    const exportsDir = path.join(uploadsDir, 'exports');
+    // 3. Define output path outside public/ so reports are not served anonymously
+    const exportsDir = path.join(process.cwd(), 'storage', 'exports');
     if (!fs.existsSync(exportsDir)) {
       fs.mkdirSync(exportsDir, { recursive: true });
     }
