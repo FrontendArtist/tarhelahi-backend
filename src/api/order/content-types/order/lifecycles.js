@@ -9,6 +9,7 @@
 
 const smsService = require('../../../../services/smsService');
 const phoneUtils = require('../../../../utils/phoneUtils');
+const { toCode } = require('../../../../services/financialEnums');
 
 async function syncUserPurchases(orderIdentifier) {
   try {
@@ -47,10 +48,12 @@ async function syncUserPurchases(orderIdentifier) {
 
     // 2. Check if paid or confirmed
     const confirmedStatuses = ['paid', 'confirmed', 'processing', 'shipped', 'delivered'];
+    const normalizedOrderStatus = toCode('api::order.order', 'orderStatus', order.orderStatus);
+    const normalizedPaymentStatus = toCode('api::order.order', 'paymentStatus', order.paymentStatus);
     const orderStatusPaid =
-      typeof order.orderStatus === 'string' && confirmedStatuses.includes(order.orderStatus.trim().toLowerCase());
+      typeof normalizedOrderStatus === 'string' && confirmedStatuses.includes(normalizedOrderStatus.trim().toLowerCase());
     const paymentStatusPaid =
-      typeof order.paymentStatus === 'string' && order.paymentStatus.trim().toLowerCase() === 'paid';
+      typeof normalizedPaymentStatus === 'string' && normalizedPaymentStatus.trim().toLowerCase() === 'paid';
 
     if (!orderStatusPaid && !paymentStatusPaid) return;
 

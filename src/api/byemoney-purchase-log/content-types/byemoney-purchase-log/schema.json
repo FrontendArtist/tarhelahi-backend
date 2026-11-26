@@ -27,8 +27,8 @@
     },
     "itemType": {
       "type": "enumeration",
-      "enum": ["course", "course_chapter"],
-      "default": "course"
+      "enum": ["دوره", "فصل دوره"],
+      "default": "دوره"
     },
     "chapterExternalId": {
       "type": "string"
@@ -39,9 +39,9 @@
     "status": {
       "type": "enumeration",
       "enum": [
-        "processed"
+        "پردازش شده"
       ],
-      "default": "processed",
+      "default": "پردازش شده",
       "required": true
     }
   }

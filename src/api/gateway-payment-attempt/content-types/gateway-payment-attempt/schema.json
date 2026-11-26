@@ -12,7 +12,7 @@
     "topUpRequestId": { "type": "string", "required": true },
     "gateway": { "type": "string", "required": true, "default": "SEP" },
     "amountRial": { "type": "decimal", "required": true },
-    "status": { "type": "enumeration", "enum": ["created", "token_issued", "verifying", "verified", "confirmed", "review", "financial_review", "reverse_required", "reversed", "failed", "cancelled", "pending_sync"], "default": "created", "required": true },
+    "status": { "type": "enumeration", "enum": ["ایجاد شده", "توکن صادر شده", "در حال استعلام", "تأیید شده توسط بانک", "تأیید نهایی شده", "نیازمند بررسی", "نیازمند بررسی مالی", "نیازمند بازگشت وجه", "وجه بازگشت داده شده", "ناموفق", "لغو شده", "در انتظار همگام‌سازی"], "default": "ایجاد شده", "required": true },
     "refNum": { "type": "string", "unique": true },
     "rrn": { "type": "string" },
     "originalAmountRial": { "type": "decimal" },

@@ -41,8 +41,8 @@
     "syncStatus": {
       "type": "enumeration",
       "enum": [
-        "pending",
-        "delivered"
+        "در انتظار همگام‌سازی",
+        "تحویل شده"
       ]
     }
   }

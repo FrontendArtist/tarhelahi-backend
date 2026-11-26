@@ -5,6 +5,7 @@
  */
 
 const { createCoreService } = require('@strapi/strapi').factories;
+const { toCode } = require('../../../services/financialEnums');
 
 const NOTIFICATION_UID = 'api::notification.notification';
 
@@ -150,9 +151,9 @@ module.exports = createCoreService(NOTIFICATION_UID, ({ strapi }) => ({
       const numId = order.id;
       const rawId = String(docId || numId);
 
-      const oStatus = String(order.orderStatus || '').trim().toLowerCase();
-      const pStatus = String(order.paymentStatus || '').trim().toLowerCase();
-      const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
+      const oStatus = String(toCode('api::order.order', 'orderStatus', order.orderStatus) || '').trim().toLowerCase();
+      const pStatus = String(toCode('api::order.order', 'paymentStatus', order.paymentStatus) || '').trim().toLowerCase();
+      const paymentMethod = String(toCode('api::order.order', 'paymentMethod', order.paymentMethod) || '').trim().toLowerCase();
       const rejectionReason = String(order.rejectionReason || '').trim();
 
       // نادیده گرفتن لغوهای سیستمی سبد خرید

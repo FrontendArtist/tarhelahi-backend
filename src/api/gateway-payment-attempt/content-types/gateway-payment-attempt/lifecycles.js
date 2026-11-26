@@ -1,6 +1,7 @@
 'use strict';
 
 const ATTEMPT = 'api::gateway-payment-attempt.gateway-payment-attempt';
+const { toCode } = require('../../../../services/financialEnums');
 // طبق سند SEP نسخهٔ ۳٫۶، اعتبار توکن بدون TokenExpiryInMin برابر ۲۰ دقیقه است.
 const SEP_DEFAULT_TOKEN_EXPIRY_MINUTES = 20;
 
@@ -15,7 +16,7 @@ module.exports = {
     const data = event.params.data || {};
     delete data.tokenIssuedAtUtc;
     delete data.tokenExpiresAtUtc;
-    if (data.status === 'token_issued') stampToken(data);
+    if (toCode(ATTEMPT, 'status', data.status) === 'token_issued') stampToken(data);
   },
 
   async beforeUpdate(event) {
@@ -23,17 +24,17 @@ module.exports = {
     if (!data) return;
     delete data.tokenIssuedAtUtc;
     delete data.tokenExpiresAtUtc;
-    if (data.status !== 'token_issued') return;
+    if (toCode(ATTEMPT, 'status', data.status) !== 'token_issued') return;
 
     const existing = await strapi.db.query(ATTEMPT).findOne({ where });
-    if (existing?.status === 'created') stampToken(data);
+    if (toCode(ATTEMPT, 'status', existing?.status) === 'created') stampToken(data);
   },
 
   beforeUpdateMany(event) {
     const data = event.params.data || {};
     delete data.tokenIssuedAtUtc;
     delete data.tokenExpiresAtUtc;
-    if (data.status === 'token_issued')
+    if (toCode(ATTEMPT, 'status', data.status) === 'token_issued')
       throw new Error('صدور گروهی توکن پرداخت پشتیبانی نمی‌شود.');
   },
 };

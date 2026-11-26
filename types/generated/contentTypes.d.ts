@@ -612,7 +612,13 @@ export interface ApiByemoneyCartByemoneyCart
     publishedAt: Schema.Attribute.DateTime;
     purchaseIds: Schema.Attribute.JSON;
     snapshot: Schema.Attribute.JSON;
-    state: Schema.Attribute.Enumeration<['reserved', 'committed', 'released']> &
+    state: Schema.Attribute.Enumeration<
+      [
+        '\u0631\u0632\u0631\u0648 \u0634\u062F\u0647',
+        '\u0646\u0647\u0627\u06CC\u06CC \u0634\u062F\u0647',
+        '\u0622\u0632\u0627\u062F \u0634\u062F\u0647',
+      ]
+    > &
       Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -638,8 +644,13 @@ export interface ApiByemoneyPurchaseLogByemoneyPurchaseLog
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    itemType: Schema.Attribute.Enumeration<['course', 'course_chapter']> &
-      Schema.Attribute.DefaultTo<'course'>;
+    itemType: Schema.Attribute.Enumeration<
+      [
+        '\u062F\u0648\u0631\u0647',
+        '\u0641\u0635\u0644 \u062F\u0648\u0631\u0647',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'\u062F\u0648\u0631\u0647'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -651,9 +662,11 @@ export interface ApiByemoneyPurchaseLogByemoneyPurchaseLog
     purchaseId: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
-    status: Schema.Attribute.Enumeration<['processed']> &
+    status: Schema.Attribute.Enumeration<
+      ['\u067E\u0631\u062F\u0627\u0632\u0634 \u0634\u062F\u0647']
+    > &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'processed'>;
+      Schema.Attribute.DefaultTo<'\u067E\u0631\u062F\u0627\u0632\u0634 \u0634\u062F\u0647'>;
     strapiUserId: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -857,9 +870,14 @@ export interface ApiCouponCoupon extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    discountType: Schema.Attribute.Enumeration<['percentage', 'fixed']> &
+    discountType: Schema.Attribute.Enumeration<
+      [
+        '\u062F\u0631\u0635\u062F\u06CC',
+        '\u0645\u0628\u0644\u063A \u062B\u0627\u0628\u062A',
+      ]
+    > &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'percentage'>;
+      Schema.Attribute.DefaultTo<'\u062F\u0631\u0635\u062F\u06CC'>;
     discountValue: Schema.Attribute.Decimal & Schema.Attribute.Required;
     expiresAt: Schema.Attribute.DateTime;
     isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
@@ -1011,22 +1029,22 @@ export interface ApiGatewayPaymentAttemptGatewayPaymentAttempt
     rrn: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
       [
-        'created',
-        'token_issued',
-        'verifying',
-        'verified',
-        'confirmed',
-        'review',
-        'financial_review',
-        'reverse_required',
-        'reversed',
-        'failed',
-        'cancelled',
-        'pending_sync',
+        '\u0627\u06CC\u062C\u0627\u062F \u0634\u062F\u0647',
+        '\u062A\u0648\u06A9\u0646 \u0635\u0627\u062F\u0631 \u0634\u062F\u0647',
+        '\u062F\u0631 \u062D\u0627\u0644 \u0627\u0633\u062A\u0639\u0644\u0627\u0645',
+        '\u062A\u0623\u06CC\u06CC\u062F \u0634\u062F\u0647 \u062A\u0648\u0633\u0637 \u0628\u0627\u0646\u06A9',
+        '\u062A\u0623\u06CC\u06CC\u062F \u0646\u0647\u0627\u06CC\u06CC \u0634\u062F\u0647',
+        '\u0646\u06CC\u0627\u0632\u0645\u0646\u062F \u0628\u0631\u0631\u0633\u06CC',
+        '\u0646\u06CC\u0627\u0632\u0645\u0646\u062F \u0628\u0631\u0631\u0633\u06CC \u0645\u0627\u0644\u06CC',
+        '\u0646\u06CC\u0627\u0632\u0645\u0646\u062F \u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647',
+        '\u0648\u062C\u0647 \u0628\u0627\u0632\u06AF\u0634\u062A \u062F\u0627\u062F\u0647 \u0634\u062F\u0647',
+        '\u0646\u0627\u0645\u0648\u0641\u0642',
+        '\u0644\u063A\u0648 \u0634\u062F\u0647',
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u0647\u0645\u06AF\u0627\u0645\u200C\u0633\u0627\u0632\u06CC',
       ]
     > &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'created'>;
+      Schema.Attribute.DefaultTo<'\u0627\u06CC\u062C\u0627\u062F \u0634\u062F\u0647'>;
     tokenExpiresAtUtc: Schema.Attribute.DateTime;
     tokenIssuedAtUtc: Schema.Attribute.DateTime;
     topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
@@ -1059,15 +1077,25 @@ export interface ApiGatewayPaymentEventGatewayPaymentEvent
       Schema.Attribute.Private;
     deliveryError: Schema.Attribute.Text;
     deliveryStatus: Schema.Attribute.Enumeration<
-      ['pending', 'delivered', 'review']
+      [
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0631\u0633\u0627\u0644',
+        '\u062A\u062D\u0648\u06CC\u0644 \u0634\u062F\u0647',
+        '\u0646\u06CC\u0627\u0632\u0645\u0646\u062F \u0628\u0631\u0631\u0633\u06CC',
+      ]
     > &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'pending'>;
+      Schema.Attribute.DefaultTo<'\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0631\u0633\u0627\u0644'>;
     eventId: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
     kind: Schema.Attribute.Enumeration<
-      ['Unpaid', 'Verified', 'ReverseSucceeded', 'ReverseFailed', 'Unknown']
+      [
+        '\u067E\u0631\u062F\u0627\u062E\u062A \u0646\u0634\u062F\u0647',
+        '\u062A\u0623\u06CC\u06CC\u062F \u0634\u062F\u0647',
+        '\u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647 \u0645\u0648\u0641\u0642',
+        '\u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647 \u0646\u0627\u0645\u0648\u0641\u0642',
+        '\u0646\u0627\u0645\u0634\u062E\u0635',
+      ]
     > &
       Schema.Attribute.Required;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -1082,7 +1110,12 @@ export interface ApiGatewayPaymentEventGatewayPaymentEvent
     rawPayload: Schema.Attribute.JSON;
     resNum: Schema.Attribute.String & Schema.Attribute.Required;
     stage: Schema.Attribute.Enumeration<
-      ['callback', 'verify', 'reverse', 'reverse_intent']
+      [
+        '\u0628\u0627\u0632\u06AF\u0634\u062A \u0627\u0632 \u062F\u0631\u06AF\u0627\u0647',
+        '\u062A\u0623\u06CC\u06CC\u062F \u062A\u0631\u0627\u06A9\u0646\u0634',
+        '\u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647',
+        '\u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647',
+      ]
     > &
       Schema.Attribute.Required;
     topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
@@ -1122,7 +1155,12 @@ export interface ApiGatewayReviewCaseHistoryGatewayReviewCaseHistory
       Schema.Attribute.Private;
     occurredAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
-    syncStatus: Schema.Attribute.Enumeration<['pending', 'delivered']>;
+    syncStatus: Schema.Attribute.Enumeration<
+      [
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u0647\u0645\u06AF\u0627\u0645\u200C\u0633\u0627\u0632\u06CC',
+        '\u062A\u062D\u0648\u06CC\u0644 \u0634\u062F\u0647',
+      ]
+    >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1159,20 +1197,24 @@ export interface ApiGatewayReviewCaseGatewayReviewCase
     manualRefundReference: Schema.Attribute.String;
     notificationError: Schema.Attribute.String;
     notificationStatus: Schema.Attribute.Enumeration<
-      ['pending', 'delivered', 'conflict']
+      [
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0631\u0633\u0627\u0644',
+        '\u062A\u062D\u0648\u06CC\u0644 \u0634\u062F\u0647',
+        '\u062F\u0627\u0631\u0627\u06CC \u062A\u0639\u0627\u0631\u0636',
+      ]
     > &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'pending'>;
+      Schema.Attribute.DefaultTo<'\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0631\u0633\u0627\u0644'>;
     openedAtUtc: Schema.Attribute.DateTime & Schema.Attribute.Required;
     outcomeCode: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     reasonCode: Schema.Attribute.Enumeration<
       [
-        'NO_CALLBACK',
-        'VERIFY_UNKNOWN',
-        'REVERSE_UNKNOWN',
-        'DELIVERY_UNKNOWN',
-        'BANK_CONFLICT',
+        '\u0628\u062F\u0648\u0646 \u0628\u0627\u0632\u06AF\u0634\u062A \u0627\u0632 \u062F\u0631\u06AF\u0627\u0647',
+        '\u0646\u062A\u06CC\u062C\u0647 \u0646\u0627\u0645\u0634\u062E\u0635 \u0627\u0633\u062A\u0639\u0644\u0627\u0645',
+        '\u0646\u062A\u06CC\u062C\u0647 \u0646\u0627\u0645\u0634\u062E\u0635 \u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647',
+        '\u0646\u062A\u06CC\u062C\u0647 \u0646\u0627\u0645\u0634\u062E\u0635 \u0627\u0631\u0633\u0627\u0644 \u0628\u0647 \u0628\u0627\u06CC\u200C\u0645\u0627\u0646\u06CC',
+        '\u062A\u0639\u0627\u0631\u0636 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0627\u0646\u06A9\u06CC',
       ]
     > &
       Schema.Attribute.Required;
@@ -1182,9 +1224,11 @@ export interface ApiGatewayReviewCaseGatewayReviewCase
     resolutionTopUpStatus: Schema.Attribute.String;
     resolvedAtUtc: Schema.Attribute.DateTime;
     revision: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<1>;
-    status: Schema.Attribute.Enumeration<['open', 'resolved']> &
+    status: Schema.Attribute.Enumeration<
+      ['\u0628\u0627\u0632', '\u062D\u0644\u200C\u0634\u062F\u0647']
+    > &
       Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'open'>;
+      Schema.Attribute.DefaultTo<'\u0628\u0627\u0632'>;
     topUpRequestId: Schema.Attribute.String & Schema.Attribute.Required;
     topUpStatusAtOpen: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
@@ -1224,7 +1268,13 @@ export interface ApiGatewayReviewOperationGatewayReviewOperation
     payload: Schema.Attribute.JSON & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     result: Schema.Attribute.JSON;
-    status: Schema.Attribute.Enumeration<['pending', 'applied', 'rejected']> &
+    status: Schema.Attribute.Enumeration<
+      [
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631',
+        '\u0627\u0639\u0645\u0627\u0644 \u0634\u062F\u0647',
+        '\u0631\u062F \u0634\u062F\u0647',
+      ]
+    > &
       Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1378,7 +1428,9 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-    currency: Schema.Attribute.Enumeration<['toman', 'noor']>;
+    currency: Schema.Attribute.Enumeration<
+      ['\u062A\u0648\u0645\u0627\u0646', '\u0646\u0648\u0631']
+    >;
     discountAmount: Schema.Attribute.Decimal;
     email: Schema.Attribute.Email & Schema.Attribute.Required;
     fullName: Schema.Attribute.String & Schema.Attribute.Required;
@@ -1392,19 +1444,34 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     notes: Schema.Attribute.Text;
     orderStatus: Schema.Attribute.Enumeration<
-      ['shipped', 'paid', 'pending', 'canceled', 'delivered']
+      [
+        '\u0627\u0631\u0633\u0627\u0644 \u0634\u062F\u0647',
+        '\u067E\u0631\u062F\u0627\u062E\u062A \u0634\u062F\u0647',
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631',
+        '\u0644\u063A\u0648 \u0634\u062F\u0647',
+        '\u062A\u062D\u0648\u06CC\u0644 \u062F\u0627\u062F\u0647 \u0634\u062F\u0647',
+      ]
     > &
-      Schema.Attribute.DefaultTo<'pending'>;
+      Schema.Attribute.DefaultTo<'\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631'>;
     originalTotalPrice: Schema.Attribute.Decimal;
     paymentDate: Schema.Attribute.DateTime;
     paymentMethod: Schema.Attribute.Enumeration<
-      ['online', 'card_to_card', 'free']
+      [
+        '\u0622\u0646\u0644\u0627\u06CC\u0646',
+        '\u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A',
+        '\u0631\u0627\u06CC\u06AF\u0627\u0646',
+      ]
     > &
-      Schema.Attribute.DefaultTo<'online'>;
+      Schema.Attribute.DefaultTo<'\u0622\u0646\u0644\u0627\u06CC\u0646'>;
     paymentStatus: Schema.Attribute.Enumeration<
-      ['pending_payment', 'pending_verification', 'paid', 'failed']
+      [
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u067E\u0631\u062F\u0627\u062E\u062A',
+        '\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0623\u06CC\u06CC\u062F',
+        '\u067E\u0631\u062F\u0627\u062E\u062A \u0634\u062F\u0647',
+        '\u0646\u0627\u0645\u0648\u0641\u0642',
+      ]
     > &
-      Schema.Attribute.DefaultTo<'pending_payment'>;
+      Schema.Attribute.DefaultTo<'\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u067E\u0631\u062F\u0627\u062E\u062A'>;
     phone: Schema.Attribute.String & Schema.Attribute.Required;
     postalCode: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;

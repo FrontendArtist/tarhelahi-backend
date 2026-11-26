@@ -3,6 +3,7 @@
 const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
+const { toCode } = require('../../../services/financialEnums');
 
 const DEFAULT_EXPORTS_DIR = path.join(process.cwd(), 'storage', 'exports');
 
@@ -136,7 +137,7 @@ function getPersianDateDetails(dateInput) {
  * Human-readable Persian labels for statuses
  */
 function getPaymentStatusLabel(status) {
-  switch (status) {
+  switch (toCode('api::order.order', 'paymentStatus', status)) {
     case 'paid':
       return 'پرداخت موفق';
     case 'pending_payment':
@@ -151,7 +152,7 @@ function getPaymentStatusLabel(status) {
 }
 
 function getOrderStatusLabel(status) {
-  switch (status) {
+  switch (toCode('api::order.order', 'orderStatus', status)) {
     case 'paid':
       return 'پرداخت شده / تکمیل';
     case 'shipped':
@@ -168,7 +169,7 @@ function getOrderStatusLabel(status) {
 }
 
 function getPaymentMethodLabel(method) {
-  switch (method) {
+  switch (toCode('api::order.order', 'paymentMethod', method)) {
     case 'online':
       return 'درگاه پرداخت آنلاین';
     case 'card_to_card':
@@ -184,8 +185,8 @@ function getPaymentMethodLabel(method) {
  * Check if order is considered a successful paid transaction
  */
 function isOrderPaid(order) {
-  const pStatus = (order.paymentStatus || '').trim().toLowerCase();
-  const oStatus = (order.orderStatus || '').trim().toLowerCase();
+  const pStatus = String(toCode('api::order.order', 'paymentStatus', order.paymentStatus) || '').trim().toLowerCase();
+  const oStatus = String(toCode('api::order.order', 'orderStatus', order.orderStatus) || '').trim().toLowerCase();
   return pStatus === 'paid' || oStatus === 'paid';
 }
 
@@ -284,7 +285,8 @@ function calculateMetricsForSubset(orderList, nowDetails, todayStart, yesterdayS
 
   orderList.forEach((order) => {
     const paid = isOrderPaid(order);
-    const isFree = Boolean(order.isFree || (order.paymentMethod || '').trim().toLowerCase() === 'free');
+    const normalizedMethod = String(toCode('api::order.order', 'paymentMethod', order.paymentMethod) || '').trim().toLowerCase();
+    const isFree = Boolean(order.isFree || normalizedMethod === 'free');
     const orderDate = new Date(order.createdAt || order.updatedAt || Date.now());
     const dateDetails = getPersianDateDetails(orderDate);
     const orderTime = dateDetails.timestamp;
@@ -422,8 +424,8 @@ function calculateRevenueMetrics(orders = []) {
   const sevenDaysAgo = now.getTime() - 7 * oneDayMs;
   const thirtyDaysAgo = now.getTime() - 30 * oneDayMs;
 
-  const noorOrders = orders.filter((o) => o.currency === 'noor');
-  const legacyOrders = orders.filter((o) => !o.currency || o.currency === 'toman');
+  const noorOrders = orders.filter((o) => toCode('api::order.order', 'currency', o.currency) === 'noor');
+  const legacyOrders = orders.filter((o) => !o.currency || toCode('api::order.order', 'currency', o.currency) === 'toman');
 
   const noorStats = calculateMetricsForSubset(
     noorOrders, nowDetails, todayStart, yesterdayStart, yesterdayEnd, sevenDaysAgo, thirtyDaysAgo, 'نور'

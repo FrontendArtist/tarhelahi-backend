@@ -8,7 +8,7 @@
     "cartId": { "type": "string", "required": true, "unique": true },
     "buyerExternalUserId": { "type": "string", "required": true },
     "fingerprint": { "type": "text" },
-    "state": { "type": "enumeration", "enum": ["reserved", "committed", "released"], "required": true },
+    "state": { "type": "enumeration", "enum": ["رزرو شده", "نهایی شده", "آزاد شده"], "required": true },
     "snapshot": { "type": "json" },
     "couponCode": { "type": "string" },
     "purchaseIds": { "type": "json" }

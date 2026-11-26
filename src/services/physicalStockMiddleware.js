@@ -2,6 +2,7 @@
 
 const { AsyncLocalStorage } = require('node:async_hooks');
 const stock = require('./stockReservation');
+const { toCode } = require('./financialEnums');
 const managedOrder = new AsyncLocalStorage();
 const ORDER_UID = 'api::order.order';
 const ORDER_LOCK = 1869767802;
@@ -28,9 +29,13 @@ const LATE_PAYMENT_REASON = 'پرداخت دیرهنگام پس از آزادس�
 const PAID_ORDER_STATUSES = ['paid', 'shipped', 'delivered'];
 
 function isLateSuccess(previous, data) {
-  const released = ['canceled', 'cancelled'].includes(previous.orderStatus) || previous.paymentStatus === 'failed';
-  return released && !previous.stockDeducted && previous.paymentStatus !== 'paid' &&
-    (data.paymentStatus === 'paid' || PAID_ORDER_STATUSES.includes(data.orderStatus));
+  const prevOrderStatus = toCode(ORDER_UID, 'orderStatus', previous.orderStatus);
+  const prevPaymentStatus = toCode(ORDER_UID, 'paymentStatus', previous.paymentStatus);
+  const nextOrderStatus = toCode(ORDER_UID, 'orderStatus', data.orderStatus);
+  const nextPaymentStatus = toCode(ORDER_UID, 'paymentStatus', data.paymentStatus);
+  const released = ['canceled', 'cancelled'].includes(prevOrderStatus) || prevPaymentStatus === 'failed';
+  return released && !previous.stockDeducted && prevPaymentStatus !== 'paid' &&
+    (nextPaymentStatus === 'paid' || PAID_ORDER_STATUSES.includes(nextOrderStatus));
 }
 
 function reservationId(order) {
@@ -71,8 +76,12 @@ async function reconcileOrder(strapi, trx, order, previous) {
     }
     return;
   }
-  if (['canceled', 'cancelled'].includes(order.orderStatus) || order.paymentStatus === 'failed') {
-    if (previous?.paymentStatus === 'paid' || ['paid', 'shipped', 'delivered'].includes(previous?.orderStatus)) {
+  const orderStatus = toCode(ORDER_UID, 'orderStatus', order.orderStatus);
+  const paymentStatus = toCode(ORDER_UID, 'paymentStatus', order.paymentStatus);
+  const prevOrderStatus = toCode(ORDER_UID, 'orderStatus', previous?.orderStatus);
+  const prevPaymentStatus = toCode(ORDER_UID, 'paymentStatus', previous?.paymentStatus);
+  if (['canceled', 'cancelled'].includes(orderStatus) || paymentStatus === 'failed') {
+    if (prevPaymentStatus === 'paid' || ['paid', 'shipped', 'delivered'].includes(prevOrderStatus)) {
       stock.conflict('آزادسازی موجودی سفارش پرداخت‌شده به مسیر لغو مجاز نیاز دارد.');
     }
     await releaseLegacy(strapi, trx, previous || order);
@@ -83,7 +92,7 @@ async function reconcileOrder(strapi, trx, order, previous) {
     await stock.reserve(strapi, trx, id, await productItems(strapi, previous.items), { adopt: true });
   }
   await stock.reserve(strapi, trx, id, items);
-  if (order.paymentStatus === 'paid' || ['paid', 'shipped', 'delivered'].includes(order.orderStatus)) {
+  if (paymentStatus === 'paid' || ['paid', 'shipped', 'delivered'].includes(orderStatus)) {
     await stock.transition(strapi, trx, id, 'commit');
   }
   await markOrder(strapi, order.documentId, id, true);

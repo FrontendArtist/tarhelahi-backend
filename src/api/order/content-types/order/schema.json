@@ -45,33 +45,33 @@
     },
     "orderStatus": {
       "type": "enumeration",
-      "default": "pending",
+      "default": "در انتظار",
       "enum": [
-        "shipped",
-        "paid",
-        "pending",
-        "canceled",
-        "delivered"
+        "ارسال شده",
+        "پرداخت شده",
+        "در انتظار",
+        "لغو شده",
+        "تحویل داده شده"
       ]
     },
     "paymentMethod": {
       "type": "enumeration",
       "enum": [
-        "online",
-        "card_to_card",
-        "free"
+        "آنلاین",
+        "کارت به کارت",
+        "رایگان"
       ],
-      "default": "online"
+      "default": "آنلاین"
     },
     "paymentStatus": {
       "type": "enumeration",
       "enum": [
-        "pending_payment",
-        "pending_verification",
-        "paid",
-        "failed"
+        "در انتظار پرداخت",
+        "در انتظار تأیید",
+        "پرداخت شده",
+        "ناموفق"
       ],
-      "default": "pending_payment"
+      "default": "در انتظار پرداخت"
     },
     "receiptImage": {
       "type": "media",
@@ -146,8 +146,8 @@
     "currency": {
       "type": "enumeration",
       "enum": [
-        "toman",
-        "noor"
+        "تومان",
+        "نور"
       ]
     },
     "purchaseId": {

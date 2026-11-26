@@ -7,6 +7,7 @@
 const { createCoreController } = require('@strapi/strapi').factories;
 const excelService = require('../services/excel-export');
 const { cancelAfterCartRemoval } = require('../services/abandoned-order');
+const { toCode } = require('../../../services/financialEnums');
 
 const canManageOrders = ctx => ctx.state?.auth?.strategy?.name === 'api-token' ||
   ctx.state?.user?.role?.type === 'administrator';
@@ -29,9 +30,9 @@ async function stockResponse(ctx, action) {
 
 function getStatusRank(order) {
   const attrs = order?.attributes || order || {};
-  const orderStatus = (attrs.orderStatus || '').trim().toLowerCase();
-  const paymentStatus = (attrs.paymentStatus || '').trim().toLowerCase();
-  const paymentMethod = (attrs.paymentMethod || '').trim().toLowerCase();
+  const orderStatus = String(toCode('api::order.order', 'orderStatus', attrs.orderStatus) || '').trim().toLowerCase();
+  const paymentStatus = String(toCode('api::order.order', 'paymentStatus', attrs.paymentStatus) || '').trim().toLowerCase();
+  const paymentMethod = String(toCode('api::order.order', 'paymentMethod', attrs.paymentMethod) || '').trim().toLowerCase();
   const hasReceipt = Boolean(attrs.receiptImage || attrs.receiptImageUrl);
 
   const isWaitingReceipt =
@@ -75,7 +76,7 @@ module.exports = createCoreController('api::order.order', ({ strapi }) => ({
   async create(ctx) {
     if (!canManageOrders(ctx)) return ctx.forbidden('ثبت مستقیم سفارش برای کاربر مجاز نیست.');
     const data = ctx.request?.body?.data || ctx.request?.body || {};
-    const paymentMethod = (data.paymentMethod || '').trim().toLowerCase();
+    const paymentMethod = String(toCode('api::order.order', 'paymentMethod', data.paymentMethod) || '').trim().toLowerCase();
     const items = Array.isArray(data.items) ? data.items : [];
     const notes = typeof data.notes === 'string' ? data.notes : '';
 

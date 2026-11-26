@@ -8,7 +8,7 @@
     "caseId": { "type": "string", "required": true },
     "actorDocumentId": { "type": "string", "required": true },
     "payload": { "type": "json", "required": true },
-    "status": { "type": "enumeration", "enum": ["pending", "applied", "rejected"], "required": true },
+    "status": { "type": "enumeration", "enum": ["در انتظار", "اعمال شده", "رد شده"], "required": true },
     "result": { "type": "json" },
     "errorCode": { "type": "string" },
     "errorStatus": { "type": "integer" }

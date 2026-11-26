@@ -24,6 +24,7 @@ module.exports = {
 
       return next();
     });
+    strapi.documents.use(require('./services/financialEnums').documentMiddleware(strapi));
 
     strapi.server.app.proxy = true;
 
@@ -38,6 +39,10 @@ module.exports = {
    */
   async bootstrap({ strapi }) {
     require('./utils/validateProductionEnv').validateProductionEnv();
+
+    const { migrateFinancialEnums, registerDbLifecycles } = require('./services/financialEnums');
+    await migrateFinancialEnums(strapi);
+    registerDbLifecycles(strapi);
 
     const { getThresholdMinutes } = require('./services/gatewayReviewRecovery');
     await getThresholdMinutes(strapi);

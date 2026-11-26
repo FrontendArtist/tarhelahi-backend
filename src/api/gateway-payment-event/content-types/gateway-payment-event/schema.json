@@ -11,8 +11,8 @@
     "eventId": { "type": "string", "required": true, "unique": true },
     "resNum": { "type": "string", "required": true },
     "topUpRequestId": { "type": "string", "required": true },
-    "stage": { "type": "enumeration", "enum": ["callback", "verify", "reverse", "reverse_intent"], "required": true },
-    "kind": { "type": "enumeration", "enum": ["Unpaid", "Verified", "ReverseSucceeded", "ReverseFailed", "Unknown"], "required": true },
+    "stage": { "type": "enumeration", "enum": ["بازگشت از درگاه", "تأیید تراکنش", "بازگشت وجه", "درخواست بازگشت وجه"], "required": true },
+    "kind": { "type": "enumeration", "enum": ["پرداخت نشده", "تأیید شده", "بازگشت وجه موفق", "بازگشت وجه ناموفق", "نامشخص"], "required": true },
     "bankTransactionId": { "type": "string" },
     "bankReferenceNumber": { "type": "string" },
     "bankResultCode": { "type": "string" },
@@ -21,7 +21,7 @@
     "bankDateRaw": { "type": "string" },
     "rawPayload": { "type": "json" },
     "occurredAtUtc": { "type": "datetime", "required": true },
-    "deliveryStatus": { "type": "enumeration", "enum": ["pending", "delivered", "review"], "default": "pending", "required": true },
+    "deliveryStatus": { "type": "enumeration", "enum": ["در انتظار ارسال", "تحویل شده", "نیازمند بررسی"], "default": "در انتظار ارسال", "required": true },
     "deliveryError": { "type": "text" }
   }
 }

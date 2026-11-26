@@ -23,10 +23,10 @@
     "discountType": {
       "type": "enumeration",
       "required": true,
-      "default": "percentage",
+      "default": "درصدی",
       "enum": [
-        "percentage",
-        "fixed"
+        "درصدی",
+        "مبلغ ثابت"
       ]
     },
     "discountValue": {

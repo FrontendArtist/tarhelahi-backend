@@ -1,6 +1,7 @@
 'use strict';
 
 const { allocateDiscount } = require('../../../services/coupon-allocation');
+const { toCode } = require('../../../services/financialEnums');
 
 const { createCoreService } = require('@strapi/strapi').factories;
 
@@ -218,18 +219,19 @@ module.exports = createCoreService('api::coupon.coupon', ({ strapi }) => ({
     }
 
     // کوپن عمومی یک بار روی جمع اقلام مشمول گرد می‌شود؛ کوپن اختصاصی ردیفی است.
+    const discountType = toCode('api::coupon.coupon', 'discountType', coupon.discountType);
     const discountVal = Number(coupon.discountValue);
     if (!Number.isFinite(discountVal) || discountVal < 0 ||
-        (coupon.discountType === 'percentage' && discountVal > 100)) {
+        (discountType === 'percentage' && discountVal > 100)) {
       return { valid: false, message: 'مقدار تخفیف معتبر نیست.' };
     }
 
     const general = coupon.appliesToAllCourses === true || coupon.appliesToAllProducts === true;
     let itemDiscountsByIndex;
-    if (coupon.discountType === 'percentage' && !general) {
+    if (discountType === 'percentage' && !general) {
       itemDiscountsByIndex = new Map(eligibleRows.map(row => [row.index, Math.floor(row.total * discountVal / 100)]));
     } else {
-      const amount = coupon.discountType === 'percentage' ? eligibleSubtotal * discountVal / 100 : discountVal;
+      const amount = discountType === 'percentage' ? eligibleSubtotal * discountVal / 100 : discountVal;
       itemDiscountsByIndex = allocateDiscount(eligibleRows.map(row => ({ id: row.index, total: row.total })), amount);
     }
     const calculatedDiscount = [...itemDiscountsByIndex.values()].reduce((sum, value) => sum + value, 0);

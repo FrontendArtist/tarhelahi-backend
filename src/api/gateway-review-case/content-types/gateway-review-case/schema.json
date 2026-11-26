@@ -27,31 +27,31 @@
     "reasonCode": {
       "type": "enumeration",
       "enum": [
-        "NO_CALLBACK",
-        "VERIFY_UNKNOWN",
-        "REVERSE_UNKNOWN",
-        "DELIVERY_UNKNOWN",
-        "BANK_CONFLICT"
+        "بدون بازگشت از درگاه",
+        "نتیجه نامشخص استعلام",
+        "نتیجه نامشخص بازگشت وجه",
+        "نتیجه نامشخص ارسال به بای‌مانی",
+        "تعارض اطلاعات بانکی"
       ],
       "required": true
     },
     "status": {
       "type": "enumeration",
       "enum": [
-        "open",
-        "resolved"
+        "باز",
+        "حل‌شده"
       ],
-      "default": "open",
+      "default": "باز",
       "required": true
     },
     "notificationStatus": {
       "type": "enumeration",
       "enum": [
-        "pending",
-        "delivered",
-        "conflict"
+        "در انتظار ارسال",
+        "تحویل شده",
+        "دارای تعارض"
       ],
-      "default": "pending",
+      "default": "در انتظار ارسال",
       "required": true
     },
     "notificationError": {
