@@ -25,6 +25,7 @@ module.exports = {
       return next();
     });
     strapi.documents.use(require('./services/financialEnums').documentMiddleware(strapi));
+    strapi.documents.use(require('./services/frontendRevalidateMiddleware').documentMiddleware(strapi));
 
     strapi.server.app.proxy = true;
 
